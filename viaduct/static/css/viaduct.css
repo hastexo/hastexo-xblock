@@ -1,0 +1,13 @@
+/* CSS for ViaductXBlock */
+
+#gateonecontainer {
+    position: relative;
+    margin: 5em auto 0 auto;
+    width: 60em;
+    height: 30em;
+}
+
+#container {
+    height: 100%;
+    width: 100%
+}
