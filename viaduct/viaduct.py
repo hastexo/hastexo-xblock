@@ -1,7 +1,7 @@
 import pkg_resources
 
 from xblock.core import XBlock
-from xblock.fields import Scope, Integer
+from xblock.fields import Scope, Integer, String
 from xblock.fragment import Fragment
 
 
