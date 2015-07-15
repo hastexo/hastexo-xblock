@@ -1,9 +1,9 @@
 import pkg_resources
+from jinja2 import Template
 
 from xblock.core import XBlock
 from xblock.fields import Scope, Integer, String
 from xblock.fragment import Fragment
-
 
 class ViaductXBlock(XBlock):
     """
@@ -11,6 +11,11 @@ class ViaductXBlock(XBlock):
     """
 
     # Scope: content
+    gateone_url = String(
+            default="https://127.0.0.1",
+            scope=Scope.content,
+            help="Where the gateone server is running")
+
     os_heat_template = String(
             default=None,
             scope=Scope.content,
@@ -64,10 +69,11 @@ class ViaductXBlock(XBlock):
         when viewing courses.
         """
         html = self.resource_string("static/html/viaduct.html")
-        frag = Fragment(html.format(self=self))
+        frag = Fragment(Template(html).render())
         frag.add_css(self.resource_string("static/css/viaduct.css"))
         frag.add_javascript(self.resource_string("static/js/src/gateone.js"))
-        frag.add_javascript(self.resource_string("static/js/src/viaduct.js"))
+        js = self.resource_string("static/js/src/viaduct.js")
+        frag.add_javascript(Template(js).render(gateone_url = self.gateone_url))
         frag.initialize_js('ViaductXBlock')
         return frag
 

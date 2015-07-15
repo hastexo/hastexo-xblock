@@ -2,7 +2,7 @@
 function ViaductXBlock(runtime, element) {
   $(function ($) {
     GateOne.init({
-      url: 'https://127.0.0.1',
+      url: '{{ gateone_url }}',
       embedded: true,
       style: {
         'background-color': 'rgba(0, 0, 0, 0.85)',
