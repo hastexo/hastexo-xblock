@@ -1,0 +1,325 @@
+heat_template_version: 2013-05-23
+
+description: >
+  Sample template for an OpenStack Viaduct lab environment.
+
+parameters:
+  flavor:
+    type: string
+    description: Flavor to use for servers
+    default: m1.medium
+  public_net_id:
+    type: string
+    description: Public network ID
+    default: 62954df1-05bb-42e5-9960-ca921cccaeeb
+  image:
+    type: string
+    description: Image ID or name
+    default: ubuntu-14.04-server-cloudimg
+  key_name:
+    type: string
+    description: Keypair name
+    default: training
+
+resources:
+  server_security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      description: Neutron security group rules
+      name: server_security_group
+      rules:
+      - remote_mode: 'remote_group_id'
+        remote_group_id:
+        direction: ingress
+      - remote_ip_prefix: 0.0.0.0/0
+        protocol: tcp
+        direction: ingress
+        port_range_min: 22
+        port_range_max: 22
+      - remote_ip_prefix: 0.0.0.0/0
+        protocol: icmp
+      - remote_ip_prefix: 0.0.0.0/0
+        protocol: tcp
+        direction: ingress
+        port_range_min: 80
+        port_range_max: 80
+      - remote_ip_prefix: 0.0.0.0/0
+        protocol: tcp
+        direction: ingress
+        port_range_min: 443
+        port_range_max: 443
+
+  cloud_config:
+    type: OS::Heat::CloudConfig
+    properties:
+      cloud_config:
+        users:
+        - default
+        - name: training
+          gecos: Training User
+          groups: users,adm
+          lock-passwd: false
+          passwd: $6$rounds=4096$J86aZz0Q$To16RGzWJku0swXC3QmvHpJY6q60Ut4Biby9TT/ovNOEbPsvHOMN0ujQ/bVCJU/8ezleaqQNAARFzqnDlDA120
+          shell: /bin/bash
+          sudo: ALL=(ALL) NOPASSWD:ALL
+        bootcmd:
+        - ntpdate pool.ntp.org
+        write_files:
+        - path: /etc/hosts
+          permissions: '0644'
+          content: |
+            127.0.0.1 localhost
+            ::1       ip6-localhost ip6-loopback
+            fe00::0   ip6-localnet
+            ff00::0   ip6-mcastprefix
+            ff02::1   ip6-allnodes
+            ff02::2   ip6-allrouters
+
+            192.168.122.100 deploy.example.com deploy
+            192.168.122.111 alice.example.com alice
+            192.168.122.112 bob.example.com bob
+            192.168.122.113 charlie.example.com charlie
+            192.168.122.114 daisy.example.com daisy
+            192.168.122.115 eric.example.com eric
+            192.168.122.116 frank.example.com frank
+        - path: /etc/network/interfaces.d/eth1.cfg
+          permissions: '0644'
+          content: |
+            auto eth1
+            iface eth1 inet dhcp
+        - path: /etc/network/interfaces.d/eth2.cfg
+          permissions: '0644'
+          content: |
+            auto eth2
+            iface eth2 inet dhcp
+        package_update: true
+        package_upgrade: true
+        packages:
+          - ansible
+          - git
+        runcmd:
+          - sudo -i -u training ansible-pull -v -i hosts -U https://github.com/hastexo/academy-ansible -o site.yml
+
+  cloud_init_userdata:
+    type: OS::Heat::MultipartMime
+    properties:
+      parts:
+      - config: {get_resource: cloud_config}
+
+  management_net:
+    type: OS::Neutron::Net
+    properties:
+      name: management-net
+
+  management_sub_net:
+    type: OS::Neutron::Subnet
+    properties:
+      name: management-sub-net
+      network_id: { get_resource: management_net }
+      cidr: 192.168.122.0/24
+      gateway_ip: 192.168.122.1
+      enable_dhcp: true
+      allocation_pools: [{"start": "192.168.122.2", "end": "192.168.122.50"}]
+
+  router:
+    type: OS::Neutron::Router
+
+  router_gateway:
+    type: OS::Neutron::RouterGateway
+    properties:
+      router_id: { get_resource: router }
+      network_id: { get_param: public_net_id }
+
+  router_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: router }
+      subnet_id: { get_resource: management_sub_net }
+
+  data_net:
+    type: OS::Neutron::Net
+    properties:
+      name: data-net
+
+  data_sub_net:
+    type: OS::Neutron::Subnet
+    properties:
+      name: data-sub-net
+      network_id: { get_resource: data_net }
+      cidr: 192.168.133.0/24
+      gateway_ip: ""
+      enable_dhcp: true
+      allocation_pools: [{"start": "192.168.133.2", "end": "192.168.133.50"}]
+
+  external_net:
+    type: OS::Neutron::Net
+    properties:
+      name: external-net
+
+  external_sub_net:
+    type: OS::Neutron::Subnet
+    properties:
+      name: external-sub-net
+      network_id: { get_resource: external_net }
+      cidr: 192.168.144.0/24
+      gateway_ip: ""
+      enable_dhcp: true
+      allocation_pools: [{"start": "192.168.144.2", "end": "192.168.144.50"}]
+
+  deploy:
+    type: OS::Nova::Server
+    properties:
+      name: deploy
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      user_data: { get_resource: cloud_init_userdata }
+      user_data_format: RAW
+      networks:
+        - port: { get_resource: deploy_management_port }
+        - port: { get_resource: deploy_data_port }
+        - port: { get_resource: deploy_external_port }
+
+  deploy_management_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: management_net }
+      fixed_ips:
+        - ip_address: 192.168.122.100
+
+  deploy_data_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: data_net }
+      fixed_ips:
+        - ip_address: 192.168.133.100
+
+  deploy_external_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: external_net }
+      fixed_ips:
+        - ip_address: 192.168.144.100
+
+  deploy_floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network_id: { get_param: public_net_id }
+      port_id: { get_resource: deploy_management_port }
+      fixed_ip_address: 192.168.122.100
+
+  alice:
+    type: OS::Nova::Server
+    properties:
+      name: alice
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      user_data: { get_resource: cloud_init_userdata }
+      user_data_format: RAW
+      networks:
+        - port: { get_resource: alice_management_port }
+        - port: { get_resource: alice_data_port }
+        - port: { get_resource: alice_external_port }
+      block_device_mapping: [{"device_name": "vdb", "volume_id": { get_resource: alice_volume_vdb }, delete_on_termination: false}]
+
+  alice_management_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: management_net }
+      fixed_ips:
+        - ip_address: 192.168.122.111
+
+  alice_data_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: data_net }
+      fixed_ips:
+        - ip_address: 192.168.133.111
+
+  alice_external_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: external_net }
+      fixed_ips:
+        - ip_address: 192.168.144.111
+
+  alice_volume_vdb:
+    type: OS::Cinder::Volume
+    properties:
+       size: 2
+
+  bob:
+    type: OS::Nova::Server
+    properties:
+      name: bob
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      user_data: { get_resource: cloud_init_userdata }
+      user_data_format: RAW
+      networks:
+        - port: { get_resource: bob_management_port }
+        - port: { get_resource: bob_data_port }
+        - port: { get_resource: bob_external_port }
+
+  bob_management_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: management_net }
+      fixed_ips:
+        - ip_address: 192.168.122.112
+
+  bob_data_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: data_net }
+      fixed_ips:
+        - ip_address: 192.168.133.112
+
+  bob_external_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: external_net }
+      fixed_ips:
+        - ip_address: 192.168.144.112
+
+  charlie:
+    type: OS::Nova::Server
+    properties:
+      name: charlie
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      user_data: { get_resource: cloud_init_userdata }
+      user_data_format: RAW
+      networks:
+        - port: { get_resource: charlie_management_port }
+        - port: { get_resource: charlie_data_port }
+        - port: { get_resource: charlie_external_port }
+
+  charlie_management_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: management_net }
+      fixed_ips:
+        - ip_address: 192.168.122.113
+
+  charlie_data_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: data_net }
+      fixed_ips:
+        - ip_address: 192.168.133.113
+
+  charlie_external_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: external_net }
+      fixed_ips:
+        - ip_address: 192.168.144.113
+
+outputs:
+  public_ip:
+    description: Floating IP address of deploy in public network
+    value: { get_attr: [ deploy_floating_ip, floating_ip_address ] }
