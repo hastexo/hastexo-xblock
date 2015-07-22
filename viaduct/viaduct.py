@@ -1,9 +1,9 @@
-import pkg_resources
-from jinja2 import Template
-
 from xblock.core import XBlock
 from xblock.fields import Scope, Integer, String
 from xblock.fragment import Fragment
+from xblockutils.resources import ResourceLoader
+
+loader = ResourceLoader(__name__)
 
 class ViaductXBlock(XBlock):
     """
@@ -57,24 +57,28 @@ class ViaductXBlock(XBlock):
             scope=Scope.user_state,
             help="The user environment's public IP")
 
-
-    def resource_string(self, path):
-        """Handy helper for getting resources from our kit."""
-        data = pkg_resources.resource_string(__name__, path)
-        return data.decode("utf8")
-
     def student_view(self, context=None):
         """
         The primary view of the ViaductXBlock, shown to students
         when viewing courses.
         """
-        html = self.resource_string("static/html/viaduct.html")
-        frag = Fragment(Template(html).render())
+        # Render the HTML template
+        html_context = {}
+        html = loader.render_template('static/html/viaduct.html', html_context)
+        frag = Fragment(html)
+
+        # Add the public CSS and JS
         frag.add_css_url(self.runtime.local_resource_url(self, 'public/css/viaduct.css'))
         frag.add_javascript_url(self.runtime.local_resource_url(self, 'public/js/gateone.js'))
-        js = self.resource_string("static/js/src/viaduct.js")
-        frag.add_javascript(Template(js).render(gateone_url = self.gateone_url))
+
+        # Render the custom JS
+        js_context = {'gateone_url': self.gateone_url}
+        js = loader.render_template('static/js/src/viaduct.js', js_context)
+        frag.add_javascript(js)
+
+        # Choose the JS initialization function
         frag.initialize_js('ViaductXBlock')
+
         return frag
 
     @staticmethod
