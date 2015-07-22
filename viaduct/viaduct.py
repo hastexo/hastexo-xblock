@@ -70,8 +70,8 @@ class ViaductXBlock(XBlock):
         """
         html = self.resource_string("static/html/viaduct.html")
         frag = Fragment(Template(html).render())
-        frag.add_css(self.resource_string("static/css/viaduct.css"))
-        frag.add_javascript(self.resource_string("static/js/src/gateone.js"))
+        frag.add_css_url(self.runtime.local_resource_url(self, 'public/css/viaduct.css'))
+        frag.add_javascript_url(self.runtime.local_resource_url(self, 'public/js/gateone.js'))
         js = self.resource_string("static/js/src/viaduct.js")
         frag.add_javascript(Template(js).render(gateone_url = self.gateone_url))
         frag.initialize_js('ViaductXBlock')

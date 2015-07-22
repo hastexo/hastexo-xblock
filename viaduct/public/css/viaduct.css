@@ -1,5 +1,11 @@
 /* CSS for ViaductXBlock */
 
+.pending, .error {
+    display: none;
+    position: relative;
+    margin: 0 auto;
+}
+
 #gateonecontainer {
     position: relative;
     margin: 5em auto 0 auto;
