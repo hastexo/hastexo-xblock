@@ -1,24 +1,61 @@
 /* Javascript for ViaductXBlock. */
 function ViaductXBlock(runtime, element) {
-  $(function ($) {
-    GateOne.init({
-      url: '{{ gateone_url }}',
-      embedded: true,
-      style: {
-        'background-color': 'rgba(0, 0, 0, 0.85)',
-        'box-shadow': '.5em .5em .5em black',
-        'margin-bottom': '0.5em'
-      }
-    });
+    var status;
 
-    GateOne.Base.superSandbox("GateOne.MyModule", ["GateOne.Terminal"], function(window, undefined) {
-      var container = GateOne.Utils.getNode('#container');
-      GateOne.Events.on('terminal:new_terminal', function(term) {
-        GateOne.Terminal.disableScrollback(term);
-      });
-      window.setTimeout(function() {
-        GateOne.Terminal.newTerminal(null, null, container);
-      }, 50);
+    function get_user_stack_status() {
+        $.ajax({
+            type: 'POST',
+            url: runtime.handlerUrl(element, 'get_user_stack_status'),
+            data: '{}',
+            success: update_user_stack_status,
+            dataType: 'json'
+        });
+    }
+
+    function update_user_stack_status(result) {
+        var changed = false;
+        if (status !== result.status) {
+            changed = true;
+            status = result.status;
+        }
+
+        /* Schedule a new check. */
+        setTimeout(get_user_stack_status, 5000);
+
+        /* If there was a change in status, update the screen. */
+        if (changed) {
+            $('.pending').hide();
+            $('.error').hide();
+            if (status == 'CREATE_COMPLETE' || status == 'RESUME_COMPLETE') {
+                start_new_terminal(result.ip);
+            } else if (status == 'CREATE_FAILED' || status == 'RESUME_FAILED') {
+                $('.error').show();
+            } else {
+                $('.pending').show();
+            }
+        }
+    }
+
+    function start_new_terminal(ip) {
+        GateOne.Base.superSandbox("GateOne.MyModule", ["GateOne.Terminal"], function(window, undefined) {
+            var container = GateOne.Utils.getNode('#container');
+            var settings = {'autoConnectUrl': 'ssh://training@' + ip};
+            var term_num = GateOne.Terminal.newTerminal(null, settings, container);
+        });
+    }
+
+    /* Called on page load. */
+    $(function ($) {
+        GateOne.init({
+            url: '{{ gateone_url }}',
+            embedded: true,
+            style: {
+                'background-color': 'rgba(0, 0, 0, 0.85)',
+                'box-shadow': '.5em .5em .5em black',
+                'margin-bottom': '0.5em'
+            }
+        });
+
+        get_user_stack_status();
     });
-  });
 }
