@@ -137,9 +137,7 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         courses.
         """
         # Get the anonymous user id
-        user_service = self.runtime.service(self, 'user')
-        user = user_service.get_current_user()
-        self.user_id = user_service.get_anonymous_user_id(user.username, self.runtime.course_id)
+        self.user_id = self.xmodule_runtime.anonymous_student_id
 
         # Load the template from the course's content store
         asset_key = StaticContent.get_location_from_path(self.template_href)
