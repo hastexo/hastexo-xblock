@@ -10,6 +10,8 @@ from xblock.fields import Scope, Integer, String, Dict
 from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
+from xmodule.contentstore.content import StaticContent
+from xmodule.contentstore.django import contentstore
 
 loader = ResourceLoader(__name__)
 
@@ -20,16 +22,14 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
     """
 
     # Scope: content
-    gateone_url = String(
+    terminal_href = String(
         default="https://127.0.0.1",
         scope=Scope.content,
-        help="Where the gateone server is running")
-    os_heat_template = String(
-        multiline_editor=True,
-        resettable_editor=False,
-        default="",
+        help="Where the terminal server is running")
+    template_href = String(
+        default="/c4x/hastexo/hx112/asset/hot_lab.yaml",
         scope=Scope.content,
-        help="The OpenStack Heat template")
+        help="The path to the orchestration template.  Must be in /c4x/ form.")
 
     # Scope: settings
     os_auth_url = String(
@@ -50,6 +50,10 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         help="The OpenStack password")
 
     # Scope: user state
+    os_heat_template = String(
+        default="",
+        scope=Scope.user_state,
+        help="The user stack orchestration template")
     user_stack_launch_id = String(
         default="",
         scope=Scope.user_state,
@@ -64,12 +68,11 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         help="The user stack status")
 
     editable_fields = (
-        'gateone_url',
-        'os_heat_template',
+        'terminal_href',
+        'template_href',
         'os_auth_url',
         'os_tenant_name',
         'os_user_name',
-        'os_password',
         'os_password')
 
     def _save_user_stack_task_result(self, result):
@@ -133,11 +136,15 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         The primary view of the ViaductXBlock, shown to students when viewing
         courses.
         """
-        # Get and save the anonymous user id
+        # Get the anonymous user id
         user_service = self.runtime.service(self, 'user')
         user = user_service.get_current_user()
-        self.user_id = user_service.get_anonymous_user_id(user.username,
-                self.runtime.course_id)
+        self.user_id = user_service.get_anonymous_user_id(user.username, self.runtime.course_id)
+
+        # Load the template from the course's content store
+        asset_key = StaticContent.get_location_from_path(self.template_href)
+        asset = contentstore().find(asset_key)
+        self.os_heat_template = asset.data
 
         # Make sure the user's stack is launched...
         self.launch_or_resume_user_stack()
@@ -156,7 +163,7 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         frag.add_javascript_url(self.runtime.local_resource_url(self, 'public/js/gateone.js'))
 
         # Render the custom JS
-        js_context = {'gateone_url': self.gateone_url}
+        js_context = {'terminal_href': self.terminal_href}
         js = loader.render_template('static/js/src/viaduct.js', js_context)
         frag.add_javascript(js)
 

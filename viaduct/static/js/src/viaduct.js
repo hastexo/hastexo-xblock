@@ -47,7 +47,7 @@ function ViaductXBlock(runtime, element) {
     /* Called on page load. */
     $(function ($) {
         GateOne.init({
-            url: '{{ gateone_url }}',
+            url: '{{ terminal_href }}',
             embedded: true,
             style: {
                 'background-color': 'rgba(0, 0, 0, 0.85)',
