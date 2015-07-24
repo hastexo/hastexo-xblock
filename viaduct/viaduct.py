@@ -40,7 +40,7 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         default="",
         scope=Scope.settings,
         help="The OpenStack tenant name")
-    os_user_name = String(
+    os_username = String(
         default="",
         scope=Scope.settings,
         help="The OpenStack user name")
@@ -72,7 +72,7 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         'template_href',
         'os_auth_url',
         'os_tenant_name',
-        'os_user_name',
+        'os_username',
         'os_password')
 
     def _save_user_stack_task_result(self, result):
