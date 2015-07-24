@@ -75,7 +75,7 @@ def launch_or_resume_user_stack(user_id, os_auth_url, os_username, os_password,
         'error_msg': error_msg
     }
 
-@task
+@task()
 def suspend_user_stack(user_id, os_auth_url, os_username, os_password,
         os_tenant_name):
     """

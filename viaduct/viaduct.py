@@ -1,10 +1,9 @@
 import json
 import logging
 
-from .async import launch_or_resume_user_stack as async_launch_or_resume_user_stack
-from .async import suspend_user_stack as async_suspend_user_stack
+from .tasks import launch_or_resume_user_stack as async_launch_or_resume_user_stack
+from .tasks import suspend_user_stack as async_suspend_user_stack
 
-from celery import app as celery_app
 from xblock.core import XBlock
 from xblock.fields import Scope, Integer, String, Dict
 from xblock.fragment import Fragment
@@ -120,7 +119,8 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
     def suspend_user_stack(self):
         # If the suspend task is pending, revoke it.
         if self.user_stack_suspend_id:
-            celery_app.control.revoke(self.user_stack_suspend_id)
+            from lms import CELERY_APP
+            CELERY_APP.control.revoke(self.user_stack_suspend_id)
 
         # (Re)schedule the suspension in the future.
         kwargs = {'user_id': self.user_id,
