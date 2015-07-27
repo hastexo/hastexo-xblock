@@ -164,17 +164,17 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
 
         # Add the public CSS and JS
         frag.add_css_url(self.runtime.local_resource_url(self, 'public/css/viaduct.css'))
+        frag.add_javascript_url(self.runtime.local_resource_url(self, 'public/js/viaduct.js'))
         frag.add_javascript_url(self.runtime.local_resource_url(self, 'public/js/gateone.js'))
-
-        # Render the custom JS
-        js_context = {'terminal_href': self.terminal_href}
-        js = loader.render_template('static/js/src/viaduct.js', js_context)
-        frag.add_javascript(js)
 
         # Choose the JS initialization function
         frag.initialize_js('ViaductXBlock')
 
         return frag
+
+    @XBlock.json_handler
+    def get_terminal_href(self):
+        return {'terminal_href': self.terminal_href}
 
     @XBlock.json_handler
     def get_user_stack_status(self):

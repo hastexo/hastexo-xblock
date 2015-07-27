@@ -1,6 +1,22 @@
 /* Javascript for ViaductXBlock. */
 function ViaductXBlock(runtime, element) {
+    var terminal_href;
     var status;
+
+    function get_terminal_href() {
+        $.ajax({
+            type: 'POST',
+            url: runtime.handlerUrl(element, 'get_terminal_href'),
+            data: '{}',
+            success: update_terminal_href,
+            dataType: 'json'
+        });
+    }
+
+    function update_terminal_href(result) {
+        terminal_href = result.terminal_href;
+        get_user_stack_status();
+    }
 
     function get_user_stack_status() {
         $.ajax({
@@ -37,6 +53,16 @@ function ViaductXBlock(runtime, element) {
     }
 
     function start_new_terminal(ip) {
+        GateOne.init({
+            url: terminal_href,
+            embedded: true,
+            style: {
+                'background-color': 'rgba(0, 0, 0, 0.85)',
+                'box-shadow': '.5em .5em .5em black',
+                'margin-bottom': '0.5em'
+            }
+        });
+
         GateOne.Base.superSandbox("GateOne.MyModule", ["GateOne.Terminal"], function(window, undefined) {
             var container = GateOne.Utils.getNode('#container');
             var settings = {'autoConnectUrl': 'ssh://training@' + ip};
@@ -46,16 +72,6 @@ function ViaductXBlock(runtime, element) {
 
     /* Called on page load. */
     $(function ($) {
-        GateOne.init({
-            url: '{{ terminal_href }}',
-            embedded: true,
-            style: {
-                'background-color': 'rgba(0, 0, 0, 0.85)',
-                'box-shadow': '.5em .5em .5em black',
-                'margin-bottom': '0.5em'
-            }
-        });
-
-        get_user_stack_status();
+        get_terminal_href();
     });
 }
