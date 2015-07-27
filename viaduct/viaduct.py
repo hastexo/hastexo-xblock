@@ -173,11 +173,11 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         return frag
 
     @XBlock.json_handler
-    def get_terminal_href(self):
+    def get_terminal_href(self, data, suffix=''):
         return {'terminal_href': self.terminal_href}
 
     @XBlock.json_handler
-    def get_user_stack_status(self):
+    def get_user_stack_status(self, data, suffix=''):
         # Reset the dead man's switch
         self.suspend_user_stack()
 
