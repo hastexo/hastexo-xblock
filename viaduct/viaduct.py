@@ -49,6 +49,10 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         help="The OpenStack password")
 
     # Scope: user state
+    user_id = String(
+        default="",
+        scope=Scope.user_state,
+        help="The user's anonymous id")
     os_heat_template = String(
         default="",
         scope=Scope.user_state,
