@@ -124,4 +124,4 @@ def suspend_user_stack(user_id, os_auth_url, os_username, os_password,
         return
 
     # At this point, the stack has been verified to be running.  So suspend it.
-    stack = heat.actions.suspend(stack_id=user_id)
+    heat.actions.suspend(stack_id=user_id)
