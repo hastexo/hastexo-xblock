@@ -94,7 +94,7 @@ def suspend_user_stack(user_id, os_auth_url, os_username, os_password,
 
     # Find the stack.  If it doesn't exist, there's nothing to do here.
     try:
-        stack = heat.actions.get(stack_id=user_id)
+        stack = heat.stacks.get(stack_id=user_id)
     except exc.HTTPNotFound:
         logger.debug("Stack doesn't exist.")
         return
