@@ -74,6 +74,12 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         'os_username',
         'os_password')
 
+    has_author_view = True
+
+    def author_view(self, context=None):
+        """ Studio View """
+        return Fragment(u'<p><strong>Viaduct XBlock:</strong> <em>The Viaduct XBlock only renders content when viewed via the LMS.</em></p>')
+
     def _save_user_stack_task_result(self, result):
         if result.ready():
             # Clear the task ID so we know there is no task running.
