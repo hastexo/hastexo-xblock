@@ -13,6 +13,10 @@
     height: 30em;
 }
 
+#gateonecontainer span {
+    color: white;
+}
+
 #container {
     height: 100%;
     width: 100%
