@@ -68,7 +68,7 @@ function ViaductXBlock(runtime, element) {
             setTimeout(function() {
                 var term_num = GateOne.Terminal.newTerminal(null, null, container);
                 setTimeout(function() {
-                    GateOne.Terminal.sendString('ssh://training@' + ip + '\n');
+                    GateOne.Terminal.sendString('ssh://training@' + ip + ':22/?identities=id_rsa\n');
                 }, 500);
             }, 100);
         });
