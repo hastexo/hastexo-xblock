@@ -60,6 +60,8 @@ resources:
           groups: users,adm
           lock-passwd: false
           passwd: $6$rounds=4096$J86aZz0Q$To16RGzWJku0swXC3QmvHpJY6q60Ut4Biby9TT/ovNOEbPsvHOMN0ujQ/bVCJU/8ezleaqQNAARFzqnDlDA120
+          ssh-authorized-keys:
+            - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDAd4RpXzYiHj7WsSRpIVSEc0mviqYlbfYQfjF+Ei/SH4N9brW7NHOPwTKZrg4ifnWQYPGPnUjo/Td9WgW8FaJLk52KGAxQ82k67uKzZchfvrAsT1qMXOOhfh2Gy7MtCD+pGkeRn6lbeWp0tMPV1lvX5jtlXgNYOx1V2//AeUvQGWoQx9DPVAsUWywqQjr0NwP8rPTlk3YYS92WRDVxAjWH/ee7sVKYIyDyicv5ULxB5NzfXYdba4V3H9J8ci1YhAoWUJAEz9lpjgZZyJSfpOYbE2EEX2zQN9rqvG2SEEOhm3FaMY+O2pcldiYnT2FApzCZLaV/feCkeXX5bqMrRPg3 training
           shell: /bin/bash
           sudo: ALL=(ALL) NOPASSWD:ALL
         bootcmd:
