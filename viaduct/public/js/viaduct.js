@@ -72,12 +72,7 @@ function ViaductXBlock(runtime, element) {
     function start_new_terminal(ip) {
         GateOne.init({
             url: terminal_href,
-            embedded: true,
-            style: {
-                'background-color': 'rgba(0, 0, 0, 0.85)',
-                'box-shadow': '.5em .5em .5em black',
-                'margin-bottom': '0.5em'
-            }
+            embedded: true
         });
 
         GateOne.Base.superSandbox("GateOne.MyModule", ["GateOne.Terminal"], function(window, undefined) {
@@ -86,7 +81,10 @@ function ViaductXBlock(runtime, element) {
                 var term_num = GateOne.Terminal.newTerminal(null, null, container);
                 setTimeout(function() {
                     GateOne.Terminal.sendString('ssh://training@' + ip + ':22/?identities=id_rsa\n');
-                }, 500);
+                    setTimeout(function() {
+                        GateOne.Terminal.sendDimensions();
+                    }, 750);
+                }, 250);
             }, 100);
         });
     }
