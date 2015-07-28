@@ -13,9 +13,24 @@ function ViaductXBlock(runtime, element) {
         });
     }
 
+    function keepalive() {
+        $.ajax({
+            type: 'POST',
+            url: runtime.handlerUrl(element, 'keepalive'),
+            data: '{}',
+            success: update_keepalive,
+            dataType: 'json'
+        });
+    }
+
     function update_terminal_href(result) {
         terminal_href = result.terminal_href;
         get_user_stack_status();
+    }
+
+    function update_keepalive(result) {
+        /* Schedule a new keepalive. */
+        setTimeout(keepalive, 60000);
     }
 
     function get_user_stack_status() {
@@ -35,20 +50,22 @@ function ViaductXBlock(runtime, element) {
             status = result.status;
         }
 
-        /* Schedule a new check. */
-        setTimeout(get_user_stack_status, 5000);
-
         /* If there was a change in status, update the screen. */
         if (changed) {
             $('.pending').hide();
             $('.error').hide();
             if (status == 'CREATE_COMPLETE' || status == 'RESUME_COMPLETE') {
                 start_new_terminal(result.ip);
+                /* Start the keepalive. */
+                setTimeout(keepalive, 60000);
             } else if (status == 'CREATE_FAILED' || status == 'RESUME_FAILED') {
                 $('.error').show();
-            } else {
+            } else if (status == 'PENDING') {
                 $('.pending').show();
+                setTimeout(get_user_stack_status, 10000);
             }
+        } else if (status == 'PENDING') {
+            setTimeout(get_user_stack_status, 10000);
         }
     }
 

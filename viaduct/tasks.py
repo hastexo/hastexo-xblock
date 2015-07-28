@@ -3,6 +3,7 @@ Asynchronous Viaduct tasks.
 """
 
 import time
+import os
 
 from celery.task import task
 from celery.utils.log import get_task_logger
@@ -44,12 +45,18 @@ def launch_or_resume_user_stack(user_id, os_auth_url, os_username, os_password,
 
     status = stack.stack_status
 
+    # If stack is being suspended, wait.
+    while status == "SUSPEND_IN_PROGRESS":
+        time.sleep(5)
+        stack = heat.stacks.get(stack_id=stack.id)
+        status = stack.stack_status
+
     # If stack is suspended, resume it.
-    if status == "SUSPEND_IN_PROGRESS" or status == "SUSPEND_COMPLETE":
+    if status == "SUSPEND_COMPLETE":
         logger.debug("Resuming stack.")
         heat.actions.resume(stack_id=stack.id)
 
-    # Poll at 5 second intervals until the stack is ready
+    # Wait until stack is ready (or failed).
     while (status != 'CREATE_COMPLETE' and
            status != 'RESUME_COMPLETE' and
            status != 'CREATE_FAILED' and
@@ -65,6 +72,19 @@ def launch_or_resume_user_stack(user_id, os_auth_url, os_username, os_password,
                 ip = output['output_value']
         error_msg = None
         logger.debug("Stack creation successful.")
+
+        # Wait for up to a minute until stack is network accessible.
+        response = 1
+        count = 0
+        while response != 0 and count < 12:
+            response = os.system("ping -c 1 -W 5 " + ip + " >/dev/null 2>&1")
+            count = count + 1
+
+        # Consider stack failed if it isn't network accessible.
+        if response != 0:
+            status = 'CREATE_FAILED'
+            error_msg = "Stack is not accessible."
+            logger.debug("Stack is not accessible.")
     else:
         error_msg = "Stack creation failed."
         logger.debug("Stack creation failed.")

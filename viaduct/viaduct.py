@@ -131,6 +131,7 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         if self.user_stack_suspend_id:
             from lms import CELERY_APP
             CELERY_APP.control.revoke(self.user_stack_suspend_id)
+            self.user_stack_suspend_id = ""
 
         # (Re)schedule the suspension in the future.
         kwargs = {'user_id': self.user_id,
@@ -179,6 +180,11 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
     @XBlock.json_handler
     def get_terminal_href(self, data, suffix=''):
         return {'terminal_href': self.terminal_href}
+
+    @XBlock.json_handler
+    def keepalive(self, data, suffix=''):
+        # Reset the dead man's switch
+        self.suspend_user_stack()
 
     @XBlock.json_handler
     def get_user_stack_status(self, data, suffix=''):
