@@ -65,10 +65,10 @@ function ViaductXBlock(runtime, element) {
 
         GateOne.Base.superSandbox("GateOne.MyModule", ["GateOne.Terminal"], function(window, undefined) {
             var container = GateOne.Utils.getNode('#container');
-            var settings = {'autoConnectUrl': 'ssh://training@' + ip};
+            var term_num = GateOne.Terminal.newTerminal(null, null, container);
             setTimeout(function() {
-                var term_num = GateOne.Terminal.newTerminal(null, settings, container);
-            }, 250);
+                GateOne.Terminal.sendString('ssh://training@' + ip + '\n');
+            }, 500);
         });
     }
 
