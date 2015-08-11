@@ -56,13 +56,14 @@ function ViaductXBlock(runtime, element) {
             $('.error').hide();
             if (status == 'CREATE_COMPLETE' || status == 'RESUME_COMPLETE') {
                 start_new_terminal(result.ip);
-                /* Start the keepalive. */
                 setTimeout(keepalive, 60000);
-            } else if (status == 'CREATE_FAILED' || status == 'RESUME_FAILED') {
-                $('.error').show();
             } else if (status == 'PENDING') {
                 $('.pending').show();
                 setTimeout(get_user_stack_status, 10000);
+            } else {
+                /* Unexpected status.  Display error message. */
+                $('.error_msg').html(result.error_msg);
+                $('.error').show();
             }
         } else if (status == 'PENDING') {
             setTimeout(get_user_stack_status, 10000);

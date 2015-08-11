@@ -83,11 +83,11 @@ def launch_or_resume_user_stack(user_id, os_auth_url, os_username, os_password,
         # Consider stack failed if it isn't network accessible.
         if response != 0:
             status = 'CREATE_FAILED'
-            error_msg = "Stack is not accessible."
-            logger.debug("Stack is not accessible.")
+            error_msg = "Stack is not network accessible."
+            logger.debug(error_msg)
     else:
         error_msg = "Stack creation failed."
-        logger.debug("Stack creation failed.")
+        logger.debug(error_msg)
 
     return {
         'status': status,

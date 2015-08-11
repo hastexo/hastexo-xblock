@@ -89,19 +89,13 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
             # Clear the task ID so we know there is no task running.
             self.user_stack_launch_id = ""
 
-            if result.successful():
-                if isinstance(result.result, dict) and not result.result.get('error'):
-                    res = result.result
-                else:
-                    res = {
-                        'status': 'ERROR',
-                        'error_msg': u'Unexpected result: {}'.format(repr(result.result))
-                    }
+            if (result.successful() and
+                    isinstance(result.result, dict) and not
+                    result.result.get('error')):
+                res = result.result
             else:
-                res = {
-                    'status': 'ERROR',
-                    'error_msg': unicode(result.result)
-                }
+                res = {'status': 'ERROR',
+                       'error_msg': 'Unexpected result: %s' % repr(result.result)}
         else:
             res = {'status': 'PENDING'}
 
@@ -115,11 +109,11 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         and is suspended.
         """
         kwargs = {'user_id': self.user_id,
-                 'os_auth_url': self.os_auth_url,
-                 'os_username': self.os_username,
-                 'os_password': self.os_password,
-                 'os_tenant_name': self.os_tenant_name,
-                 'os_heat_template': self.os_heat_template}
+                  'os_auth_url': self.os_auth_url,
+                  'os_username': self.os_username,
+                  'os_password': self.os_password,
+                  'os_tenant_name': self.os_tenant_name,
+                  'os_heat_template': self.os_heat_template}
         result = async_launch_or_resume_user_stack.apply_async(kwargs=kwargs)
 
         # Store the task ID and result
@@ -135,10 +129,10 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
 
         # (Re)schedule the suspension in the future.
         kwargs = {'user_id': self.user_id,
-                 'os_auth_url': self.os_auth_url,
-                 'os_username': self.os_username,
-                 'os_password': self.os_password,
-                 'os_tenant_name': self.os_tenant_name}
+                  'os_auth_url': self.os_auth_url,
+                  'os_username': self.os_username,
+                  'os_password': self.os_password,
+                  'os_tenant_name': self.os_tenant_name}
         result = async_suspend_user_stack.apply_async(kwargs=kwargs, countdown=120)
         self.user_stack_suspend_id = result.id
 
