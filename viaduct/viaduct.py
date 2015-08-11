@@ -49,14 +49,14 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         help="The OpenStack password")
 
     # Scope: user state
-    user_id = String(
-        default="",
-        scope=Scope.user_state,
-        help="The user's anonymous id")
     os_heat_template = String(
         default="",
         scope=Scope.user_state,
         help="The user stack orchestration template")
+    user_stack_name = String(
+        default="",
+        scope=Scope.user_state,
+        help="The name of the user's stack")
     user_stack_launch_id = String(
         default="",
         scope=Scope.user_state,
@@ -108,7 +108,7 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         Launches the student stack if it doesn't exist, resume it if it does
         and is suspended.
         """
-        kwargs = {'user_id': self.user_id,
+        kwargs = {'stack_name': self.user_stack_name,
                   'os_auth_url': self.os_auth_url,
                   'os_username': self.os_username,
                   'os_password': self.os_password,
@@ -128,7 +128,7 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
             self.user_stack_suspend_id = ""
 
         # (Re)schedule the suspension in the future.
-        kwargs = {'user_id': self.user_id,
+        kwargs = {'stack_name': self.user_stack_name,
                   'os_auth_url': self.os_auth_url,
                   'os_username': self.os_username,
                   'os_password': self.os_password,
@@ -142,9 +142,12 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         courses.
         """
         # Get the anonymous user id
-        self.user_id = self.xmodule_runtime.anonymous_student_id
+        user_id = self.xmodule_runtime.anonymous_student_id
+        course_id = self.xmodule_runtime.course_id
+        course_code = course_id.course
+        self.user_stack_name = "viaduct_%s_%s" % (course_code, user_id)
 
-        # Load the template from the course's content store
+        # Load the stack template from the course's content store
         asset_key = StaticContent.get_location_from_path(self.template_href)
         asset = contentstore().find(asset_key)
         self.os_heat_template = asset.data
