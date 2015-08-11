@@ -22,11 +22,11 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
 
     # Scope: content
     terminal_href = String(
-        default="https://127.0.0.1",
+        default="",
         scope=Scope.content,
         help="Where the terminal server is running")
     template_href = String(
-        default="/c4x/hastexo/hx112/asset/hot_lab.yaml",
+        default="",
         scope=Scope.content,
         help="The path to the orchestration template.  Must be in /c4x/ form.")
 
