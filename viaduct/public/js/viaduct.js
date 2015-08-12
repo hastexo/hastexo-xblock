@@ -73,10 +73,12 @@ function ViaductXBlock(runtime, element) {
     function start_new_terminal(ip) {
         GateOne.init({
             url: terminal_href,
-            embedded: true
+            embedded: true,
+            goDiv: '#gateone',
+            logLevel: 'WARNING'
         });
 
-        GateOne.Base.superSandbox("GateOne.MyModule", ["GateOne.Terminal"], function(window, undefined) {
+        GateOne.Base.superSandbox("GateOne.MyModule", ["GateOne.Input", "GateOne.Terminal", "GateOne.Terminal.Input"], function(window, undefined) {
             var container = GateOne.Utils.getNode('#container');
             setTimeout(function() {
                 var term_num = GateOne.Terminal.newTerminal(null, null, container);
@@ -90,8 +92,33 @@ function ViaductXBlock(runtime, element) {
         });
     }
 
-    /* Called on page load. */
+    /* edX recreates the DOM for every vertical unit when navigating to and
+     * from them.  However, after navigating away from a lab unit (but
+     * remaining on the section) GateOne will remain initialized, any
+     * terminals will remain open, and any timeouts will continue to run.
+     * Thus, one must take care not to reinitialize GateOne, and to
+     * retrieve the open terminal if necessary. */
     $(function ($) {
-        get_terminal_href();
+        var go = GateOne;
+        if (!go.initialized) {
+            get_terminal_href();
+        } else {
+            var t = go.Terminal;
+            var u = go.Utils;
+            if (t.terminals[1] && t.terminals[1].where) {
+                /* Hide the pending message. */
+                $('.pending').hide();
+
+                /* Remove the empty goDiv. */
+                u.removeElement(go.prefs.goDiv);
+
+                /* Move the old goDiv to its correct place. */
+                var container = u.getNode('#gateonecontainer');
+                container.appendChild(t.terminals[1].where);
+
+                /* Scroll the terminal to the bottom. */
+                go.Utils.scrollToBottom('#go_default_term1_pre');
+            }
+        }
     });
 }
