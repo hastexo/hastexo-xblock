@@ -22,11 +22,11 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
 
     # Scope: content
     terminal_href = String(
-        default="https://127.0.0.1",
+        default="",
         scope=Scope.content,
         help="Where the terminal server is running")
     template_href = String(
-        default="/c4x/hastexo/hx112/asset/hot_lab.yaml",
+        default="",
         scope=Scope.content,
         help="The path to the orchestration template.  Must be in /c4x/ form.")
 
@@ -49,14 +49,14 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         help="The OpenStack password")
 
     # Scope: user state
-    user_id = String(
-        default="",
-        scope=Scope.user_state,
-        help="The user's anonymous id")
     os_heat_template = String(
         default="",
         scope=Scope.user_state,
         help="The user stack orchestration template")
+    user_stack_name = String(
+        default="",
+        scope=Scope.user_state,
+        help="The name of the user's stack")
     user_stack_launch_id = String(
         default="",
         scope=Scope.user_state,
@@ -89,19 +89,13 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
             # Clear the task ID so we know there is no task running.
             self.user_stack_launch_id = ""
 
-            if result.successful():
-                if isinstance(result.result, dict) and not result.result.get('error'):
-                    res = result.result
-                else:
-                    res = {
-                        'status': 'ERROR',
-                        'error_msg': u'Unexpected result: {}'.format(repr(result.result))
-                    }
+            if (result.successful() and
+                    isinstance(result.result, dict) and not
+                    result.result.get('error')):
+                res = result.result
             else:
-                res = {
-                    'status': 'ERROR',
-                    'error_msg': unicode(result.result)
-                }
+                res = {'status': 'ERROR',
+                       'error_msg': 'Unexpected result: %s' % repr(result.result)}
         else:
             res = {'status': 'PENDING'}
 
@@ -114,12 +108,12 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         Launches the student stack if it doesn't exist, resume it if it does
         and is suspended.
         """
-        kwargs = {'user_id': self.user_id,
-                 'os_auth_url': self.os_auth_url,
-                 'os_username': self.os_username,
-                 'os_password': self.os_password,
-                 'os_tenant_name': self.os_tenant_name,
-                 'os_heat_template': self.os_heat_template}
+        kwargs = {'stack_name': self.user_stack_name,
+                  'os_auth_url': self.os_auth_url,
+                  'os_username': self.os_username,
+                  'os_password': self.os_password,
+                  'os_tenant_name': self.os_tenant_name,
+                  'os_heat_template': self.os_heat_template}
         result = async_launch_or_resume_user_stack.apply_async(kwargs=kwargs)
 
         # Store the task ID and result
@@ -134,11 +128,11 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
             self.user_stack_suspend_id = ""
 
         # (Re)schedule the suspension in the future.
-        kwargs = {'user_id': self.user_id,
-                 'os_auth_url': self.os_auth_url,
-                 'os_username': self.os_username,
-                 'os_password': self.os_password,
-                 'os_tenant_name': self.os_tenant_name}
+        kwargs = {'stack_name': self.user_stack_name,
+                  'os_auth_url': self.os_auth_url,
+                  'os_username': self.os_username,
+                  'os_password': self.os_password,
+                  'os_tenant_name': self.os_tenant_name}
         result = async_suspend_user_stack.apply_async(kwargs=kwargs, countdown=120)
         self.user_stack_suspend_id = result.id
 
@@ -148,9 +142,12 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         courses.
         """
         # Get the anonymous user id
-        self.user_id = self.xmodule_runtime.anonymous_student_id
+        user_id = self.xmodule_runtime.anonymous_student_id
+        course_id = self.xmodule_runtime.course_id
+        course_code = course_id.course
+        self.user_stack_name = "viaduct_%s_%s" % (course_code, user_id)
 
-        # Load the template from the course's content store
+        # Load the stack template from the course's content store
         asset_key = StaticContent.get_location_from_path(self.template_href)
         asset = contentstore().find(asset_key)
         self.os_heat_template = asset.data
@@ -170,7 +167,6 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         # Add the public CSS and JS
         frag.add_css_url(self.runtime.local_resource_url(self, 'public/css/viaduct.css'))
         frag.add_javascript_url(self.runtime.local_resource_url(self, 'public/js/viaduct.js'))
-        frag.add_javascript_url(self.runtime.local_resource_url(self, 'public/js/gateone.js'))
 
         # Choose the JS initialization function
         frag.initialize_js('ViaductXBlock')

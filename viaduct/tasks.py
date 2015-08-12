@@ -15,7 +15,7 @@ from heatclient import exc
 logger = get_task_logger(__name__)
 
 @task()
-def launch_or_resume_user_stack(user_id, os_auth_url, os_username, os_password,
+def launch_or_resume_user_stack(stack_name, os_auth_url, os_username, os_password,
         os_tenant_name, os_heat_template):
     """
     Launch, or if it already exists and is suspended, resume a stack for the
@@ -36,10 +36,10 @@ def launch_or_resume_user_stack(user_id, os_auth_url, os_username, os_password,
 
     # Create the stack if it doesn't exist, resume it if it's suspended.
     try:
-        stack = heat.stacks.get(stack_id=user_id)
+        stack = heat.stacks.get(stack_id=stack_name)
     except exc.HTTPNotFound:
         logger.debug("Stack doesn't exist.  Creating it.")
-        res = heat.stacks.create(stack_name=user_id, template=os_heat_template)
+        res = heat.stacks.create(stack_name=stack_name, template=os_heat_template)
         stack_id = res['stack']['id']
         stack = heat.stacks.get(stack_id=stack_id)
 
@@ -83,11 +83,11 @@ def launch_or_resume_user_stack(user_id, os_auth_url, os_username, os_password,
         # Consider stack failed if it isn't network accessible.
         if response != 0:
             status = 'CREATE_FAILED'
-            error_msg = "Stack is not accessible."
-            logger.debug("Stack is not accessible.")
+            error_msg = "Stack is not network accessible."
+            logger.debug(error_msg)
     else:
         error_msg = "Stack creation failed."
-        logger.debug("Stack creation failed.")
+        logger.debug(error_msg)
 
     return {
         'status': status,
@@ -96,7 +96,7 @@ def launch_or_resume_user_stack(user_id, os_auth_url, os_username, os_password,
     }
 
 @task()
-def suspend_user_stack(user_id, os_auth_url, os_username, os_password,
+def suspend_user_stack(stack_name, os_auth_url, os_username, os_password,
         os_tenant_name):
     """
     Suspend a stack.
@@ -114,7 +114,7 @@ def suspend_user_stack(user_id, os_auth_url, os_username, os_password,
 
     # Find the stack.  If it doesn't exist, there's nothing to do here.
     try:
-        stack = heat.stacks.get(stack_id=user_id)
+        stack = heat.stacks.get(stack_id=stack_name)
     except exc.HTTPNotFound:
         logger.debug("Stack doesn't exist.")
         return
@@ -144,4 +144,4 @@ def suspend_user_stack(user_id, os_auth_url, os_username, os_password,
         return
 
     # At this point, the stack has been verified to be running.  So suspend it.
-    heat.actions.suspend(stack_id=user_id)
+    heat.actions.suspend(stack_id=stack_name)
