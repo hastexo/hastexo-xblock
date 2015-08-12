@@ -167,7 +167,6 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         # Add the public CSS and JS
         frag.add_css_url(self.runtime.local_resource_url(self, 'public/css/viaduct.css'))
         frag.add_javascript_url(self.runtime.local_resource_url(self, 'public/js/viaduct.js'))
-        frag.add_javascript_url(self.runtime.local_resource_url(self, 'public/js/gateone.js'))
 
         # Choose the JS initialization function
         frag.initialize_js('ViaductXBlock')
