@@ -15,13 +15,12 @@ jQuery.cachedScript = function(url, options) {
 var timeout;
 
 function ViaductXBlock(runtime, element) {
-    var terminal_href;
     var status;
 
-    function get_terminal_href() {
+    function get_terminal_url() {
         options = {
             type: 'POST',
-            url: runtime.handlerUrl(element, 'get_terminal_href'),
+            url: runtime.handlerUrl(element, 'get_terminal_url'),
             data: '{}',
             dataType: 'json'
         };
@@ -49,11 +48,11 @@ function ViaductXBlock(runtime, element) {
         });
     }
 
-    function update_user_stack_status(result) {
+    function update_user_stack_status(data) {
         var changed = false;
-        if (status !== result.status) {
+        if (status !== data.status) {
             changed = true;
-            status = result.status;
+            status = data.status;
         }
 
         /* If there was a change in status, update the screen. */
@@ -61,14 +60,14 @@ function ViaductXBlock(runtime, element) {
             $('.pending').hide();
             $('.error').hide();
             if (status == 'CREATE_COMPLETE' || status == 'RESUME_COMPLETE') {
-                start_new_terminal(result.ip);
+                start_new_terminal(data.ip, data.user, data.key);
                 timeout = setTimeout(keepalive, 60000);
             } else if (status == 'PENDING') {
                 $('.pending').show();
                 timeout = setTimeout(get_user_stack_status, 10000);
             } else {
                 /* Unexpected status.  Display error message. */
-                $('.error_msg').html(result.error_msg);
+                $('.error_msg').html(data.error_msg);
                 $('.error').show();
             }
         } else if (status == 'PENDING') {
@@ -76,13 +75,13 @@ function ViaductXBlock(runtime, element) {
         }
     }
 
-    function start_new_terminal(ip) {
+    function start_new_terminal(ip, user, key) {
         GateOne.Base.superSandbox("GateOne.MyModule", ["GateOne.Input", "GateOne.Terminal", "GateOne.Terminal.Input"], function(window, undefined) {
             var container = GateOne.Utils.getNode('#container');
             setTimeout(function() {
                 var term_num = GateOne.Terminal.newTerminal(null, null, container);
                 setTimeout(function() {
-                    GateOne.Terminal.sendString('ssh://training@' + ip + ':22/?identities=id_rsa\n');
+                    GateOne.Terminal.sendString('ssh://' + user + '@' + ip + ':22/?identities=' + key + '\n');
                     setTimeout(function() {
                         GateOne.Terminal.sendDimensions();
                     }, 750);
@@ -99,13 +98,11 @@ function ViaductXBlock(runtime, element) {
          * Thus, one must take care not to reinitialize GateOne, and to
          * retrieve the open terminal if necessary. */
         if (typeof GateOne == 'undefined') {
-            get_terminal_href().done(function(data) {
-                terminal_href = data.terminal_href;
-
+            get_terminal_url().done(function(data) {
                 /* Load GateOne dynamically. */
-                $.cachedScript(terminal_href + '/static/gateone.js').done(function() {
+                $.cachedScript(data.terminal_url + '/static/gateone.js').done(function() {
                     GateOne.init({
-                        url: terminal_href,
+                        url: data.terminal_url,
                         embedded: true,
                         goDiv: '#gateone',
                         logLevel: 'WARNING'
