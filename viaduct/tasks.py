@@ -15,8 +15,8 @@ from heatclient import exc
 logger = get_task_logger(__name__)
 
 @task()
-def launch_or_resume_user_stack(stack_name, os_auth_url, os_username, os_password,
-        os_tenant_name, os_heat_template):
+def launch_or_resume_user_stack(stack_name, stack_user_name, os_auth_url,
+        os_username, os_password, os_tenant_name, os_heat_template):
     """
     Launch, or if it already exists and is suspended, resume a stack for the
     user.
@@ -66,25 +66,61 @@ def launch_or_resume_user_stack(stack_name, os_auth_url, os_username, os_passwor
         status = stack.stack_status
 
     ip = None
+    key = None
     if status == 'CREATE_COMPLETE' or status == 'RESUME_COMPLETE':
         for output in stack.to_dict().get('outputs', []):
             if output['output_key'] == 'public_ip':
                 ip = output['output_value']
-        error_msg = None
-        logger.debug("Stack creation successful.")
+            elif output['output_key'] == 'private_key':
+                key = output['output_value']
 
-        # Wait for up to a minute until stack is network accessible.
-        response = 1
-        count = 0
-        while response != 0 and count < 12:
-            response = os.system("ping -c 1 -W 5 " + ip + " >/dev/null 2>&1")
-            count = count + 1
-
-        # Consider stack failed if it isn't network accessible.
-        if response != 0:
+        if ip is None or key is None:
             status = 'CREATE_FAILED'
-            error_msg = "Stack is not network accessible."
+            error_msg = "Stack did not provide enough data."
             logger.debug(error_msg)
+        else:
+            # Wait for up to a minute until stack is network accessible.
+            response = 1
+            count = 0
+            while response != 0 and count < 12:
+                response = os.system("ping -c 1 -W 5 " + ip + " >/dev/null 2>&1")
+                count = count + 1
+
+            # Consider stack failed if it isn't network accessible.
+            if response != 0:
+                status = 'CREATE_FAILED'
+                error_msg = "Stack is not network accessible."
+                logger.debug(error_msg)
+            else:
+                # Export the private key.
+                key_path = "/edx/var/edxapp/terminal_users/ANONYMOUS/.ssh/%s" % stack_name
+                with open(key_path, 'w') as f:
+                    f.write(key)
+
+                # Fix permissions so SSH doesn't complain
+                os.chmod(key_path, 0600)
+
+                # Build the SSH command
+                ssh_command = "ssh -T -o StrictHostKeyChecking=no -i %s %s@%s exit" % \
+                        (key_path, stack_user_name, ip)
+
+                # Now wait until environment is fully provisioned.  One of the
+                # requirements for the Heat template is for it to disallow SSH
+                # access to the training user while provisioning is going on.
+                response = 1
+                count = 0
+                while response != 0 and count < 12:
+                    response = os.system(ssh_command)
+                    time.sleep(10)
+                    count = count + 1
+
+                if response != 0:
+                    status = 'CREATE_FAILED'
+                    error_msg = "Stack provisioning did not complete."
+                    logger.debug(error_msg)
+                else:
+                    error_msg = None
+                    logger.debug("Stack creation successful.")
     else:
         error_msg = "Stack creation failed."
         logger.debug(error_msg)
@@ -92,6 +128,8 @@ def launch_or_resume_user_stack(stack_name, os_auth_url, os_username, os_passwor
     return {
         'status': status,
         'ip': ip,
+        'user': stack_user_name,
+        'key': stack_name,
         'error_msg': error_msg
     }
 

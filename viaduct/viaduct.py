@@ -21,16 +21,24 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
     """
 
     # Scope: content
-    terminal_href = String(
+    terminal_url = String(
         default="",
         scope=Scope.content,
-        help="Where the terminal server is running")
-    template_href = String(
+        help="Where the terminal server is running.")
+    stack_template_path = String(
         default="",
         scope=Scope.content,
         help="The path to the orchestration template.  Must be in /c4x/ form.")
+    stack_user_name = String(
+        default="",
+        scope=Scope.content,
+        help="The name of the training user in the stack.")
 
     # Scope: settings
+    display_name = String(
+        default="Viaduct Lab",
+        scope=Scope.settings,
+        help="Title to display")
     os_auth_url = String(
         default="",
         scope=Scope.settings,
@@ -71,8 +79,10 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         help="The user stack status")
 
     editable_fields = (
-        'terminal_href',
-        'template_href',
+        'display_name',
+        'terminal_url',
+        'stack_template_path',
+        'stack_user_name',
         'os_auth_url',
         'os_tenant_name',
         'os_username',
@@ -109,6 +119,7 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         and is suspended.
         """
         kwargs = {'stack_name': self.user_stack_name,
+                  'stack_user_name': self.stack_user_name,
                   'os_auth_url': self.os_auth_url,
                   'os_username': self.os_username,
                   'os_password': self.os_password,
@@ -148,7 +159,7 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         self.user_stack_name = "viaduct_%s_%s" % (course_code, user_id)
 
         # Load the stack template from the course's content store
-        asset_key = StaticContent.get_location_from_path(self.template_href)
+        asset_key = StaticContent.get_location_from_path(self.stack_template_path)
         asset = contentstore().find(asset_key)
         self.os_heat_template = asset.data
 
@@ -174,8 +185,8 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
         return frag
 
     @XBlock.json_handler
-    def get_terminal_href(self, data, suffix=''):
-        return {'terminal_href': self.terminal_href}
+    def get_terminal_url(self, data, suffix=''):
+        return {'terminal_url': self.terminal_url}
 
     @XBlock.json_handler
     def keepalive(self, data, suffix=''):
