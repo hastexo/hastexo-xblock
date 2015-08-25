@@ -49,6 +49,12 @@ resources:
         port_range_min: 443
         port_range_max: 443
 
+  training_key:
+    type: OS::Nova::KeyPair
+    properties:
+      name: training_key
+      save_private_key: true
+
   cloud_config:
     type: OS::Heat::CloudConfig
     properties:
@@ -58,11 +64,9 @@ resources:
         - name: training
           gecos: Training User
           groups: users,adm
-          lock-passwd: false
-          passwd: $6$rounds=4096$J86aZz0Q$To16RGzWJku0swXC3QmvHpJY6q60Ut4Biby9TT/ovNOEbPsvHOMN0ujQ/bVCJU/8ezleaqQNAARFzqnDlDA120
           ssh-authorized-keys:
-            - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDAd4RpXzYiHj7WsSRpIVSEc0mviqYlbfYQfjF+Ei/SH4N9brW7NHOPwTKZrg4ifnWQYPGPnUjo/Td9WgW8FaJLk52KGAxQ82k67uKzZchfvrAsT1qMXOOhfh2Gy7MtCD+pGkeRn6lbeWp0tMPV1lvX5jtlXgNYOx1V2//AeUvQGWoQx9DPVAsUWywqQjr0NwP8rPTlk3YYS92WRDVxAjWH/ee7sVKYIyDyicv5ULxB5NzfXYdba4V3H9J8ci1YhAoWUJAEz9lpjgZZyJSfpOYbE2EEX2zQN9rqvG2SEEOhm3FaMY+O2pcldiYnT2FApzCZLaV/feCkeXX5bqMrRPg3 training
-          shell: /bin/bash
+            - { get_attr: [ training_key, public_key ] }
+          shell: /bin/false
           sudo: ALL=(ALL) NOPASSWD:ALL
         bootcmd:
         - ntpdate pool.ntp.org
@@ -101,6 +105,7 @@ resources:
           - git
         runcmd:
           - sudo -i -u training ansible-pull -v -i hosts -U https://github.com/hastexo/academy-ansible -o site.yml
+          - chsh -s /bin/bash training
 
   cloud_init_userdata:
     type: OS::Heat::MultipartMime
@@ -325,3 +330,6 @@ outputs:
   public_ip:
     description: Floating IP address of deploy in public network
     value: { get_attr: [ deploy_floating_ip, floating_ip_address ] }
+  private_key:
+    description: Training private key
+    value: { get_attr: [ training_key, private_key ] }
