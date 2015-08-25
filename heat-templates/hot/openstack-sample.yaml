@@ -52,7 +52,7 @@ resources:
   training_key:
     type: OS::Nova::KeyPair
     properties:
-      name: training_key
+      name: { get_param: OS::stack_name }
       save_private_key: true
 
   cloud_config:
