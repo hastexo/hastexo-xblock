@@ -1,5 +1,5 @@
 """
-Asynchronous Viaduct tasks.
+Asynchronous tasks.
 """
 
 import time

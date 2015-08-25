@@ -1,4 +1,4 @@
-"""Setup for viaduct XBlock."""
+"""Setup for hastexo XBlock."""
 
 import os
 from setuptools import setup
@@ -21,19 +21,19 @@ def package_data(pkg, roots):
 
 
 setup(
-    name='viaduct-xblock',
+    name='hastexo-xblock',
     version='0.1',
-    description='viaduct XBlock',
+    description='hastexo XBlock',
     packages=[
-        'viaduct',
+        'hastexo',
     ],
     install_requires=[
         'XBlock',
     ],
     entry_points={
         'xblock.v1': [
-            'viaduct = viaduct:ViaductXBlock',
+            'hastexo = hastexo:HastexoXBlock',
         ]
     },
-    package_data=package_data("viaduct", ["static", "public"]),
+    package_data=package_data("hastexo", ["static", "public"]),
 )

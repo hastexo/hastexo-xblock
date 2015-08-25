@@ -1,7 +1,7 @@
 heat_template_version: 2013-05-23
 
 description: >
-  Sample template for an OpenStack Viaduct lab environment.
+  Sample template for an OpenStack lab environment.
 
 parameters:
   flavor:

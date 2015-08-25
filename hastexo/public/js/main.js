@@ -1,5 +1,3 @@
-/* Javascript for ViaductXBlock. */
-
 /* A cached version of jQuery's getScript. */
 jQuery.cachedScript = function(url, options) {
     options = $.extend( options || {}, {
@@ -14,7 +12,7 @@ jQuery.cachedScript = function(url, options) {
 /* Globals. */
 var timeout;
 
-function ViaductXBlock(runtime, element) {
+function HastexoXBlock(runtime, element) {
     var status;
 
     function get_terminal_url() {

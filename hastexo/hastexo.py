@@ -15,9 +15,9 @@ from xmodule.contentstore.django import contentstore
 loader = ResourceLoader(__name__)
 
 
-class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
+class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
     """
-    Provides lab environments for Viaduct classes.
+    Provides lab environments and an SSH connection to them.
     """
 
     # Scope: content
@@ -36,7 +36,7 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
 
     # Scope: settings
     display_name = String(
-        default="Viaduct Lab",
+        default="Lab",
         scope=Scope.settings,
         help="Title to display")
     os_auth_url = String(
@@ -92,7 +92,7 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
 
     def author_view(self, context=None):
         """ Studio View """
-        return Fragment(u'<p><strong>Viaduct XBlock:</strong> <em>The Viaduct XBlock only renders content when viewed via the LMS.</em></p>')
+        return Fragment(u'<em>This XBlock only renders content when viewed via the LMS.</em></p>')
 
     def _save_user_stack_task_result(self, result):
         if result.ready():
@@ -149,14 +149,14 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
 
     def student_view(self, context=None):
         """
-        The primary view of the ViaductXBlock, shown to students when viewing
+        The primary view of the HastexoXBlock, shown to students when viewing
         courses.
         """
         # Get the anonymous user id
         user_id = self.xmodule_runtime.anonymous_student_id
         course_id = self.xmodule_runtime.course_id
         course_code = course_id.course
-        self.user_stack_name = "viaduct_%s_%s" % (course_code, user_id)
+        self.user_stack_name = "%s_%s" % (course_code, user_id)
 
         # Load the stack template from the course's content store
         asset_key = StaticContent.get_location_from_path(self.stack_template_path)
@@ -172,15 +172,15 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
 
         # Render the HTML template
         html_context = {}
-        html = loader.render_template('static/html/viaduct.html', html_context)
+        html = loader.render_template('static/html/main.html', html_context)
         frag = Fragment(html)
 
         # Add the public CSS and JS
-        frag.add_css_url(self.runtime.local_resource_url(self, 'public/css/viaduct.css'))
-        frag.add_javascript_url(self.runtime.local_resource_url(self, 'public/js/viaduct.js'))
+        frag.add_css_url(self.runtime.local_resource_url(self, 'public/css/main.css'))
+        frag.add_javascript_url(self.runtime.local_resource_url(self, 'public/js/main.js'))
 
         # Choose the JS initialization function
-        frag.initialize_js('ViaductXBlock')
+        frag.initialize_js('HastexoXBlock')
 
         return frag
 
@@ -217,9 +217,9 @@ class ViaductXBlock(StudioEditableXBlockMixin, XBlock):
     def workbench_scenarios():
         """A canned scenario for display in the workbench."""
         return [
-            ("ViaductXBlock",
+            ("HastexoXBlock",
              """<vertical_demo>
-                <viaduct/>
+                <hastexo/>
                 </vertical_demo>
              """),
         ]
