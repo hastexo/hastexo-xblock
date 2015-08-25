@@ -89,6 +89,7 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         'os_password')
 
     has_author_view = True
+    icon_class = 'video'
 
     def author_view(self, context=None):
         """ Studio View """
