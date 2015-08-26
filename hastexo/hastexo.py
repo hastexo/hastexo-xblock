@@ -28,7 +28,7 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
     stack_template_path = String(
         default="",
         scope=Scope.content,
-        help="The path to the orchestration template.  Must be in /c4x/ form.")
+        help="The relative path to the uploaded orchestration template.  For example, \"hot_lab.yaml\".")
     stack_user_name = String(
         default="",
         scope=Scope.content,
@@ -160,7 +160,9 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         self.user_stack_name = "%s_%s" % (course_code, user_id)
 
         # Load the stack template from the course's content store
-        asset_key = StaticContent.get_location_from_path(self.stack_template_path)
+        path = "/c4x/%s/%s/asset/%s" % \
+                (course_id.org, course_code, self.stack_template_path)
+        asset_key = StaticContent.get_location_from_path(path)
         asset = contentstore().find(asset_key)
         self.os_heat_template = asset.data
 
