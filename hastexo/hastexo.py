@@ -12,6 +12,7 @@ from xblockutils.studio_editable import StudioEditableXBlockMixin
 from xmodule.contentstore.content import StaticContent
 from xmodule.contentstore.django import contentstore
 
+log = logging.getLogger(__name__)
 loader = ResourceLoader(__name__)
 
 
@@ -20,7 +21,7 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
     Provides lab environments and an SSH connection to them.
     """
 
-    # Scope: content
+    # Scope: content.  These are set per course.
     terminal_url = String(
         default="",
         scope=Scope.content,
@@ -33,12 +34,6 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         default="",
         scope=Scope.content,
         help="The name of the training user in the stack.")
-
-    # Scope: settings
-    display_name = String(
-        default="Lab",
-        scope=Scope.settings,
-        help="Title to display")
     os_auth_url = String(
         default="",
         scope=Scope.settings,
@@ -56,7 +51,16 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings,
         help="The OpenStack password")
 
-    # Scope: user state
+    # Scope: settings.  These are set per instance.
+    display_name = String(
+        default="Lab",
+        scope=Scope.settings,
+        help="Title to display")
+
+    # Scope: user state.  These are set per instance, per user.
+    # TODO: They should really be set per *course*, per user, or, in official
+    # terminology, "block definition" + "one user":
+    # http://xblock-tutorial.readthedocs.org/en/latest/concepts/fields.html#user-and-block-scope-independence
     os_heat_template = String(
         default="",
         scope=Scope.user_state,
