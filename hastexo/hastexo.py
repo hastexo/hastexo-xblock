@@ -1,8 +1,8 @@
 import json
 import logging
 
-from .tasks import launch_or_resume_user_stack as async_launch_or_resume_user_stack
-from .tasks import suspend_user_stack as async_suspend_user_stack
+from .tasks import launch_or_resume_user_stack as launch_or_resume_user_stack_task
+from .tasks import suspend_user_stack as suspend_user_stack_task
 
 from xblock.core import XBlock
 from xblock.fields import Scope, Integer, String, Dict
@@ -118,7 +118,7 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         self.user_stack_status = res
         return res
 
-    def launch_or_resume_user_stack(self):
+    def launch_or_resume_user_stack(self, sync = False):
         """
         Launches the student stack if it doesn't exist, resume it if it does
         and is suspended.
@@ -130,18 +130,26 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
                   'os_password': self.os_password,
                   'os_tenant_name': self.os_tenant_name,
                   'os_heat_template': self.os_heat_template}
-        result = async_launch_or_resume_user_stack.apply_async(kwargs=kwargs)
 
-        # Store the task ID and result
-        self.user_stack_launch_id = result.id
+        # Synchronous or asynchronous?
+        if sync:
+            result = launch_or_resume_user_stack_task.apply(kwargs=kwargs)
+        else:
+            result = launch_or_resume_user_stack_task.apply_async(kwargs=kwargs)
+            self.user_stack_launch_id = result.id
+
+        # Store the result
         self._save_user_stack_task_result(result)
 
-    def suspend_user_stack(self):
-        # If the suspend task is pending, revoke it.
+    def revoke_suspend(self):
         if self.user_stack_suspend_id:
             from lms import CELERY_APP
             CELERY_APP.control.revoke(self.user_stack_suspend_id)
             self.user_stack_suspend_id = ""
+
+    def suspend_user_stack(self):
+        # If the suspend task is pending, revoke it.
+        self.revoke_suspend()
 
         # (Re)schedule the suspension in the future.
         kwargs = {'stack_name': self.user_stack_name,
@@ -149,7 +157,7 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
                   'os_username': self.os_username,
                   'os_password': self.os_password,
                   'os_tenant_name': self.os_tenant_name}
-        result = async_suspend_user_stack.apply_async(kwargs=kwargs, countdown=120)
+        result = suspend_user_stack_task.apply_async(kwargs=kwargs, countdown=120)
         self.user_stack_suspend_id = result.id
 
     def student_view(self, context=None):
@@ -202,21 +210,32 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
 
     @XBlock.json_handler
     def get_user_stack_status(self, data, suffix=''):
-        # Reset the dead man's switch
-        self.suspend_user_stack()
+        # Stop the dead man's switch
+        self.revoke_suspend()
 
-        # If a stack launch task is running, check and return its status.
+        # If a stack launch task is still pending, check its status.
         if self.user_stack_launch_id:
-            result = async_launch_or_resume_user_stack.AsyncResult(self.user_stack_launch_id)
+            result = launch_or_resume_user_stack_task.AsyncResult(self.user_stack_launch_id)
             res = self._save_user_stack_task_result(result)
 
-        # If not, and if we have a saved status, return it.
-        elif isinstance(self.user_stack_status, dict):
+            # If the launch task was successful, check it synchronously once
+            # more: the stack might have been suspended in the meantime.
+            status = res.get('status')
+            if (status != 'ERROR' and
+                status != 'PENDING' and
+                status != 'CREATE_FAILED' and
+                status != 'RESUME_FAILED'):
+                self.launch_or_resume_user_stack(True)
+                res = self.user_stack_status
+
+        # If there aren't pending launch tasks, we may need to resume it, so
+        # run the async procedure once more.
+        else:
+            self.launch_or_resume_user_stack()
             res = self.user_stack_status
 
-        # Otherwise, report the stack as pending.
-        else:
-            res = {'status': 'PENDING'}
+        # Start the dead man's switch
+        self.suspend_user_stack()
 
         return res
 
