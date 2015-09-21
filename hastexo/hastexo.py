@@ -22,10 +22,6 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
     """
 
     # Scope: content.  These are set per course.
-    terminal_url = String(
-        default="",
-        scope=Scope.content,
-        help="Where the terminal server is running.")
     stack_template_path = String(
         default="",
         scope=Scope.content,
@@ -84,7 +80,6 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
 
     editable_fields = (
         'display_name',
-        'terminal_url',
         'stack_template_path',
         'stack_user_name',
         'os_auth_url',
@@ -198,10 +193,6 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         frag.initialize_js('HastexoXBlock')
 
         return frag
-
-    @XBlock.json_handler
-    def get_terminal_url(self, data, suffix=''):
-        return {'terminal_url': self.terminal_url}
 
     @XBlock.json_handler
     def keepalive(self, data, suffix=''):

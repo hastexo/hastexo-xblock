@@ -15,17 +15,6 @@ var timeout;
 function HastexoXBlock(runtime, element) {
     var status;
 
-    function get_terminal_url() {
-        options = {
-            type: 'POST',
-            url: runtime.handlerUrl(element, 'get_terminal_url'),
-            data: '{}',
-            dataType: 'json'
-        };
-
-        return $.ajax(options);
-    }
-
     function keepalive() {
         $.ajax({
             type: 'POST',
@@ -96,18 +85,16 @@ function HastexoXBlock(runtime, element) {
          * Thus, one must take care not to reinitialize GateOne, and to
          * retrieve the open terminal if necessary. */
         if (typeof GateOne == 'undefined') {
-            get_terminal_url().done(function(data) {
-                /* Load GateOne dynamically. */
-                $.cachedScript(data.terminal_url + '/static/gateone.js').done(function() {
-                    GateOne.init({
-                        url: data.terminal_url,
-                        embedded: true,
-                        goDiv: '#gateone',
-                        logLevel: 'WARNING'
-                    });
-
-                    get_user_stack_status();
+            /* Load GateOne dynamically. */
+            $.cachedScript('/terminal/static/gateone.js').done(function() {
+                GateOne.init({
+                    url: window.location.origin + '/terminal/',
+                    embedded: true,
+                    goDiv: '#gateone',
+                    logLevel: 'WARNING'
                 });
+
+                get_user_stack_status();
             });
         } else {
             var g = GateOne;
