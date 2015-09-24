@@ -167,10 +167,8 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         self.user_stack_name = "%s_%s" % (course_code, user_id)
 
         # Load the stack template from the course's content store
-        path = "/c4x/%s/%s/asset/%s" % \
-                (course_id.org, course_code, self.stack_template_path)
-        asset_key = StaticContent.get_location_from_path(path)
-        asset = contentstore().find(asset_key)
+        loc = StaticContent.compute_location(course_id, self.stack_template_path)
+        asset = contentstore().find(loc)
         self.os_heat_template = asset.data
 
         # Make sure the user's stack is launched...
