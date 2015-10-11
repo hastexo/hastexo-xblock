@@ -7,7 +7,7 @@ parameters:
   flavor:
     type: string
     description: Flavor to use for servers
-    default: m1.medium
+    default: m1.medium.e
   public_net_id:
     type: string
     description: Public network ID
@@ -16,10 +16,6 @@ parameters:
     type: string
     description: Image ID or name
     default: ubuntu-14.04-server-cloudimg
-  key_name:
-    type: string
-    description: Keypair name
-    default: training
 
 resources:
   server_security_group:
@@ -52,22 +48,15 @@ resources:
   training_key:
     type: OS::Nova::KeyPair
     properties:
-      name: { get_param: OS::stack_name }
+      name: { get_param: 'OS::stack_name' }
       save_private_key: true
 
-  cloud_config:
+  cloud_config_base:
     type: OS::Heat::CloudConfig
     properties:
       cloud_config:
-        users:
-        - default
-        - name: training
-          gecos: Training User
-          groups: users,adm
-          ssh-authorized-keys:
-            - { get_attr: [ training_key, public_key ] }
-          shell: /bin/false
-          sudo: ALL=(ALL) NOPASSWD:ALL
+        mounts:
+          - [ 'vdb', null ]
         bootcmd:
         - ntpdate pool.ntp.org
         write_files:
@@ -75,16 +64,7 @@ resources:
           permissions: '0644'
           content: |
             127.0.0.1 localhost
-            ::1       ip6-localhost ip6-loopback
-            fe00::0   ip6-localnet
-            ff00::0   ip6-mcastprefix
-            ff02::1   ip6-allnodes
-            ff02::2   ip6-allrouters
-
             192.168.122.100 deploy.example.com deploy
-            192.168.122.111 alice.example.com alice
-            192.168.122.112 bob.example.com bob
-            192.168.122.113 charlie.example.com charlie
             192.168.122.114 daisy.example.com daisy
             192.168.122.115 eric.example.com eric
             192.168.122.116 frank.example.com frank
@@ -99,19 +79,55 @@ resources:
             auto eth2
             iface eth2 inet dhcp
         package_update: true
-        package_upgrade: true
+        package_upgrade: false
         packages:
           - ansible
           - git
         runcmd:
-          - sudo -i -u training ansible-pull -v -i hosts -U https://github.com/hastexo/academy-ansible -o site.yml
+          - sudo -u training -s ansible-pull -v -i hosts -U https://github.com/hastexo/academy-ansible -o site.yml
           - chsh -s /bin/bash training
 
-  cloud_init_userdata:
+  cloud_config_deploy:
+    type: OS::Heat::CloudConfig
+    properties:
+      cloud_config:
+        ssh_pwauth: false
+        users:
+        - name: training
+          gecos: Training User
+          groups: users,adm
+          ssh-authorized-keys:
+            - { get_attr: [ training_key, public_key ] }
+          shell: /bin/false
+          sudo: ALL=(ALL) NOPASSWD:ALL
+
+  cloud_config_standard:
+    type: OS::Heat::CloudConfig
+    properties:
+      cloud_config:
+        ssh_pwauth: true
+        users:
+        - name: training
+          gecos: Training User
+          groups: users,adm
+          lock-passwd: false
+          passwd: $6$rounds=4096$J86aZz0Q$To16RGzWJku0swXC3QmvHpJY6q60Ut4Biby9TT/ovNOEbPsvHOMN0ujQ/bVCJU/8ezleaqQNAARFzqnDlDA120
+          shell: /bin/false
+          sudo: ALL=(ALL) NOPASSWD:ALL
+
+  user_data_deploy:
     type: OS::Heat::MultipartMime
     properties:
       parts:
-      - config: {get_resource: cloud_config}
+      - config: {get_resource: cloud_config_base}
+      - config: {get_resource: cloud_config_deploy}
+
+  user_data_standard:
+    type: OS::Heat::MultipartMime
+    properties:
+      parts:
+      - config: {get_resource: cloud_config_base}
+      - config: {get_resource: cloud_config_standard}
 
   management_net:
     type: OS::Neutron::Net
@@ -179,8 +195,7 @@ resources:
       name: deploy
       image: { get_param: image }
       flavor: { get_param: flavor }
-      key_name: { get_param: key_name }
-      user_data: { get_resource: cloud_init_userdata }
+      user_data: { get_resource: user_data_deploy }
       user_data_format: RAW
       networks:
         - port: { get_resource: deploy_management_port }
@@ -215,116 +230,107 @@ resources:
       port_id: { get_resource: deploy_management_port }
       fixed_ip_address: 192.168.122.100
 
-  alice:
+  daisy:
     type: OS::Nova::Server
     properties:
-      name: alice
+      name: daisy
       image: { get_param: image }
       flavor: { get_param: flavor }
-      key_name: { get_param: key_name }
-      user_data: { get_resource: cloud_init_userdata }
+      user_data: { get_resource: user_data_standard }
       user_data_format: RAW
       networks:
-        - port: { get_resource: alice_management_port }
-        - port: { get_resource: alice_data_port }
-        - port: { get_resource: alice_external_port }
-      block_device_mapping: [{"device_name": "vdb", "volume_id": { get_resource: alice_volume_vdb }, delete_on_termination: false}]
+        - port: { get_resource: daisy_management_port }
+        - port: { get_resource: daisy_data_port }
+        - port: { get_resource: daisy_external_port }
 
-  alice_management_port:
+  daisy_management_port:
     type: OS::Neutron::Port
     properties:
       network_id: { get_resource: management_net }
       fixed_ips:
-        - ip_address: 192.168.122.111
+        - ip_address: 192.168.122.114
 
-  alice_data_port:
+  daisy_data_port:
     type: OS::Neutron::Port
     properties:
       network_id: { get_resource: data_net }
       fixed_ips:
-        - ip_address: 192.168.133.111
+        - ip_address: 192.168.133.114
 
-  alice_external_port:
+  daisy_external_port:
     type: OS::Neutron::Port
     properties:
       network_id: { get_resource: external_net }
       fixed_ips:
-        - ip_address: 192.168.144.111
+        - ip_address: 192.168.144.114
 
-  alice_volume_vdb:
-    type: OS::Cinder::Volume
-    properties:
-       size: 2
-
-  bob:
+  eric:
     type: OS::Nova::Server
     properties:
-      name: bob
+      name: eric
       image: { get_param: image }
       flavor: { get_param: flavor }
-      key_name: { get_param: key_name }
-      user_data: { get_resource: cloud_init_userdata }
+      user_data: { get_resource: user_data_standard }
       user_data_format: RAW
       networks:
-        - port: { get_resource: bob_management_port }
-        - port: { get_resource: bob_data_port }
-        - port: { get_resource: bob_external_port }
+        - port: { get_resource: eric_management_port }
+        - port: { get_resource: eric_data_port }
+        - port: { get_resource: eric_external_port }
 
-  bob_management_port:
+  eric_management_port:
     type: OS::Neutron::Port
     properties:
       network_id: { get_resource: management_net }
       fixed_ips:
-        - ip_address: 192.168.122.112
+        - ip_address: 192.168.122.115
 
-  bob_data_port:
+  eric_data_port:
     type: OS::Neutron::Port
     properties:
       network_id: { get_resource: data_net }
       fixed_ips:
-        - ip_address: 192.168.133.112
+        - ip_address: 192.168.133.115
 
-  bob_external_port:
+  eric_external_port:
     type: OS::Neutron::Port
     properties:
       network_id: { get_resource: external_net }
       fixed_ips:
-        - ip_address: 192.168.144.112
+        - ip_address: 192.168.144.115
 
-  charlie:
+  frank:
     type: OS::Nova::Server
     properties:
-      name: charlie
+      name: frank
       image: { get_param: image }
       flavor: { get_param: flavor }
-      key_name: { get_param: key_name }
-      user_data: { get_resource: cloud_init_userdata }
+      user_data: { get_resource: user_data_standard }
       user_data_format: RAW
       networks:
-        - port: { get_resource: charlie_management_port }
-        - port: { get_resource: charlie_data_port }
-        - port: { get_resource: charlie_external_port }
+        - port: { get_resource: frank_management_port }
+        - port: { get_resource: frank_data_port }
+        - port: { get_resource: frank_external_port }
 
-  charlie_management_port:
+  frank_management_port:
     type: OS::Neutron::Port
     properties:
       network_id: { get_resource: management_net }
       fixed_ips:
-        - ip_address: 192.168.122.113
+        - ip_address: 192.168.122.116
 
-  charlie_data_port:
+  frank_data_port:
     type: OS::Neutron::Port
     properties:
       network_id: { get_resource: data_net }
       fixed_ips:
-        - ip_address: 192.168.133.113
+        - ip_address: 192.168.133.116
 
-  charlie_external_port:
+  frank_external_port:
     type: OS::Neutron::Port
     properties:
       network_id: { get_resource: external_net }
       fixed_ips:
-        - ip_address: 192.168.144.113
+        - ip_address: 192.168.144.116
 
 outputs:
   public_ip:
