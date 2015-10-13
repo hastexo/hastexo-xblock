@@ -6,7 +6,7 @@ environments into distributed computing courses. The hastexo XBlock allows
 students to access an OpenStack environment within an edX course.
 
 
-## Orchestration
+## Purpose
 
 The hastexo XBlock orchestrates a virtual environment (a "stack") that runs on
 an [OpenStack](https://www.openstack.org) private or public cloud using the
