@@ -1,84 +1,90 @@
-# hastexo-xblock
+# hastexo XBlock
 
-An [Open edX](https://open.edx.org/)
-[XBlock](https://xblock.readthedocs.org/en/latest/) to integrate
-realistic lab environments covering distributed computing
-topics. Makes edX talk to OpenStack.
+The hastexo [XBlock](https://xblock.readthedocs.org/en/latest/) is an
+[Open edX](https://open.edx.org/) API that integrates realistic lab
+environments into distributed computing courses. The hastexo XBlock allows
+students to access an OpenStack environment within an edX course.
 
 
-## What it does
+## Orchestration
 
-This XBlock allows course authors to integrate arbitrarily complex
-computing environments into lab exercises. It orchestrates a virtual
-environment (a "stack") running on an
-[OpenStack](https://www.openstack.org) private or public cloud (using
-the [OpenStack Heat](http://docs.openstack.org/developer/heat/)
-orchestration engine), and then provides a Secure Shell session right
-inside the courseware. Stack creation is idempotent, so a fresh stack
-will only be spun up if it does not already exist. An idle stack will
-auto-suspend after a configurable time period (two minutes by
-default), and will auto-resume as soon as the user returns to the lab.
+The hastexo XBlock orchestrates a virtual environment (a "stack") that runs on
+an [OpenStack](https://www.openstack.org) private or public cloud using the
+[OpenStack Heat](http://docs.openstack.org/developer/heat/) orchestration
+engine. It provides a Secure Shell session directly within the course ware. 
 
-Since public cloud environments typically charge by the minute for
-*running* VMs, this makes the XBlock very cost-effective to deploy. A
-fully distributed virtual environment to teach the likes of
-[Ceph](http://ceph.com), OpenStack,
+Stack creation is idempotent, so a fresh stack will be spun up only if it does
+not already exist. An idle stack will auto-suspend after a configurable time
+period, which is two minutes by default. The stack will resume automatically
+when the student returns to the lab environment. 
+
+Since public cloud environments typically charge by the minute to *run*
+virtual machines, the hastexo XBlock makes lab environments cost effective to
+deploy. The hastexo XBlock can run a fully distributed virtual lab environment
+for a course in [Ceph](http://ceph.com), OpenStack,
 [Open vSwitch](http://openvswitch.org/) or
-[fleet](https://coreos.com/using-coreos/clustering/) could be run at a
-cost of approx. $25/month on a public cloud, assuming students spend
-about 1 hour per day on the environment.
+[fleet](https://coreos.com/using-coreos/clustering/)for approximately $25 per
+month on a public cloud (assuming students use the environment for 1 hour per
+day). 
 
-Course authors have full freedom in definining and customizing their
-lab environment, limited only by the feature set of OpenStack Heat.
+Course authors can fully define and customize the lab environment. It is only
+limited by the feature set of OpenStack Heat.
 
 
-## How to deploy it
+## Deployment
 
-If you're an Open edX platform administrator, there's an easy way to deploy the
-hastexo-xblock to a previously installed Open edX node (or cluster).  Just use
-the `hastexo_xblock` role and accompanying `hastexo_xblock.yml` playbook
-included in [hastexo's fork](https://github.com/hastexo/edx-configuration/tree/integration/cypress)
-of `edx/configuration`.
+Open edX platform administrators can deploy the hastexo Xblock to a previously
+installed Open edX node or cluster by using the `hastexo_xblock` role and
+accompanying `hastexo_xblock.yml` playbook included in
+[hastexo's fork](https://github.com/hastexo/edx-configuration/tree/integration/cypress)
+of `edx/configuration`. The hastexo XBlock role depends on modifications to
+`edx/configuration` that are yet to be accepted upstream, so it must be run
+from this fork.
 
-From a checkout of the above branch, if running edX on a single node, run:
+To deploy the hastexo XBlock:
+
+1. Clone hastexo's fork to your local repository.
+
+2. For Open edX running on a single node, run:
 
 ```
-cd edx-configuration/playbooks
+$ cd edx-configuration/playbooks
 
-ansible-playbook hastexo_xblock.yml \
+$ ansible-playbook hastexo_xblock.yml \
   -e hastexo_xblock_repo=https://github.com/hastexo/hastexo-xblock.git \
   -e hastexo_xblock_version=cypress \
   --tags edxapp_cfg
 ```
 
-If you're deploying to Open edX on OpenStack, using, for instance, the
-multi-node Heat template provided in the same branch of edx/configuration
-above, then you should limit the run to just the app servers:
+   For Open edX running on OpenStack that uses multiple nodes (for example,
+   the multi-node Heat template provided same hastexo fork of
+   `edx/configuration`), limit the run to only the app servers:
 
 ```
-ansible-playbook -i openstack/inventory.py hastexo_xblock.yml \
+$ cd edx-configuration/playbooks
+
+$ ansible-playbook -i openstack/inventory.py hastexo_xblock.yml \
   -e hastexo_xblock_repo=https://github.com/hastexo/hastexo-xblock.git \
   -e hastexo_xblock_version=cypress \
   --tags edxapp_cfg \
   --limit app_servers
 ```
 
-Note that currently, the hastexo_xblock role depends on modifications to
-edx/configuration that have yet to be accepted upstream, so it must be run from
-the above branch.
 
+## Configuration
 
-## How to use it
+To use the hastexo XBlock upload a Heat template to the content store. There
+are some limitations to the configuration of the Heat template (detailed
+below), but otherwise you can customize your training environment as
+you like. A sample template is provided under `heat-templates/hot/openstack-sample.yaml`.
 
-As a course author, it is very simple to use the XBlock (provided it is
-installed in your Open edX platform as described above).  To start with, upload
-a Heat template to the content store, and make a note of its static asset file
-name.
+To ensure your Heat template has the required configuration:
 
-The template itself has a few constraints, as follows:
+1. Upload a Heat template to the content store and make a note of its static
+   asset file name.
 
-1.  An SSH key pair must be generated dynamically by the template, and the
-    private key must be saved.  For instance:
+2. Configure the Heat template to generate an SSH key pair dynamically and 
+   save the private key.  For example:
 
 ```
   training_key:
@@ -88,10 +94,10 @@ The template itself has a few constraints, as follows:
       save_private_key: true
 ```
 
-2. It must create an instance that is publically accessible on the internet,
-   via `floating_ip_address`.
+2. Configure the Heat template to have an instance that is publicly accessible
+   on the internet via `floating_ip_address`.
 
-3. It must provide the above two items as outputs, with the following names:
+3. Provide the above two items as outputs, with the following names:
 
 ```
 outputs:
@@ -103,19 +109,14 @@ outputs:
     value: { get_attr: [ training_key, private_key ] }
 ```
 
-Aside from the above constraints, you are free to do as you wish with your
-training enviroment.  A sample template has been provided under
-`heat-templates/hot/openstack-sample.yaml`.
+To create a stack for a student and display a terminal window where invoked,
+you need to define the `hastexo` tag in your course content with the following
+information:
 
-To instruct the XBlock to create a stack for a student *and* to display a
-terminal window where invoked, define the `hastexo` tag **once per section** in
-your course content. (Doing so for more than one unit per section has undefined
-behavior, as of the current version.)
-
-As you can see below, in addition to the credentials to the public or private
-OpenStack cloud of your choice, you'll need the static asset path to your Heat
-template, and the name of the user that the XBlock will use to connect to the
-environment via SSH:
+* The credentials for the public or private OpenStack cloud
+* The static asset path to your Heat template
+* The name of the user that the Xblock will use to connect to the environment
+  via SSH.
 
 ```
 <vertical url_name="lab_introduction">
@@ -129,36 +130,31 @@ environment via SSH:
     os_password="foobarfoobarfoofoo" />
 </vertical>
 ```
+    **Important**: Do this only *once per section*. Defining it more that once
+    per section has undefined behavior.
 
-In practice, this is what happens when students view course material with a tag
-such as the above:
+## Student Experience
 
-1. Whenever they navigate to a section with a 'hastexo' unit, even if it's not
-   defined in the unit they're looking at, a Heat stack will be created (or
-   resumed) for them, as defined by the uploaded Heat template.  It is unique
-   per student and per course run (i.e., if the same tag appears on a different
-   course, or different run of the same course, the student will get a
-   different stack).
+When students navigate to a section with a `hastexo` unit in it, a new Heat
+stack will be created (or resumed) for them, even if the student is not
+looking at the `hastexo` unit itself. The Heat stack will be as defined in the
+uploaded Heat template. It is unique per student and per course run. If the
+same tag appears on a different course, or different run of the same course,
+the student will get a different stack.
 
-2. If the student doesn't navigate to the `hastexo` unit in that section in 2
-   minutes, their stack will be suspended.
+The stack will suspend if the student does not navigate to the `hastexo` unit
+in that section within two minutes. When the student gets to the `hastexo`
+unit, the stack will be resumed and they will be connected automatically and
+securely. They will not need a username, password, or host prompts to their
+personal lab environment. This happens transparently in the browser.
 
-3. When the student finally gets to the `hastexo` unit, if the stack is
-   suspended it will be resumed, and they will be connected automatically and
-   securely, with no username, password, or host prompts, to their personal lab
-   environment.  All this happens transparently, in the browser.
-
-4. The student can then work at their leisure on their environment.  However, when they
-   close the browser tab or window where the `hastexo` unit is displayed (maybe
-   by putting their computers to sleep, or just closing the browser), a timer
-   is started: if they don't reopen it within two minutes, their stack will be
-   suspended, thus spending no further resources while it stays that way.
-
-5. If after a couple of hours or days the student comes back to the above
-   section to finish the exercise, their stack is resumed automatically.  They
-   are subsequently connected, just as transparently as before, to the same
-   training enviroment they were working with before, **at the state they left
-   it in**.
+The student can work at their own pace in their environment. However, when
+a student closes the browser where the `hastexo` unit is displayed, or if they
+put their computer to sleep, a countdown is started. If the student does not
+reopen the environment within two minutes their stack will be suspended. When
+a student comes back to the lab environment to finish the exercise, their
+stack is resumed automatically.  They are connected to the same training
+environment they were working with before, in the *same state* they left it in.
 
 
 ## License
