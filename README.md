@@ -11,21 +11,21 @@ students to access an OpenStack environment within an edX course.
 The hastexo XBlock orchestrates a virtual environment (a "stack") that runs on
 an [OpenStack](https://www.openstack.org) private or public cloud using the
 [OpenStack Heat](http://docs.openstack.org/developer/heat/) orchestration
-engine. It provides a Secure Shell session directly within the course ware. 
+engine. It provides a Secure Shell session directly within the courseware.
 
 Stack creation is idempotent, so a fresh stack will be spun up only if it does
 not already exist. An idle stack will auto-suspend after a configurable time
 period, which is two minutes by default. The stack will resume automatically
-when the student returns to the lab environment. 
+when the student returns to the lab environment.
 
 Since public cloud environments typically charge by the minute to *run*
 virtual machines, the hastexo XBlock makes lab environments cost effective to
 deploy. The hastexo XBlock can run a fully distributed virtual lab environment
 for a course in [Ceph](http://ceph.com), OpenStack,
 [Open vSwitch](http://openvswitch.org/) or
-[fleet](https://coreos.com/using-coreos/clustering/)for approximately $25 per
+[fleet](https://coreos.com/using-coreos/clustering/) for approximately $25 per
 month on a public cloud (assuming students use the environment for 1 hour per
-day). 
+day).
 
 Course authors can fully define and customize the lab environment. It is only
 limited by the feature set of OpenStack Heat.
@@ -83,7 +83,7 @@ To ensure your Heat template has the required configuration:
 1. Upload a Heat template to the content store and make a note of its static
    asset file name.
 
-2. Configure the Heat template to generate an SSH key pair dynamically and 
+2. Configure the Heat template to generate an SSH key pair dynamically and
    save the private key.  For example:
 
 ```
