@@ -13,7 +13,8 @@ jQuery.cachedScript = function(url, options) {
 var timeout;
 
 function HastexoXBlock(runtime, element) {
-    var status;
+    var stack_status;
+    var check_status;
 
     function keepalive() {
         $.ajax({
@@ -35,21 +36,36 @@ function HastexoXBlock(runtime, element) {
         });
     }
 
+    function get_check_status() {
+        $('.check').prop('disabled', true);
+        $('.check_complete').hide();
+        $('.check_error').hide();
+        $('.check_pending').show();
+        $.ajax({
+            type: 'POST',
+            url: runtime.handlerUrl(element, 'get_check_status'),
+            data: '{}',
+            success: update_check_status,
+            dataType: 'json'
+        });
+    }
+
     function update_user_stack_status(data) {
         var changed = false;
-        if (status !== data.status) {
+        if (stack_status !== data.status) {
             changed = true;
-            status = data.status;
+            stack_status = data.status;
         }
 
         /* If there was a change in status, update the screen. */
         if (changed) {
             $('.pending').hide();
             $('.error').hide();
-            if (status == 'CREATE_COMPLETE' || status == 'RESUME_COMPLETE') {
+            if (stack_status == 'CREATE_COMPLETE' || stack_status == 'RESUME_COMPLETE') {
+                $('.check_button').show();
                 start_new_terminal(data.ip, data.user, data.key);
                 timeout = setTimeout(keepalive, 60000);
-            } else if (status == 'PENDING') {
+            } else if (stack_status == 'PENDING') {
                 $('.pending').show();
                 timeout = setTimeout(get_user_stack_status, 10000);
             } else {
@@ -57,8 +73,38 @@ function HastexoXBlock(runtime, element) {
                 $('.error_msg').html(data.error_msg);
                 $('.error').show();
             }
-        } else if (status == 'PENDING') {
+        } else if (stack_status == 'PENDING') {
             timeout = setTimeout(get_user_stack_status, 10000);
+        }
+    }
+
+    function update_check_status(data) {
+        var changed = false;
+        if (check_status !== data.status) {
+            changed = true;
+            check_status = data.status;
+        }
+
+        /* If there was a change in status, update the screen. */
+        if (changed) {
+            $('.check_pending').hide();
+            $('.check_complete').hide();
+            $('.check_error').hide();
+            if (check_status == 'COMPLETE') {
+              $('.check').prop('disabled', false);
+              $('.check_pass').html(data.pass);
+              $('.check_total').html(data.total);
+              $('.check_complete').show();
+            } else if (check_status == 'PENDING') {
+                $('.check_pending').show();
+                timeout = setTimeout(get_check_status, 5000);
+            } else {
+                /* Unexpected status.  Display error message. */
+                $('.check_error_msg').html(data.error_msg);
+                $('.check_error').show();
+            }
+        } else if (check_status == 'PENDING') {
+            timeout = setTimeout(get_check_status, 5000);
         }
     }
 
@@ -76,6 +122,8 @@ function HastexoXBlock(runtime, element) {
             }, 100);
         });
     }
+
+    $(element).find('.check').bind('click', get_check_status);
 
     $(function ($) {
         /* edX recreates the DOM for every vertical unit when navigating to and

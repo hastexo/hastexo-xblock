@@ -4,6 +4,8 @@ Asynchronous tasks.
 
 import time
 import os
+import paramiko
+import uuid
 
 from celery.task import task
 from celery.utils.log import get_task_logger
@@ -183,3 +185,46 @@ def suspend_user_stack(stack_name, os_auth_url, os_username, os_password,
 
     # At this point, the stack has been verified to be running.  So suspend it.
     heat.actions.suspend(stack_id=stack_name)
+
+@task()
+def check(tests, stack_ip, stack_name, stack_user_name):
+    """
+    Run a set of assessment tests via SSH.
+    """
+    # Open SSH connection to the public facing node
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    key_filename = "/edx/var/edxapp/terminal_users/ANONYMOUS/.ssh/%s" % stack_name
+    ssh.connect(stack_ip,
+                username=stack_user_name,
+                key_filename=key_filename)
+    sftp = ssh.open_sftp()
+
+    # Write scripts out, run them, and keep score.
+    score = 0
+    for test in tests:
+        # Generate a temporary filename
+        script = '/tmp/.%s' % uuid.uuid4()
+
+        # Open the file remotely and write the script out to it.
+        f = sftp.open(script, 'w')
+        f.write(test)
+        f.close()
+
+        # Make it executable and run it.
+        sftp.chmod(script, 0775)
+        stdin, stdout, stderr = ssh.exec_command(script)
+        retval = stdout.channel.recv_exit_status()
+        if retval == 0:
+            score += 1
+
+        # Remove the script
+        sftp.remove(script)
+
+    ssh.close()
+
+    return {
+        'status': 'COMPLETE',
+        'pass': score,
+        'total': len(tests)
+    }
