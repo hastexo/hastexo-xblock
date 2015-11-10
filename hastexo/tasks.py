@@ -79,12 +79,12 @@ def launch_or_resume_user_stack(stack_name, stack_user_name, os_auth_url,
             error_msg = "Stack did not provide enough data."
             logger.debug(error_msg)
         else:
-            # Wait for up to a minute until stack is network accessible.
+            # Wait until stack is network accessible, but not indefinitely.
             response = 1
             count = 0
-            while response != 0 and count < 12:
+            while response != 0 and count < 120:
                 response = os.system("ping -c 1 -W 5 " + ip + " >/dev/null 2>&1")
-                count = count + 1
+                count += 1
 
             # Consider stack failed if it isn't network accessible.
             if response != 0:
@@ -109,10 +109,10 @@ def launch_or_resume_user_stack(stack_name, stack_user_name, os_auth_url,
                 # access to the training user while provisioning is going on.
                 response = 1
                 count = 0
-                while response != 0 and count < 12:
+                while response != 0 and count < 120:
                     response = os.system(ssh_command)
-                    time.sleep(10)
-                    count = count + 1
+                    time.sleep(5)
+                    count += 1
 
                 if response != 0:
                     status = 'CREATE_FAILED'
