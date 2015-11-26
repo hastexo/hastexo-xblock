@@ -1,11 +1,13 @@
 import json
 import logging
+import textwrap
 
 from .tasks import launch_or_resume_user_stack as launch_or_resume_user_stack_task
 from .tasks import suspend_user_stack as suspend_user_stack_task
+from .tasks import check as check_task
 
 from xblock.core import XBlock
-from xblock.fields import Scope, Integer, String, Dict
+from xblock.fields import Scope, Integer, Float, String, Dict, List
 from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
@@ -32,31 +34,36 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         help="The name of the training user in the stack.")
     os_auth_url = String(
         default="",
-        scope=Scope.settings,
+        scope=Scope.content,
         help="The OpenStack authentication URL")
     os_tenant_name = String(
         default="",
-        scope=Scope.settings,
+        scope=Scope.content,
         help="The OpenStack tenant name")
     os_username = String(
         default="",
-        scope=Scope.settings,
+        scope=Scope.content,
         help="The OpenStack user name")
     os_password = String(
         default="",
-        scope=Scope.settings,
+        scope=Scope.content,
         help="The OpenStack password")
+    tests = List(
+        default=[],
+        scope=Scope.content,
+        help="The list of tests to run.")
 
     # Scope: settings.  These are set per instance.
     display_name = String(
         default="Lab",
         scope=Scope.settings,
         help="Title to display")
+    weight = Float(
+        default=1,
+        scope=Scope.settings,
+        help="Defines the maximum total grade of the block.")
 
     # Scope: user state.  These are set per instance, per user.
-    # TODO: They should really be set per *course*, per user, or, in official
-    # terminology, "block definition" + "one user":
-    # http://xblock-tutorial.readthedocs.org/en/latest/concepts/fields.html#user-and-block-scope-independence
     os_heat_template = String(
         default="",
         scope=Scope.user_state,
@@ -77,9 +84,18 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         default=None,
         scope=Scope.user_state,
         help="The user stack status")
+    check_id = String(
+        default="",
+        scope=Scope.user_state,
+        help="The check task id")
+    check_status = Dict(
+        default=None,
+        scope=Scope.user_state,
+        help="The check status")
 
     editable_fields = (
         'display_name',
+        'weight',
         'stack_template_path',
         'stack_user_name',
         'os_auth_url',
@@ -88,7 +104,35 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         'os_password')
 
     has_author_view = True
-    icon_class = 'video'
+    has_score = True
+    has_children = True
+    icon_class = 'problem'
+
+    @classmethod
+    def parse_xml(cls, node, runtime, keys, id_generator):
+        block = runtime.construct_xblock_from_class(cls, keys)
+
+        # Find <test> children
+        for child in node:
+            if child.tag == "test":
+                text = child.text
+
+                # Fix up whitespace.
+                if text[0] == "\n":
+                    text = text[1:]
+                text.rstrip()
+                text = textwrap.dedent(text)
+
+                log.info('Test: %s' % text)
+                block.tests.append(text)
+            else:
+                block.runtime.add_node_as_child(block, child, id_generator)
+
+        # Attributes become fields.
+        for name, value in node.items():
+            cls._set_field_if_present(block, name, value)
+
+        return block
 
     def author_view(self, context=None):
         """ Studio View """
@@ -111,6 +155,31 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
 
         # Store the result
         self.user_stack_status = res
+        return res
+
+    def _save_check_task_result(self, result):
+        if result.ready():
+            # Clear the task ID so we know there is no task running.
+            self.check_id = ""
+
+            if (result.successful() and
+                    isinstance(result.result, dict) and not
+                    result.result.get('error')):
+                res = result.result
+
+                # Publish the grade
+                self.runtime.publish(self, 'grade', {
+                    'value': res['pass'],
+                    'max_value': res['total']
+                })
+            else:
+                res = {'status': 'ERROR',
+                       'error_msg': 'Unexpected result: %s' % repr(result.result)}
+        else:
+            res = {'status': 'PENDING'}
+
+        # Store the result
+        self.check_status = res
         return res
 
     def launch_or_resume_user_stack(self, sync = False):
@@ -154,6 +223,17 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
                   'os_tenant_name': self.os_tenant_name}
         result = suspend_user_stack_task.apply_async(kwargs=kwargs, countdown=120)
         self.user_stack_suspend_id = result.id
+
+    def check(self):
+        kwargs = {'tests': self.tests,
+                  'stack_ip': self.user_stack_status['ip'],
+                  'stack_name': self.user_stack_name,
+                  'stack_user_name': self.stack_user_name}
+        result = check_task.apply_async(kwargs=kwargs)
+        self.check_id = result.id
+
+        # Store the result
+        self._save_check_task_result(result)
 
     def student_view(self, context=None):
         """
@@ -225,6 +305,25 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
 
         # Start the dead man's switch
         self.suspend_user_stack()
+
+        return res
+
+    @XBlock.json_handler
+    def get_check_status(self, data, suffix=''):
+        """
+        Checks the current student score.
+        """
+        # If a stack launch task is running, return immediately.
+        if self.user_stack_launch_id:
+            res = {'status': 'PENDING'}
+        # If a check task is running, return its status.
+        elif self.check_id:
+            result = check_task.AsyncResult(self.check_id)
+            res = self._save_check_task_result(result)
+        # Otherwise, launch the check task.
+        else:
+            self.check()
+            res = self.check_status
 
         return res
 
