@@ -35,23 +35,65 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
     os_auth_url = String(
         default="",
         scope=Scope.content,
-        help="The OpenStack authentication URL")
-    os_tenant_name = String(
+        help="The OpenStack authentication URL.")
+    os_auth_token = String(
         default="",
         scope=Scope.content,
-        help="The OpenStack tenant name")
+        help="The OpenStack authentication token.")
     os_username = String(
         default="",
         scope=Scope.content,
-        help="The OpenStack user name")
+        help="The OpenStack user name.")
     os_password = String(
         default="",
         scope=Scope.content,
-        help="The OpenStack password")
+        help="The OpenStack password.")
+    os_user_id = String(
+        default="",
+        scope=Scope.content,
+        help="The OpenStack user ID. (v3 API)")
+    os_user_domain_id = String(
+        default="",
+        scope=Scope.content,
+        help="The OpenStack user domain ID. (v3 API)")
+    os_user_domain_name = String(
+        default="",
+        scope=Scope.content,
+        help="The OpenStack user domain name. (v3 API)")
+    os_project_id = String(
+        default="",
+        scope=Scope.content,
+        help="The OpenStack project ID. (v3 API)")
+    os_project_name = String(
+        default="",
+        scope=Scope.content,
+        help="The OpenStack project name. (v3 API)")
+    os_project_domain_id = String(
+        default="",
+        scope=Scope.content,
+        help="The OpenStack project domain ID. (v3 API)")
+    os_project_domain_name = String(
+        default="",
+        scope=Scope.content,
+        help="The OpenStack project domain name. (v3 API)")
+    os_region_name = String(
+        default="",
+        scope=Scope.content,
+        help="The OpenStack region name.")
     tests = List(
         default=[],
         scope=Scope.content,
         help="The list of tests to run.")
+
+    # Kept for backwards compatibility.
+    os_tenant_id = String(
+        default="",
+        scope=Scope.content,
+        help="The OpenStack tenant ID. (v2.0 API)")
+    os_tenant_name = String(
+        default="",
+        scope=Scope.content,
+        help="The OpenStack tenant name. (v2.0 API)")
 
     # Scope: settings.  These are set per instance.
     display_name = String(
@@ -64,14 +106,14 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         help="Defines the maximum total grade of the block.")
 
     # Scope: user state.  These are set per instance, per user.
-    os_heat_template = String(
-        default="",
-        scope=Scope.user_state,
-        help="The user stack orchestration template")
     user_stack_name = String(
         default="",
         scope=Scope.user_state,
         help="The name of the user's stack")
+    user_stack_template = String(
+        default="",
+        scope=Scope.user_state,
+        help="The user stack orchestration template")
     user_stack_launch_id = String(
         default="",
         scope=Scope.user_state,
@@ -99,9 +141,17 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         'stack_template_path',
         'stack_user_name',
         'os_auth_url',
-        'os_tenant_name',
+        'os_auth_token',
         'os_username',
-        'os_password')
+        'os_password',
+        'os_user_id',
+        'os_user_domain_id',
+        'os_user_domain_name',
+        'os_project_id',
+        'os_project_name',
+        'os_project_domain_id',
+        'os_project_domain_name',
+        'os_region_name')
 
     has_author_view = True
     has_score = True
@@ -182,24 +232,39 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         self.check_status = res
         return res
 
+    def _get_os_auth_kwargs(self):
+        # tenant_name and tenant_id are deprecated
+        project_name = self.os_project_name
+        if not project_name and self.os_tenant_name:
+            project_name = self.os_tenant_name
+
+        project_id = self.os_project_id
+        if not project_id and self.os_tenant_id:
+            project_id = self.os_tenant_id
+
+        return {'auth_token': self.os_auth_token,
+                'username': self.os_username,
+                'password': self.os_password,
+                'user_id': self.os_user_id,
+                'user_domain_id': self.os_user_domain_id,
+                'user_domain_name': self.os_user_domain_name,
+                'project_id': project_id,
+                'project_name': project_name,
+                'project_domain_id': self.os_project_domain_id,
+                'project_domain_name': self.os_project_domain_name,
+                'region_name': self.os_region_name}
+
     def launch_or_resume_user_stack(self, sync = False):
         """
         Launches the student stack if it doesn't exist, resume it if it does
         and is suspended.
         """
-        kwargs = {'stack_name': self.user_stack_name,
-                  'stack_user_name': self.stack_user_name,
-                  'os_auth_url': self.os_auth_url,
-                  'os_username': self.os_username,
-                  'os_password': self.os_password,
-                  'os_tenant_name': self.os_tenant_name,
-                  'os_heat_template': self.os_heat_template}
-
-        # Synchronous or asynchronous?
+        args = (self.user_stack_name, self.user_stack_template, self.stack_user_name, self.os_auth_url)
+        kwargs = self._get_os_auth_kwargs()
         if sync:
-            result = launch_or_resume_user_stack_task.apply(kwargs=kwargs)
+            result = launch_or_resume_user_stack_task.apply(args=args, kwargs=kwargs)
         else:
-            result = launch_or_resume_user_stack_task.apply_async(kwargs=kwargs)
+            result = launch_or_resume_user_stack_task.apply_async(args=args, kwargs=kwargs)
             self.user_stack_launch_id = result.id
 
         # Store the result
@@ -216,20 +281,16 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         self.revoke_suspend()
 
         # (Re)schedule the suspension in the future.
-        kwargs = {'stack_name': self.user_stack_name,
-                  'os_auth_url': self.os_auth_url,
-                  'os_username': self.os_username,
-                  'os_password': self.os_password,
-                  'os_tenant_name': self.os_tenant_name}
-        result = suspend_user_stack_task.apply_async(kwargs=kwargs, countdown=120)
+        args = (self.user_stack_name, self.os_auth_url)
+        kwargs = self._get_os_auth_kwargs()
+        result = suspend_user_stack_task.apply_async(args=args, kwargs=kwargs,
+                                                     countdown=120)
         self.user_stack_suspend_id = result.id
 
     def check(self):
-        kwargs = {'tests': self.tests,
-                  'stack_ip': self.user_stack_status['ip'],
-                  'stack_name': self.user_stack_name,
-                  'stack_user_name': self.stack_user_name}
-        result = check_task.apply_async(kwargs=kwargs)
+        args = (self.tests, self.user_stack_status['ip'], self.user_stack_name,
+                self.stack_user_name)
+        result = check_task.apply_async(args=args)
         self.check_id = result.id
 
         # Store the result
@@ -249,7 +310,7 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         # Load the stack template from the course's content store
         loc = StaticContent.compute_location(course_id, self.stack_template_path)
         asset = contentstore().find(loc)
-        self.os_heat_template = asset.data
+        self.user_stack_template = asset.data
 
         # Make sure the user's stack is launched...
         self.launch_or_resume_user_stack()
