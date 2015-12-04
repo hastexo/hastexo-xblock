@@ -10,38 +10,139 @@ import uuid
 from celery.task import task
 from celery.utils.log import get_task_logger
 
-from keystoneclient.v2_0.client import Client as kclient
-from heatclient.v1.client import Client as hclient
+from keystoneclient.auth.identity import v2 as v2_auth
+from keystoneclient.auth.identity import v3 as v3_auth
+from keystoneclient import discover
+from keystoneclient.openstack.common.apiclient import exceptions as ks_exc
+from keystoneclient import session as kssession
+from heatclient import client as heat_client
 from heatclient import exc
+from six.moves.urllib import parse as urlparse
 
 logger = get_task_logger(__name__)
 
+def get_keystone_auth(session, auth_url, **kwargs):
+    """
+    Figure out whether to use v2 or v3 of the Keystone API, and return the auth
+    object.
+
+    This function is based, with minor changes, on the official OpenStack Heat
+    client's shell implementation.  Specifically,
+    python-heatclient/heatclient/shell.py.
+    """
+    v2_auth_url = None
+    v3_auth_url = None
+    try:
+        ks_discover = discover.Discover(session=session, auth_url=auth_url)
+        v2_auth_url = ks_discover.url_for('2.0')
+        v3_auth_url = ks_discover.url_for('3.0')
+    except ks_exc.ClientException:
+        # If discovery is not supported, parse version out of the auth URL.
+        url_parts = urlparse.urlparse(auth_url)
+        (scheme, netloc, path, params, query, fragment) = url_parts
+        path = path.lower()
+        if path.startswith('/v3'):
+            v3_auth_url = auth_url
+        elif path.startswith('/v2'):
+            v2_auth_url = auth_url
+        else:
+            raise exc.CommandError('Unable to determine Keystone version.')
+
+    auth = None
+    if v3_auth_url and v2_auth_url:
+        # Both v2 and v3 are supported. Use v3 only if domain information is
+        # provided.
+        user_domain_name = kwargs.get('user_domain_name', None)
+        user_domain_id = kwargs.get('user_domain_id', None)
+        project_domain_name = kwargs.get('project_domain_name', None)
+        project_domain_id = kwargs.get('project_domain_id', None)
+
+        if (user_domain_name or user_domain_id or project_domain_name or
+                project_domain_id):
+            auth = get_keystone_v3_auth(v3_auth_url, **kwargs)
+        else:
+            auth = get_keystone_v2_auth(v2_auth_url, **kwargs)
+    elif v3_auth_url:
+        auth = get_keystone_v3_auth(v3_auth_url, **kwargs)
+    elif v2_auth_url:
+        auth = get_keystone_v2_auth(v2_auth_url, **kwargs)
+    else:
+        raise exc.CommandError('Unable to determine Keystone version.')
+
+    return auth
+
+def get_keystone_v3_auth(v3_auth_url, **kwargs):
+    auth_token = kwargs.pop('auth_token', None)
+    if auth_token:
+        return v3_auth.Token(v3_auth_url, auth_token)
+    else:
+        return v3_auth.Password(v3_auth_url, **kwargs)
+
+def get_keystone_v2_auth(v2_auth_url, **kwargs):
+    auth_token = kwargs.pop('auth_token', None)
+    tenant_id = kwargs.get('project_id', None)
+    tenant_name = kwargs.get('project_name', None)
+    if auth_token:
+        return v2_auth.Token(v2_auth_url, auth_token,
+                             tenant_id=tenant_id,
+                             tenant_name=tenant_name)
+    else:
+        username=kwargs.get('username', None)
+        password=kwargs.get('password', None)
+        return v2_auth.Password(v2_auth_url,
+                                username=username,
+                                password=password,
+                                tenant_id=tenant_id,
+                                tenant_name=tenant_name)
+
+def get_heat_client(auth_url, **kwargs):
+    service_type = 'orchestration'
+    endpoint_type = 'publicURL'
+    api_version = '1'
+    region_name = kwargs.pop('region_name', None)
+    username = kwargs.get('username', None)
+    password = kwargs.get('password', None)
+
+    # Authenticate with Keystone
+    keystone_session = kssession.Session()
+    keystone_auth = get_keystone_auth(keystone_session, auth_url, **kwargs)
+
+    # Get the Heat endpoint
+    endpoint = keystone_auth.get_endpoint(keystone_session,
+                                          service_type=service_type,
+                                          interface=endpoint_type,
+                                          region_name=region_name)
+
+    # Initiate the Heat client
+    heat_kwargs = {'auth_url': auth_url,
+                   'session': keystone_session,
+                   'auth': keystone_auth,
+                   'service_type': service_type,
+                   'endpoint_type': endpoint_type,
+                   'region_name': region_name,
+                   'username': username,
+                   'password': password}
+    client = heat_client.Client(api_version, endpoint, **heat_kwargs)
+
+    return client
+
 @task()
-def launch_or_resume_user_stack(stack_name, stack_user_name, os_auth_url,
-        os_username, os_password, os_tenant_name, os_heat_template):
+def launch_or_resume_user_stack(stack_name, stack_template, stack_user, auth_url, **kwargs):
     """
     Launch, or if it already exists and is suspended, resume a stack for the
     user.
     """
     logger.debug("Launching or resuming user stack.")
 
-    # Authenticate with Keystone
-    keystone = kclient(auth_url=os_auth_url, username=os_username,
-        password=os_password, tenant_name=os_tenant_name)
-
-    # Get the Heat endpoint from the Keystone catalog
-    heat_endpoint = keystone.service_catalog.url_for(service_type='orchestration',
-        endpoint_type='publicURL')
-
-    # Instantiate the Heat client
-    heat = hclient(endpoint=heat_endpoint, token=keystone.auth_token)
+    # Get the heat client
+    heat = get_heat_client(auth_url, **kwargs)
 
     # Create the stack if it doesn't exist, resume it if it's suspended.
     try:
         stack = heat.stacks.get(stack_id=stack_name)
     except exc.HTTPNotFound:
         logger.debug("Stack doesn't exist.  Creating it.")
-        res = heat.stacks.create(stack_name=stack_name, template=os_heat_template)
+        res = heat.stacks.create(stack_name=stack_name, template=stack_template)
         stack_id = res['stack']['id']
         stack = heat.stacks.get(stack_id=stack_id)
 
@@ -104,7 +205,7 @@ def launch_or_resume_user_stack(stack_name, stack_user_name, os_auth_url,
 
                 # Build the SSH command
                 ssh_command = "ssh -T -o StrictHostKeyChecking=no -i %s %s@%s exit" % \
-                        (key_path, stack_user_name, ip)
+                        (key_path, stack_user, ip)
 
                 # Now wait until environment is fully provisioned.  One of the
                 # requirements for the Heat template is for it to disallow SSH
@@ -130,27 +231,18 @@ def launch_or_resume_user_stack(stack_name, stack_user_name, os_auth_url,
     return {
         'status': status,
         'ip': ip,
-        'user': stack_user_name,
+        'user': stack_user,
         'key': stack_name,
         'error_msg': error_msg
     }
 
 @task()
-def suspend_user_stack(stack_name, os_auth_url, os_username, os_password,
-        os_tenant_name):
+def suspend_user_stack(stack_name, auth_url, **kwargs):
     """
     Suspend a stack.
     """
-    # Authenticate with Keystone
-    keystone = kclient(auth_url=os_auth_url, username=os_username,
-        password=os_password, tenant_name=os_tenant_name)
-
-    # Get the Heat endpoint from the Keystone catalog
-    heat_endpoint = keystone.service_catalog.url_for(service_type='orchestration',
-        endpoint_type='publicURL')
-
-    # Instantiate the Heat client
-    heat = hclient(endpoint=heat_endpoint, token=keystone.auth_token)
+    # Get the heat client
+    heat = get_heat_client(auth_url, **kwargs)
 
     # Find the stack.  If it doesn't exist, there's nothing to do here.
     try:
@@ -187,7 +279,7 @@ def suspend_user_stack(stack_name, os_auth_url, os_username, os_password,
     heat.actions.suspend(stack_id=stack_name)
 
 @task()
-def check(tests, stack_ip, stack_name, stack_user_name):
+def check(tests, stack_ip, stack_name, stack_user):
     """
     Run a set of assessment tests via SSH.
     """
@@ -196,7 +288,7 @@ def check(tests, stack_ip, stack_name, stack_user_name):
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     key_filename = "/edx/var/edxapp/terminal_users/ANONYMOUS/.ssh/%s" % stack_name
     ssh.connect(stack_ip,
-                username=stack_user_name,
+                username=stack_user,
                 key_filename=key_filename)
     sftp = ssh.open_sftp()
 
