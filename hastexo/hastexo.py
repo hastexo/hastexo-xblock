@@ -331,6 +331,7 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
 
         # Add the public CSS and JS
         frag.add_css_url(self.runtime.local_resource_url(self, 'public/css/main.css'))
+        frag.add_javascript_url(self.runtime.local_resource_url(self, 'public/js/plugins.js'))
         frag.add_javascript_url(self.runtime.local_resource_url(self, 'public/js/main.js'))
 
         # Choose the JS initialization function

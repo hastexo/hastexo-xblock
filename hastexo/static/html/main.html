@@ -1,27 +1,62 @@
 <div class="hastexo_block">
-  <div class="pending">
-    <p>Please wait while we prepare your lab environment...</p>
-  </div>
-  <div class="error">
-    <p>There was a problem preparing your lab environment:</p>
-    <p class="error_msg"></p>
-  </div>
-  <div class="check_button">
-    <input type="button" value="Check progress" class="check"></input>
-  </div>
-  <div class="check_pending">
-    <p>Checking...</p>
-  </div>
-  <div class="check_complete">
-    <p>You scored <span class="check_pass">0</span> out of <span class="check_total">0</span>.</p>
-  </div>
-  <div class="check_error">
-    <p>There was a problem checking your progress:</p>
-    <p class="check_error_msg"></p>
-  </div>
   <div id="gateonecontainer">
     <div id="gateone">
       <div id="container" class="terminal" />
+    </div>
+  </div>
+  <p class="check"><input type="button" value="Check progress"></input></p>
+  <div class="dialog" id="launch_pending">
+    <div class="inner">
+      <h1><span>Please wait</span><span class="loader"></span></h1>
+      <p class="message">We are connecting you to your lab environment.</p>
+      <p class="message">If this is the first time, be patient: it may take a couple of <strong>minutes</strong> to provision your stack.</p>
+    </div>
+  </div>
+  <div class="dialog" id="launch_error">
+    <div class="inner">
+      <h1>Whoops!</h1>
+      <p class="message">There was a problem connecting to your lab environment, and this is what the server told us:</p>
+      <p class="error_msg"></p>
+      <p class="buttons">
+        <input type="button" class="ok" value="Ok"></input>
+        <input type="button" class="retry" value="Retry"></input>
+      </p>
+    </div>
+  </div>
+  <div class="dialog" id="check_pending">
+    <div class="inner">
+      <h1><span>Please wait</span><span class="loader"></span></h1>
+      <p class="message">While we check your progress.  It shouldn't take more than a few <strong>seconds</strong>.</p>
+    </div>
+  </div>
+  <div class="dialog" id="check_complete">
+    <div class="inner">
+      <h1>Done!</h1>
+      <p class="message">You successfully completed <strong class="check_pass">0</strong> out of <strong class="check_total">0</strong> assessment tests.</p>
+      <p class="buttons">
+        <input type="button" class="ok" value="Ok"></input>
+      </p>
+    </div>
+  </div>
+  <div class="dialog" id="check_error">
+    <div class="inner">
+      <h1>Whoops!</h1>
+      <p class="message">There was a problem checking your progress, and this is what the server told us:</p>
+      <p class="error_msg"></p>
+      <p class="buttons">
+        <input type="button" class="ok" value="Ok"></input>
+        <input type="button" class="retry" value="Retry"></input>
+      </p>
+    </div>
+  </div>
+  <div class="dialog" id="idle">
+    <div class="inner">
+      <h1>We think you're idle.</h1>
+      <p class="message">We have paused your lab environment.</p>
+      <p>If we're wrong or if you just came back, please click <strong>Ok</strong> to resume it.</p>
+      <p class="buttons">
+        <input type="button" class="ok" value="Ok"></input>
+      </p>
     </div>
   </div>
 </div>
