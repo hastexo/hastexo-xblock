@@ -173,7 +173,6 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
                 text.rstrip()
                 text = textwrap.dedent(text)
 
-                log.info('Test: %s' % text)
                 block.tests.append(text)
             else:
                 block.runtime.add_node_as_child(block, child, id_generator)
@@ -264,7 +263,7 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         if sync:
             result = launch_or_resume_user_stack_task.apply(args=args, kwargs=kwargs)
         else:
-            result = launch_or_resume_user_stack_task.apply_async(args=args, kwargs=kwargs)
+            result = launch_or_resume_user_stack_task.apply_async(args=args, kwargs=kwargs, expires=60)
             self.user_stack_launch_id = result.id
 
         # Store the result
@@ -288,9 +287,15 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         self.user_stack_suspend_id = result.id
 
     def check(self):
+        log.info('Executing tests for stack [%s], IP [%s], user [%s]:' %
+                (self.user_stack_name, self.user_stack_status['ip'],
+                 self.stack_user_name))
+        for test in self.tests:
+            log.info('Test: %s' % test)
+
         args = (self.tests, self.user_stack_status['ip'], self.user_stack_name,
                 self.stack_user_name)
-        result = check_task.apply_async(args=args)
+        result = check_task.apply_async(args=args, expires=60)
         self.check_id = result.id
 
         # Store the result
@@ -376,9 +381,11 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         """
         # If a stack launch task is running, return immediately.
         if self.user_stack_launch_id:
+            log.info('stack launch task is running: %s' % self.user_stack_launch_id)
             res = {'status': 'PENDING'}
         # If a check task is running, return its status.
         elif self.check_id:
+            log.info('check task is running: %s' % self.check_id)
             result = check_task.AsyncResult(self.check_id)
             res = self._save_check_task_result(result)
         # Otherwise, launch the check task.
