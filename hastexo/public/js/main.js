@@ -1,168 +1,237 @@
-/* A cached version of jQuery's getScript. */
-jQuery.cachedScript = function(url, options) {
-    options = $.extend( options || {}, {
-        dataType: "script",
-        cache: true,
-        url: url
-    });
-
-    return jQuery.ajax(options);
+var stack, check;
+var status_timer, keepalive_timer, idle_timer, check_timer;
+var timeouts = {
+    status: 10000,
+    keepalive: 60000,
+    idle: 600000,
+    check: 5000
 };
 
-/* Globals. */
-var timeout;
-
 function HastexoXBlock(runtime, element) {
-    var stack_status;
-    var check_status;
+    function get_user_stack_status() {
+        $('#launch_pending').dialog();
+        $.ajax({
+            type: 'POST',
+            url: runtime.handlerUrl(element, 'get_user_stack_status'),
+            data: '{}',
+            success: function(data) {
+                var changed = false;
+                if (!stack || stack.status !== data.status) {
+                    changed = true;
+                    stack = data;
+                }
+                if (changed) {
+                    update_user_stack_status(stack);
+                } else if (stack.status == 'PENDING') {
+                    if (status_timer) clearTimeout(status_timer);
+                    status_timer = setTimeout(get_user_stack_status, timeouts['status']);
+                }
+            },
+            dataType: 'json'
+        });
+    }
+
+    function update_user_stack_status(stack) {
+        if (stack.status == 'CREATE_COMPLETE' || stack.status == 'RESUME_COMPLETE') {
+            /* Start the terminal.  Certain GateOne tasks must be delayed
+             * manually, or risk failure during inter-dependency checking. */
+            GateOne.Base.superSandbox("GateOne.MyModule", ["GateOne.Input", "GateOne.Terminal", "GateOne.Terminal.Input"], function(window, undefined) {
+                setTimeout(function() {
+                    var c = GateOne.Utils.getNode('#container');
+                    var term_num = GateOne.Terminal.newTerminal(null, null, c);
+                    setTimeout(function() {
+                        var s = 'ssh://' + stack.user + '@' + stack.ip + ':22/?identities=' + stack.key + '\n';
+                        GateOne.Terminal.sendString(s);
+                        setTimeout(function() {
+                            /* Update screen dimensions. */
+                            GateOne.Terminal.sendDimensions();
+
+                            /* Display assessment test button. */
+                            $(element).find('.check').show();
+
+                            /* Reset keepalive timer. */
+                            if (keepalive_timer) clearTimeout(keepalive_timer);
+                            keepalive_timer = setTimeout(keepalive, timeouts['keepalive']);
+
+                            /* Reset idle timer. */
+                            if (idle_timer) clearTimeout(idle_timer);
+                            idle_timer = setTimeout(idle, timeouts['idle']);
+
+                            /* Close the dialog. */
+                            $.dialog.close();
+                        }, 750);
+                    }, 250);
+                }, 100);
+            });
+        } else if (stack.status == 'PENDING') {
+            if (status_timer) clearTimeout(status_timer);
+            status_timer = setTimeout(get_user_stack_status, timeouts['status']);
+        } else {
+            /* Unexpected status.  Display error message. */
+            var dialog = $('#launch_error');
+            dialog.find('.error_msg').html(stack.error_msg);
+            dialog.find('input.ok').one('click', function() {
+                $.dialog.close();
+            });
+            dialog.find('input.retry').one('click', function() {
+                $.dialog.close();
+                location.reload();
+            });
+            dialog.dialog();
+        }
+    }
 
     function keepalive() {
         $.ajax({
             type: 'POST',
             url: runtime.handlerUrl(element, 'keepalive'),
             data: '{}',
-            success: function() {timeout = setTimeout(keepalive, 60000);},
-            dataType: 'json'
-        });
-    }
-
-    function get_user_stack_status() {
-        $.ajax({
-            type: 'POST',
-            url: runtime.handlerUrl(element, 'get_user_stack_status'),
-            data: '{}',
-            success: update_user_stack_status,
+            success: function() {
+                if (keepalive_timer) clearTimeout(keepalive_timer);
+                keepalive_timer = setTimeout(keepalive, timeouts['keepalive']);
+            },
             dataType: 'json'
         });
     }
 
     function get_check_status() {
-        $('.check').prop('disabled', true);
-        $('.check_complete').hide();
-        $('.check_error').hide();
-        $('.check_pending').show();
+        $('#check_pending').dialog();
         $.ajax({
             type: 'POST',
             url: runtime.handlerUrl(element, 'get_check_status'),
             data: '{}',
-            success: update_check_status,
+            success: function(data) {
+                var changed = false;
+                if (!check || check.status !== data.status) {
+                    changed = true;
+                    check = data;
+                }
+                if (changed) {
+                    var dialog;
+                    if (check.status == 'COMPLETE') {
+                        dialog = $('#check_complete');
+                        dialog.find('.check_pass').html(data.pass);
+                        dialog.find('.check_total').html(data.total);
+                        dialog.find('input.ok').one('click', function() {
+                            $.dialog.close();
+                        });
+                        dialog.dialog();
+                    } else if (check.status == 'PENDING') {
+                        dialog = $('#check_pending');
+                        dialog.dialog();
+                        if (check_timer) clearTimeout(check_timer);
+                        check_timer = setTimeout(get_check_status, timeouts['check']);
+                    } else {
+                        /* Unexpected status.  Display error message. */
+                        dialog = $('#check_error');
+                        dialog.find('.error_msg').html(check.error_msg);
+                        dialog.find('input.ok').one('click', function() {
+                            $.dialog.close();
+                        });
+                        dialog.find('input.retry').one('click', function() {
+                            $.dialog.close();
+                            get_check_status();
+                        });
+                        dialog.dialog();
+                    }
+                } else if (check.status == 'PENDING') {
+                    if (check_timer) clearTimeout(check_timer);
+                    check_timer = setTimeout(get_check_status, timeouts['check']);
+                }
+            },
             dataType: 'json'
         });
     }
 
-    function update_user_stack_status(data) {
-        var changed = false;
-        if (stack_status !== data.status) {
-            changed = true;
-            stack_status = data.status;
-        }
+    function idle() {
+        /* We're idle.  Stop the keepalive timer and clear stack info.  */
+        clearTimeout(keepalive_timer);
+        stack = null;
 
-        /* If there was a change in status, update the screen. */
-        if (changed) {
-            $('.pending').hide();
-            $('.error').hide();
-            if (stack_status == 'CREATE_COMPLETE' || stack_status == 'RESUME_COMPLETE') {
-                $('.check_button').show();
-                start_new_terminal(data.ip, data.user, data.key);
-                timeout = setTimeout(keepalive, 60000);
-            } else if (stack_status == 'PENDING') {
-                $('.pending').show();
-                timeout = setTimeout(get_user_stack_status, 10000);
-            } else {
-                /* Unexpected status.  Display error message. */
-                $('.error_msg').html(data.error_msg);
-                $('.error').show();
-            }
-        } else if (stack_status == 'PENDING') {
-            timeout = setTimeout(get_user_stack_status, 10000);
-        }
-    }
+        var dialog = $('#idle');
+        dialog.find('input.ok').one('click', function() {
+            /* Close the old terminal. A new one will be created after the
+             * stack reaches the appropriate state. */
+            GateOne.Terminal.closeTerminal(1);
 
-    function update_check_status(data) {
-        var changed = false;
-        if (check_status !== data.status) {
-            changed = true;
-            check_status = data.status;
-        }
-
-        /* If there was a change in status, update the screen. */
-        if (changed) {
-            $('.check_pending').hide();
-            $('.check_complete').hide();
-            $('.check_error').hide();
-            if (check_status == 'COMPLETE') {
-              $('.check').prop('disabled', false);
-              $('.check_pass').html(data.pass);
-              $('.check_total').html(data.total);
-              $('.check_complete').show();
-            } else if (check_status == 'PENDING') {
-                $('.check_pending').show();
-                timeout = setTimeout(get_check_status, 5000);
-            } else {
-                /* Unexpected status.  Display error message. */
-                $('.check_error_msg').html(data.error_msg);
-                $('.check_error').show();
-            }
-        } else if (check_status == 'PENDING') {
-            timeout = setTimeout(get_check_status, 5000);
-        }
-    }
-
-    function start_new_terminal(ip, user, key) {
-        GateOne.Base.superSandbox("GateOne.MyModule", ["GateOne.Input", "GateOne.Terminal", "GateOne.Terminal.Input"], function(window, undefined) {
-            var container = GateOne.Utils.getNode('#container');
-            setTimeout(function() {
-                var term_num = GateOne.Terminal.newTerminal(null, null, container);
-                setTimeout(function() {
-                    GateOne.Terminal.sendString('ssh://' + user + '@' + ip + ':22/?identities=' + key + '\n');
-                    setTimeout(function() {
-                        GateOne.Terminal.sendDimensions();
-                    }, 750);
-                }, 250);
-            }, 100);
+            /* Start over. */
+            get_user_stack_status();
         });
+        dialog.dialog();
     }
 
-    $(element).find('.check').bind('click', get_check_status);
-
-    $(function ($) {
-        /* edX recreates the DOM for every vertical unit when navigating to and
-         * from them.  However, after navigating away from a lab unit (but
-         * remaining on the section) GateOne will remain initialized, any
-         * terminals will remain open, and any timeouts will continue to run.
-         * Thus, one must take care not to reinitialize GateOne, and to
-         * retrieve the open terminal if necessary. */
-        if (typeof GateOne == 'undefined') {
-            /* Load GateOne dynamically. */
-            $.cachedScript('/terminal/static/gateone.js').done(function() {
-                GateOne.init({
-                    url: window.location.origin + '/terminal/',
-                    embedded: true,
-                    goDiv: '#gateone',
-                    logLevel: 'WARNING'
-                });
-
-                get_user_stack_status();
-            });
-        } else {
-            var g = GateOne;
-            var t = g.Terminal;
-            var u = g.Utils;
-
-            if (t.terminals[1] && t.terminals[1].where) {
-                /* Hide the pending message. */
-                $('.pending').hide();
-
-                /* Remove the empty goDiv. */
-                u.removeElement(g.prefs.goDiv);
-
-                /* Move the old goDiv to its correct place. */
-                var container = u.getNode('#gateonecontainer');
-                container.appendChild(t.terminals[1].where);
-
-                /* Scroll the terminal to the bottom. */
-                u.scrollToBottom('#go_default_term1_pre');
-            }
-        }
+    /* Reset the idle timeout on every key press. */
+    $(element).keydown(function() {
+        if (idle_timer) clearTimeout(idle_timer);
+        idle_timer = setTimeout(idle, timeouts['idle']);
     });
+
+    /* Bind check button action. */
+    $(element).find('p.check input').on('click', get_check_status);
+
+    /* edX recreates the DOM for every vertical unit when navigating to and
+     * from them.  However, after navigating away from a lab unit (but
+     * remaining on the section) GateOne will remain initialized, any
+     * terminals will remain open, and any timeouts will continue to run.
+     * Thus, one must take care not to reinitialize GateOne. */
+    if (typeof GateOne == 'undefined') {
+        /* Load GateOne dynamically. */
+        $.cachedScript('/terminal/static/gateone.js').done(function() {
+            GateOne.init({
+                url: window.location.origin + '/terminal/',
+                embedded: true,
+                goDiv: '#gateone',
+                logLevel: 'WARNING'
+            });
+
+            get_user_stack_status();
+        });
+    } else {
+        /* If the stack status is known, the keepalive timer hasn't been
+         * stopped, and we can simply recover the existing
+         * workspace.  If it doesn't exist, we create a new one.*/
+        if (stack) {
+            if (GateOne.Terminal.terminals[1]) {
+                /* Recover existing workspace. */
+                GateOne.Utils.removeElement(GateOne.prefs.goDiv);
+                var c = GateOne.Utils.getNode('#gateonecontainer');
+                var w = GateOne.Terminal.terminals[1].where;
+                c.appendChild(w);
+
+                /* Scroll to the bottom of the terminal manually. */
+                GateOne.Utils.scrollToBottom('#go_default_term1_pre');
+
+                /* Display assessment test button. */
+                $(element).find('.check').show();
+
+                /* Reset keepalive timer. */
+                if (keepalive_timer) clearTimeout(keepalive_timer);
+                keepalive_timer = setTimeout(keepalive, timeouts['keepalive']);
+
+                /* Reset idle timer. */
+                if (idle_timer) clearTimeout(idle_timer);
+                idle_timer = setTimeout(idle, timeouts['idle']);
+            } else {
+                update_user_stack_status(stack);
+            }
+
+        /* We don't know the stack status.  Ask the server, but first close
+         * any existing terminals. */
+        } else {
+            if (GateOne.Terminal.terminals[1]) {
+                /* Recover existing workspace. */
+                GateOne.Utils.removeElement(GateOne.prefs.goDiv);
+                var c = GateOne.Utils.getNode('#gateonecontainer');
+                var w = GateOne.Terminal.terminals[1].where;
+                c.appendChild(w);
+
+                /* Close the old terminal. A new one will be created after the
+                 * stack reaches the appropriate state. */
+                GateOne.Terminal.closeTerminal(1);
+            }
+
+            /* Start over. */
+            get_user_stack_status();
+        }
+    }
 }

@@ -1,14 +1,6 @@
-.pending, .error, .check_button, .check_pending, .check_complete, .check_error {
-    position: relative;
-    margin: 0 auto;
-}
-
-.error, .check_button, .check_pending, .check_complete, .check_error {
+p.check {
     display: none;
-}
-
-.check_pass, .check_total {
-    font-weight: bold;
+    text-align: right;
 }
 
 #gateonecontainer {
@@ -31,4 +23,106 @@
 #container {
     height: 100%;
     width: 100%
+}
+
+.dialog-overlay {
+    position: fixed;
+    top: 0; right: 0; bottom: 0; left: 0;
+    width: 100%; height: 100%;
+    overflow: auto;
+    padding: 20px;
+    box-sizing: border-box;
+    background: radial-gradient(circle at 50% 50%, rgba(0,0,0,0.4), rgba(0,0,0,0.6));
+    text-align: center;
+    z-index: 1001;
+}
+
+.dialog-overlay:before {
+    content: "";
+    display: inline-block;
+    height: 100%;
+    vertical-align: middle;
+    margin-right: -0.05em;
+}
+
+.dialog {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1002;
+    max-width: 480px;
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px #000;
+    text-align: left;
+}
+
+.dialog .inner {
+    background: rgb(245, 245, 245);
+    border-radius: 0;
+    border: 1px solid rgba(0, 0, 0, 0.9);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.7);
+    overflow: hidden;
+    padding: 10px;
+    position: relative;
+}
+
+.dialog h1,
+.dialog p {
+    text-align: center;
+}
+
+.dialog h1 {
+    margin-bottom: 20px;
+}
+
+.dialog {
+    display: none;
+}
+
+.dialog .loader:before,
+.dialog .loader:after,
+.dialog .loader {
+    display: inline-block;
+    border-radius: 50%;
+    width: 2.5em;
+    height: 2.5em;
+    animation-fill-mode: both;
+    animation: ellipsis 1.8s infinite ease-in-out;
+}
+
+.dialog .loader {
+    font-size: 2px;
+    margin: 10px 0 4px 16px;
+    position: relative;
+    animation-delay: -0.16s;
+}
+
+.dialog .loader:before {
+    left: -6em;
+    animation-delay: -0.32s;
+}
+
+.dialog .loader:after {
+    left: 6em;
+}
+
+.dialog .loader:before,
+.dialog .loader:after {
+    content: '';
+    position: absolute;
+    top: 0;
+}
+
+@keyframes ellipsis {
+    0%,
+    80%,
+    100% {
+        box-shadow: 0 2.5em 0 -1.3em #000;
+    }
+    40% {
+        box-shadow: 0 2.5em 0 0 #000;
+    }
 }
