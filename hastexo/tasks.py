@@ -16,7 +16,7 @@ from keystoneclient import discover
 from keystoneclient.openstack.common.apiclient import exceptions as ks_exc
 from keystoneclient import session as kssession
 from heatclient import client as heat_client
-from heatclient import exc
+from heatclient import exc as heat_exc
 from six.moves.urllib import parse as urlparse
 
 logger = get_task_logger(__name__)
@@ -46,7 +46,7 @@ def get_keystone_auth(session, auth_url, **kwargs):
         elif path.startswith('/v2'):
             v2_auth_url = auth_url
         else:
-            raise exc.CommandError('Unable to determine Keystone version.')
+            raise heat_exc.CommandError('Unable to determine Keystone version.')
 
     auth = None
     if v3_auth_url and v2_auth_url:
@@ -67,7 +67,7 @@ def get_keystone_auth(session, auth_url, **kwargs):
     elif v2_auth_url:
         auth = get_keystone_v2_auth(v2_auth_url, **kwargs)
     else:
-        raise exc.CommandError('Unable to determine Keystone version.')
+        raise heat_exc.CommandError('Unable to determine Keystone version.')
 
     return auth
 
@@ -140,7 +140,7 @@ def launch_or_resume_user_stack(stack_name, stack_template, stack_user, auth_url
     # Create the stack if it doesn't exist, resume it if it's suspended.
     try:
         stack = heat.stacks.get(stack_id=stack_name)
-    except exc.HTTPNotFound:
+    except heat_exc.HTTPNotFound:
         logger.debug("Stack doesn't exist.  Creating it.")
         res = heat.stacks.create(stack_name=stack_name, template=stack_template)
         stack_id = res['stack']['id']
@@ -149,24 +149,45 @@ def launch_or_resume_user_stack(stack_name, stack_template, stack_user, auth_url
     status = stack.stack_status
 
     # If stack is being suspended, wait.
+    retry = 0
     while status == "SUSPEND_IN_PROGRESS":
-        time.sleep(5)
-        stack = heat.stacks.get(stack_id=stack.id)
-        status = stack.stack_status
+        if retry:
+            time.sleep(5)
+        try:
+            stack = heat.stacks.get(stack_id=stack.id)
+        except heat_exc.HTTPNotFound:
+            logger.debug("Stack disappeared during suspension.")
+            status = 'SUSPEND_FAILED'
+        else:
+            status = stack.stack_status
+            retry += 1
+            if retry >= 60:
+                logger.debug("Stack suspension took too long.")
+                status = 'SUSPEND_FAILED'
 
     # If stack is suspended, resume it.
     if status == "SUSPEND_COMPLETE":
         logger.debug("Resuming stack.")
         heat.actions.resume(stack_id=stack.id)
 
-    # Wait until stack is ready (or failed).
-    while (status != 'CREATE_COMPLETE' and
-           status != 'RESUME_COMPLETE' and
-           status != 'CREATE_FAILED' and
-           status != 'RESUME_FAILED'):
-        time.sleep(5)
-        stack = heat.stacks.get(stack_id=stack.id)
-        status = stack.stack_status
+    # Wait until stack is ready, or broken.
+    retry = 0
+    while ('FAILED' not in status and
+           status != 'CREATE_COMPLETE' and
+           status != 'RESUME_COMPLETE'):
+        if retry:
+            time.sleep(5)
+        try:
+            stack = heat.stacks.get(stack_id=stack.id)
+        except heat_exc.HTTPNotFound:
+            logger.debug("Stack disappeared during creation.")
+            status = 'CREATE_FAILED'
+        else:
+            status = stack.stack_status
+            retry += 1
+            if retry >= 120:
+                logger.debug("Stack creation took too long.")
+                status = 'CREATE_FAILED'
 
     ip = None
     key = None
@@ -184,10 +205,10 @@ def launch_or_resume_user_stack(stack_name, stack_template, stack_user, auth_url
         else:
             # Wait until stack is network accessible, but not indefinitely.
             response = 1
-            count = 0
-            while response != 0 and count < 120:
+            retry = 0
+            while response != 0 and retry < 120:
                 response = os.system("ping -c 1 -W 5 " + ip + " >/dev/null 2>&1")
-                count += 1
+                retry += 1
 
             # Consider stack failed if it isn't network accessible.
             if response != 0:
@@ -211,11 +232,11 @@ def launch_or_resume_user_stack(stack_name, stack_template, stack_user, auth_url
                 # requirements for the Heat template is for it to disallow SSH
                 # access to the training user while provisioning is going on.
                 response = 1
-                count = 0
-                while response != 0 and count < 120:
+                retry = 0
+                while response != 0 and retry < 120:
                     response = os.system(ssh_command)
                     time.sleep(5)
-                    count += 1
+                    retry += 1
 
                 if response != 0:
                     status = 'CREATE_FAILED'
@@ -247,36 +268,45 @@ def suspend_user_stack(stack_name, auth_url, **kwargs):
     # Find the stack.  If it doesn't exist, there's nothing to do here.
     try:
         stack = heat.stacks.get(stack_id=stack_name)
-    except exc.HTTPNotFound:
+    except heat_exc.HTTPNotFound:
         logger.debug("Stack doesn't exist.")
         return
 
     status = stack.stack_status
 
-    # If the stack is already suspended, or in the process of, there's nothing
-    # to do here.
-    if (status == 'SUSPEND_COMPLETE' or
-        status == 'SUSPEND_IN_PROGRESS'):
+    # If the stack is broken, already suspended, or in the process of, there's
+    # nothing to do here.
+    if ('FAILED' in status or
+         status == 'SUSPEND_COMPLETE' or
+         status == 'SUSPEND_IN_PROGRESS'):
         return
 
     # If the stack is undergoing some other change of state, wait for it to
     # complete.
-    while (status != 'CREATE_COMPLETE' and
-           status != 'RESUME_COMPLETE' and
-           status != 'CREATE_FAILED' and
-           status != 'RESUME_FAILED'):
-        time.sleep(5)
-        stack = heat.stacks.get(stack_id=stack.id)
-        status = stack.stack_status
+    retry = 0
+    while ('FAILED' not in status and
+           status != 'CREATE_COMPLETE' and
+           status != 'RESUME_COMPLETE'):
+        if retry:
+            time.sleep(5)
+        try:
+            stack = heat.stacks.get(stack_id=stack.id)
+        except heat_exc.HTTPNotFound:
+            error_msg = "Stack suspension took too long."
+            status = 'SUSPEND_FAILED'
+        else:
+            status = stack.stack_status
+            retry += 1
+            if retry >= 60:
+                error_msg = "Stack suspension took too long."
+                status = 'SUSPEND_FAILED'
 
-    # If the stack is failed, there's also nothing to do here.
-    if (status == 'CREATE_FAILED' or
-        status == 'RESUME_FAILED'):
-        logger.debug("Stack is failed.")
-        return
-
-    # At this point, the stack has been verified to be running.  So suspend it.
-    heat.actions.suspend(stack_id=stack_name)
+    # If the stack broke, there's nothing to do here.
+    if 'FAILED' in status:
+        logger.debug("Stack suspension failed.")
+    else:
+        # At this point, the stack has been verified to be running.  So suspend it.
+        heat.actions.suspend(stack_id=stack_name)
 
 @task()
 def check(tests, stack_ip, stack_name, stack_user):
