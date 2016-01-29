@@ -347,6 +347,17 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
 
         return frag
 
+    def is_correct(self):
+        if not (self.check_status and isinstance(self.check_status, dict)):
+            return False
+        else:
+            total = self.check_status.get('total')
+            if not total:
+                return False
+            else:
+                score = self.check_status.get('pass')
+                return score == total
+
     @XBlock.json_handler
     def keepalive(self, data, suffix=''):
         # Reset the dead man's switch
