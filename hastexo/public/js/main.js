@@ -2,7 +2,7 @@ var stack, check;
 var status_timer, keepalive_timer, idle_timer, check_timer;
 var timeouts = {
     status: 10000,
-    keepalive: 60000,
+    keepalive: 15000,
     idle: 600000,
     check: 5000
 };
