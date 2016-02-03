@@ -105,27 +105,29 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings,
         help="Defines the maximum total grade of the block.")
 
-    # Scope: user state.  These are set per instance, per user.
-    user_stack_name = String(
-        default="",
-        scope=Scope.user_state,
-        help="The name of the user's stack")
+    # Scope: preferences.  These are set across blocks in a course.
     user_stack_template = String(
         default="",
-        scope=Scope.user_state,
+        scope=Scope.preferences,
         help="The user stack orchestration template")
+    user_stack_name = String(
+        default="",
+        scope=Scope.preferences,
+        help="The name of the user's stack")
     user_stack_launch_id = String(
         default="",
-        scope=Scope.user_state,
+        scope=Scope.preferences,
         help="The user stack launch task id")
     user_stack_suspend_id = String(
         default="",
-        scope=Scope.user_state,
+        scope=Scope.preferences,
         help="The user stack suspend task id")
     user_stack_status = Dict(
         default=None,
-        scope=Scope.user_state,
+        scope=Scope.preferences,
         help="The user stack status")
+
+    # Scope: user state.  These are set per instance, per user.
     check_id = String(
         default="",
         scope=Scope.user_state,
