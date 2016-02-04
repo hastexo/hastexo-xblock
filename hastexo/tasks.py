@@ -148,46 +148,47 @@ def launch_or_resume_user_stack(stack_name, stack_template, stack_user, auth_url
 
     status = stack.stack_status
 
-    # If stack is being suspended, wait.
+    # If stack is undergoing a change of state, wait until it finishes.
     retry = 0
-    while status == "SUSPEND_IN_PROGRESS":
+    while 'IN_PROGRESS' in status:
         if retry:
             time.sleep(5)
         try:
             stack = heat.stacks.get(stack_id=stack.id)
         except heat_exc.HTTPNotFound:
-            logger.debug("Stack disappeared during suspension.")
-            status = 'SUSPEND_FAILED'
-        else:
-            status = stack.stack_status
-            retry += 1
-            if retry >= 60:
-                logger.debug("Stack suspension took too long.")
-                status = 'SUSPEND_FAILED'
+            logger.debug("Stack disappeared during change of state. Re-creating it.")
+            res = heat.stacks.create(stack_name=stack_name, template=stack_template)
+            stack_id = res['stack']['id']
+            stack = heat.stacks.get(stack_id=stack_id)
+
+        status = stack.stack_status
+        retry += 1
+        if retry >= 120:
+            logger.debug("Stack state change took too long.")
+            status = 'CREATE_FAILED'
 
     # If stack is suspended, resume it.
     if status == "SUSPEND_COMPLETE":
         logger.debug("Resuming stack.")
         heat.actions.resume(stack_id=stack.id)
 
-    # Wait until stack is ready, or broken.
-    retry = 0
-    while ('FAILED' not in status and
-           status != 'CREATE_COMPLETE' and
-           status != 'RESUME_COMPLETE'):
-        if retry:
-            time.sleep(5)
-        try:
-            stack = heat.stacks.get(stack_id=stack.id)
-        except heat_exc.HTTPNotFound:
-            logger.debug("Stack disappeared during creation.")
-            status = 'CREATE_FAILED'
-        else:
-            status = stack.stack_status
-            retry += 1
-            if retry >= 120:
-                logger.debug("Stack creation took too long.")
+        # Wait until resume finishes.
+        retry = 0
+        while ('FAILED' not in status and
+               status != 'RESUME_COMPLETE'):
+            if retry:
+                time.sleep(5)
+            try:
+                stack = heat.stacks.get(stack_id=stack.id)
+            except heat_exc.HTTPNotFound:
+                logger.debug("Stack disappeared during resume.")
                 status = 'CREATE_FAILED'
+            else:
+                status = stack.stack_status
+                retry += 1
+                if retry >= 120:
+                    logger.debug("Stack resume took too long.")
+                    status = 'CREATE_FAILED'
 
     ip = None
     key = None
@@ -246,8 +247,15 @@ def launch_or_resume_user_stack(stack_name, stack_template, stack_user, auth_url
                     error_msg = None
                     logger.debug("Stack creation successful.")
     else:
-        error_msg = "Stack creation failed."
+        error_msg = "Stack activation failed with status [%s]" % status
         logger.debug(error_msg)
+
+    # Make sure a failed stack's resources are not left around racking up
+    # fees.
+    if status == 'CREATE_FAILED':
+        msg = "Deleting failed stack [%s]" % stack.id
+        logger.debug(msg)
+        heat.stacks.delete(stack_id=stack.id)
 
     return {
         'status': status,
@@ -284,28 +292,23 @@ def suspend_user_stack(stack_name, auth_url, **kwargs):
     # If the stack is undergoing some other change of state, wait for it to
     # complete.
     retry = 0
-    while ('FAILED' not in status and
-           status != 'CREATE_COMPLETE' and
-           status != 'RESUME_COMPLETE'):
+    while 'IN_PROGRESS' in status:
         if retry:
             time.sleep(5)
         try:
             stack = heat.stacks.get(stack_id=stack.id)
         except heat_exc.HTTPNotFound:
-            error_msg = "Stack suspension took too long."
+            error_msg = "Stack disappeared during state change [%s]." % status
             status = 'SUSPEND_FAILED'
         else:
             status = stack.stack_status
             retry += 1
-            if retry >= 60:
-                error_msg = "Stack suspension took too long."
+            if retry >= 120:
+                error_msg = "Stack state change [%s] took too long." % status
                 status = 'SUSPEND_FAILED'
 
-    # If the stack broke, there's nothing to do here.
-    if 'FAILED' in status:
-        logger.debug("Stack suspension failed.")
-    else:
-        # At this point, the stack has been verified to be running.  So suspend it.
+    # At this point, the stack has been verified to be running.  So suspend it.
+    if 'FAILED' not in status:
         heat.actions.suspend(stack_id=stack_name)
 
 @task()
