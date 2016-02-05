@@ -156,6 +156,18 @@ a student comes back to the lab environment to finish the exercise, their
 stack is resumed automatically.  They are connected to the same training
 environment they were working with before, in the *same state* they left it in.
 
+## Running tests
+
+For now, one must run the provided unit tests (which are currently limited to
+tasks) from the edxapp virtualenv, as deployed by fullstack.  Thus, on such a
+box:
+
+    $ sudo /edx/bin/python.edxapp -m unittest hastexo.tests.unit.test_tasks
+
+Or,
+
+    $ cd /edx/app/edxapp/hastexo-xblock
+    $ /edx/app/edxapp/venvs/edxapp/bin/nosetests hastexo/tests -v
 
 ## License
 

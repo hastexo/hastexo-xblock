@@ -2,10 +2,6 @@ import json
 import logging
 import textwrap
 
-from .tasks import launch_or_resume_user_stack as launch_or_resume_user_stack_task
-from .tasks import suspend_user_stack as suspend_user_stack_task
-from .tasks import check as check_task
-
 from xblock.core import XBlock
 from xblock.fields import Scope, Integer, Float, String, Dict, List
 from xblock.fragment import Fragment
@@ -13,6 +9,8 @@ from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 from xmodule.contentstore.content import StaticContent
 from xmodule.contentstore.django import contentstore
+
+from .tasks import LaunchStackTask, SuspendStackTask, CheckStudentProgressTask
 
 log = logging.getLogger(__name__)
 loader = ResourceLoader(__name__)
@@ -262,10 +260,11 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         """
         args = (self.user_stack_name, self.user_stack_template, self.stack_user_name, self.os_auth_url)
         kwargs = self._get_os_auth_kwargs()
+        task = LaunchStackTask()
         if sync:
-            result = launch_or_resume_user_stack_task.apply(args=args, kwargs=kwargs)
+            result = task.apply(args=args, kwargs=kwargs)
         else:
-            result = launch_or_resume_user_stack_task.apply_async(args=args, kwargs=kwargs, expires=60)
+            result = task.apply_async(args=args, kwargs=kwargs, expires=60)
             self.user_stack_launch_id = result.id
 
         # Store the result
@@ -284,8 +283,7 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         # (Re)schedule the suspension in the future.
         args = (self.user_stack_name, self.os_auth_url)
         kwargs = self._get_os_auth_kwargs()
-        result = suspend_user_stack_task.apply_async(args=args, kwargs=kwargs,
-                                                     countdown=120)
+        result = SuspendStackTask().apply_async(args=args, kwargs=kwargs, countdown=120)
         self.user_stack_suspend_id = result.id
 
     def check(self):
@@ -297,7 +295,7 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
 
         args = (self.tests, self.user_stack_status['ip'], self.user_stack_name,
                 self.stack_user_name)
-        result = check_task.apply_async(args=args, expires=60)
+        result = CheckStudentProgressTask().apply_async(args=args, expires=60)
         self.check_id = result.id
 
         # Store the result
@@ -353,7 +351,7 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
 
         # If a stack launch task is still pending, check its status.
         if self.user_stack_launch_id:
-            result = launch_or_resume_user_stack_task.AsyncResult(self.user_stack_launch_id)
+            result = LaunchStackTask().AsyncResult(self.user_stack_launch_id)
             res = self._save_user_stack_task_result(result)
 
             # If the launch task was successful, check it synchronously once
@@ -389,7 +387,7 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         # If a check task is running, return its status.
         elif self.check_id:
             log.info('check task is running: %s' % self.check_id)
-            result = check_task.AsyncResult(self.check_id)
+            result = CheckStudentProgressTask().AsyncResult(self.check_id)
             res = self._save_check_task_result(result)
         # Otherwise, launch the check task.
         else:
