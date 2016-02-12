@@ -317,13 +317,6 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         asset = contentstore().find(loc)
         self.user_stack_template = asset.data
 
-        # Make sure the user's stack is launched...
-        self.launch_or_resume_user_stack()
-
-        # ...and immediately start a dead man's switch to suspend it in due
-        # time.
-        self.suspend_user_stack()
-
         # Render the HTML template
         html_context = {}
         html = loader.render_template('static/html/main.html', html_context)
