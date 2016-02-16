@@ -1,6 +1,7 @@
 import json
 import logging
 import textwrap
+import markdown2
 
 from xblock.core import XBlock
 from xblock.fields import Scope, Integer, Float, String, Dict, List
@@ -9,6 +10,7 @@ from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 from xmodule.contentstore.content import StaticContent
 from xmodule.contentstore.django import contentstore
+from xmodule.exceptions import NotFoundError
 
 from .tasks import LaunchStackTask, SuspendStackTask, CheckStudentProgressTask
 
@@ -21,7 +23,11 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
     Provides lab environments and an SSH connection to them.
     """
 
-    # Scope: content.  These are set per course.
+    # Scope: content.
+    instructions_path = String(
+        default="",
+        scope=Scope.content,
+        help="The relative path to the markdown lab instructions.  For example, \"markdown_lab.md\".")
     stack_template_path = String(
         default="",
         scope=Scope.content,
@@ -306,7 +312,8 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         The primary view of the HastexoXBlock, shown to students when viewing
         courses.
         """
-        # Get the anonymous user id
+        # Get the course id and anonymous user id, and derive the stack name
+        # from them
         user_id = self.xmodule_runtime.anonymous_student_id
         course_id = self.xmodule_runtime.course_id
         course_code = course_id.course
@@ -317,8 +324,16 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         asset = contentstore().find(loc)
         self.user_stack_template = asset.data
 
+        # Load the instructions and convert from markdown
+        try:
+            loc = StaticContent.compute_location(course_id, self.instructions_path)
+            asset = contentstore().find(loc)
+            instructions = markdown2.markdown(asset.data)
+        except NotFoundError:
+            pass
+
         # Render the HTML template
-        html_context = {}
+        html_context = {'instructions': instructions}
         html = loader.render_template('static/html/main.html', html_context)
         frag = Fragment(html)
 

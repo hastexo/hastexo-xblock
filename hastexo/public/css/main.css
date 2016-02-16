@@ -3,10 +3,17 @@ p.check {
     text-align: right;
 }
 
+.instructions {
+    height: 20em;
+    overflow-y: auto;
+    margin-bottom: 1em;
+    box-shadow: .5em .5em .5em black;
+}
+
 #gateonecontainer {
     position: relative;
     width: 100%;
-    height: 30em;
+    height: 20em;
 }
 
 #gateone {
