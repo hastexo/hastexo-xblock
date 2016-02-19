@@ -1,7 +1,15 @@
-heat_template_version: 2013-05-23
+heat_template_version: 2014-10-16
 
-description: >
-  Sample template for an OpenStack lab environment.
+description: |
+  Sample lab environment.
+  - Consists of one deployment host (deploy) and three regular hosts
+    (daisy, eric, frank).
+  - Provides two separate networks.
+  - Installs an apt proxy on the deploy node for quicker updates
+  - Waits for cloud-init provisioning to finish before reports CREATE_COMPLETE
+  - Creates cron job to sync time with hardware clock, to work around stack
+    suspension desync
+  - Starts screen on connection
 
 parameters:
   flavor:
@@ -15,9 +23,192 @@ parameters:
   image:
     type: string
     description: Image ID or name
-    default: ubuntu-14.04-server-cloudimg
+    default: ubuntu-14.04.3-server-cloudimg
+  ubuntu_mirror:
+    type: string
+    description: Ubuntu package archive mirror
+    default: mirrors.se.eu.kernel.org
+  timeout:
+    type: number
+    description: Timeout for stack creation to finish
+    default: 900
 
 resources:
+  all_done:
+    type: OS::Heat::WaitCondition
+    properties:
+      handle: {get_resource: all_done_handle}
+      count: 4
+      timeout: {get_param: timeout}
+
+  all_done_handle:
+    type: OS::Heat::WaitConditionHandle
+
+  proxy_ready:
+    type: OS::Heat::WaitCondition
+    properties:
+      handle: {get_resource: proxy_ready_handle}
+      count: 1
+      timeout: {get_param: timeout}
+
+  proxy_ready_handle:
+    type: OS::Heat::WaitConditionHandle
+
+  deploy_config:
+    type: OS::Heat::CloudConfig
+    properties:
+      cloud_config:
+        ### bootcmd: runs arbitrary commands early in the boot sequence
+        bootcmd:
+          - apt-get update
+          - apt-get -y install --no-install-recommends apt-cacher-ng
+          - { get_attr: ['proxy_ready_handle', 'curl_cli'] }
+        ## users: defines users, sets passwords and SSH authorized keys, and
+        ### enables sudo privileges.
+        users:
+          - default
+          - name: training
+            gecos: Training User
+            groups: users,adm
+            ssh-authorized-keys:
+              - { get_attr: [ training_key, public_key ] }
+            lock-passwd: false
+            shell: /bin/bash
+            sudo: ALL=(ALL) NOPASSWD:ALL
+        ### mounts: enables and disables mount points
+        #mounts:
+        #  - [ 'vdb', null ]
+        ### write_files: writes arbitrary files
+        write_files:
+          - path: /etc/cron.d/hwclock
+            permissions: '0644'
+            content: |
+              # /etc/cron.d/hwclock: periodically sync the system time to the hardware clock
+              SHELL=/bin/sh
+              PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+              */5 * * * *   root	hwclock -s
+          - path: /etc/hosts
+            permissions: '0644'
+            content: |
+              127.0.0.1 localhost
+              192.168.122.100 deploy.example.com deploy
+              192.168.122.114 daisy.example.com daisy
+              192.168.122.115 eric.example.com eric
+              192.168.122.116 frank.example.com frank
+          - path: /etc/network/interfaces.d/eth1.cfg
+            permissions: '0644'
+            content: |
+              auto eth1
+              iface eth1 inet dhcp
+          - path: /etc/ntp.conf
+            permissions: '0644'
+            content: |
+              driftfile /var/lib/ntp/ntp.drift
+              statistics loopstats peerstats clockstats
+              filegen loopstats file loopstats type day enable
+              filegen peerstats file peerstats type day enable
+              filegen clockstats file clockstats type day enable
+              server 0.ubuntu.pool.ntp.org iburst
+              server 1.ubuntu.pool.ntp.org iburst
+              server 2.ubuntu.pool.ntp.org iburst
+              server 3.ubuntu.pool.ntp.org iburst
+              server ntp.ubuntu.com
+              restrict -4 default kod notrap nomodify nopeer noquery
+              restrict -6 default kod notrap nomodify nopeer noquery
+              restrict 127.0.0.1
+              restrict ::1
+          - path: /home/training/.ssh/id_rsa
+            permissions: '0600'
+            content: { get_attr: [ training_key, private_key ] }
+          - path: /home/training/.profile
+            permissions: '0644'
+            content: |
+              exec /usr/bin/screen -xRR
+        apt_proxy: "http://localhost:3142"
+        apt_mirror:
+          str_replace:
+            template: http://%mirror/ubuntu
+            params:
+              "%mirror": { get_param: ubuntu_mirror }
+        ### package_update: refresh package on first boot
+        package_update: false
+        ### package_upgrade: runs package update on first boot
+        package_upgrade: true
+        ### packages: installs packages
+        packages:
+          - attr
+          - ntp
+          - screen
+        runcmd:
+          - chown -R training:training /home/training
+          - chsh -s /bin/bash training
+          - { get_attr: ['all_done_handle', 'curl_cli'] }
+
+  host_config:
+    type: OS::Heat::CloudConfig
+    properties:
+      cloud_config:
+        ## users: defines users, sets passwords and SSH authorized keys, and
+        ### enables sudo privileges.
+        users:
+          - default
+          - name: training
+            gecos: Training User
+            groups: users,adm
+            ssh-authorized-keys:
+              - { get_attr: [ training_key, public_key ] }
+            lock-passwd: false
+            shell: /bin/bash
+            sudo: ALL=(ALL) NOPASSWD:ALL
+        ### bootcmd: runs arbitrary commands early in the boot sequence
+        # bootcmd:
+        ### mounts: enables and disables mount points
+        #mounts:
+        #  - [ 'vdb', null ]
+        ### write_files: writes arbitrary files
+        write_files:
+          - path: /etc/cron.d/ntpdate
+            permissions: '0644'
+            content: |
+              # /etc/cron.d/ntpdate: periodically sync the system time to the NTP server
+              SHELL=/bin/sh
+              PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+              */5 * * * *   root	ntpdate deploy
+          - path: /etc/hosts
+            permissions: '0644'
+            content: |
+              127.0.0.1 localhost
+              192.168.122.100 deploy.example.com deploy
+              192.168.122.114 daisy.example.com daisy
+              192.168.122.115 eric.example.com eric
+              192.168.122.116 frank.example.com frank
+          - path: /etc/network/interfaces.d/eth1.cfg
+            permissions: '0644'
+            content: |
+              auto eth1
+              iface eth1 inet dhcp
+          - path: /home/training/.ssh/id_rsa
+            permissions: '0600'
+            content: { get_attr: [ training_key, private_key ] }
+        apt_proxy: "http://deploy:3142"
+        apt_mirror:
+          str_replace:
+            template: http://%mirror/ubuntu
+            params:
+              "%mirror": { get_param: ubuntu_mirror }
+        ### package_update: refresh package on first boot
+        package_update: true
+        ### package_upgrade: runs package update on first boot
+        package_upgrade: true
+        ### packages: installs packages
+        packages:
+          - screen
+          - attr
+        runcmd:
+          - chown -R training:training /home/training
+          - chsh -s /bin/bash training
+          - { get_attr: ['all_done_handle', 'curl_cli'] }
+
   server_security_group:
     type: OS::Neutron::SecurityGroup
     properties:
@@ -34,100 +225,12 @@ resources:
         port_range_max: 22
       - remote_ip_prefix: 0.0.0.0/0
         protocol: icmp
-      - remote_ip_prefix: 0.0.0.0/0
-        protocol: tcp
-        direction: ingress
-        port_range_min: 80
-        port_range_max: 80
-      - remote_ip_prefix: 0.0.0.0/0
-        protocol: tcp
-        direction: ingress
-        port_range_min: 443
-        port_range_max: 443
 
   training_key:
     type: OS::Nova::KeyPair
     properties:
       name: { get_param: 'OS::stack_name' }
       save_private_key: true
-
-  cloud_config_base:
-    type: OS::Heat::CloudConfig
-    properties:
-      cloud_config:
-        mounts:
-          - [ 'vdb', null ]
-        bootcmd:
-        - ntpdate pool.ntp.org
-        write_files:
-        - path: /etc/hosts
-          permissions: '0644'
-          content: |
-            127.0.0.1 localhost
-            192.168.122.100 deploy.example.com deploy
-            192.168.122.114 daisy.example.com daisy
-            192.168.122.115 eric.example.com eric
-            192.168.122.116 frank.example.com frank
-        - path: /etc/network/interfaces.d/eth1.cfg
-          permissions: '0644'
-          content: |
-            auto eth1
-            iface eth1 inet dhcp
-        - path: /etc/network/interfaces.d/eth2.cfg
-          permissions: '0644'
-          content: |
-            auto eth2
-            iface eth2 inet dhcp
-        package_update: true
-        package_upgrade: false
-        packages:
-          - ansible
-          - git
-        runcmd:
-          - sudo -u training -s ansible-pull -v -i hosts -U https://github.com/hastexo/academy-ansible -o site.yml
-          - chsh -s /bin/bash training
-
-  cloud_config_deploy:
-    type: OS::Heat::CloudConfig
-    properties:
-      cloud_config:
-        ssh_pwauth: false
-        users:
-        - name: training
-          gecos: Training User
-          groups: users,adm
-          ssh-authorized-keys:
-            - { get_attr: [ training_key, public_key ] }
-          shell: /bin/false
-          sudo: ALL=(ALL) NOPASSWD:ALL
-
-  cloud_config_standard:
-    type: OS::Heat::CloudConfig
-    properties:
-      cloud_config:
-        ssh_pwauth: true
-        users:
-        - name: training
-          gecos: Training User
-          groups: users,adm
-          lock-passwd: false
-          passwd: $6$rounds=4096$J86aZz0Q$To16RGzWJku0swXC3QmvHpJY6q60Ut4Biby9TT/ovNOEbPsvHOMN0ujQ/bVCJU/8ezleaqQNAARFzqnDlDA120
-          shell: /bin/false
-          sudo: ALL=(ALL) NOPASSWD:ALL
-
-  user_data_deploy:
-    type: OS::Heat::MultipartMime
-    properties:
-      parts:
-      - config: {get_resource: cloud_config_base}
-      - config: {get_resource: cloud_config_deploy}
-
-  user_data_standard:
-    type: OS::Heat::MultipartMime
-    properties:
-      parts:
-      - config: {get_resource: cloud_config_base}
-      - config: {get_resource: cloud_config_standard}
 
   management_net:
     type: OS::Neutron::Net
@@ -141,8 +244,13 @@ resources:
       network_id: { get_resource: management_net }
       cidr: 192.168.122.0/24
       gateway_ip: 192.168.122.1
+      dns_nameservers:
+        - 8.8.8.8
+        - 8.8.4.4
       enable_dhcp: true
-      allocation_pools: [{"start": "192.168.122.2", "end": "192.168.122.50"}]
+      allocation_pools:
+        - start: "192.168.122.2"
+          end: "192.168.122.50"
 
   router:
     type: OS::Neutron::Router
@@ -171,23 +279,13 @@ resources:
       network_id: { get_resource: data_net }
       cidr: 192.168.133.0/24
       gateway_ip: ""
+      dns_nameservers:
+        - 8.8.8.8
+        - 8.8.4.4
       enable_dhcp: true
-      allocation_pools: [{"start": "192.168.133.2", "end": "192.168.133.50"}]
-
-  external_net:
-    type: OS::Neutron::Net
-    properties:
-      name: external-net
-
-  external_sub_net:
-    type: OS::Neutron::Subnet
-    properties:
-      name: external-sub-net
-      network_id: { get_resource: external_net }
-      cidr: 192.168.144.0/24
-      gateway_ip: ""
-      enable_dhcp: true
-      allocation_pools: [{"start": "192.168.144.2", "end": "192.168.144.50"}]
+      allocation_pools:
+        - start: "192.168.133.2"
+          end: "192.168.133.50"
 
   deploy:
     type: OS::Nova::Server
@@ -195,12 +293,11 @@ resources:
       name: deploy
       image: { get_param: image }
       flavor: { get_param: flavor }
-      user_data: { get_resource: user_data_deploy }
+      user_data:  { get_resource: deploy_config }
       user_data_format: RAW
       networks:
         - port: { get_resource: deploy_management_port }
         - port: { get_resource: deploy_data_port }
-        - port: { get_resource: deploy_external_port }
 
   deploy_management_port:
     type: OS::Neutron::Port
@@ -208,6 +305,8 @@ resources:
       network_id: { get_resource: management_net }
       fixed_ips:
         - ip_address: 192.168.122.100
+      security_groups:
+        - { get_resource: server_security_group }
 
   deploy_data_port:
     type: OS::Neutron::Port
@@ -215,13 +314,6 @@ resources:
       network_id: { get_resource: data_net }
       fixed_ips:
         - ip_address: 192.168.133.100
-
-  deploy_external_port:
-    type: OS::Neutron::Port
-    properties:
-      network_id: { get_resource: external_net }
-      fixed_ips:
-        - ip_address: 192.168.144.100
 
   deploy_floating_ip:
     type: OS::Neutron::FloatingIP
@@ -236,12 +328,13 @@ resources:
       name: daisy
       image: { get_param: image }
       flavor: { get_param: flavor }
-      user_data: { get_resource: user_data_standard }
+      user_data:  { get_resource: host_config }
       user_data_format: RAW
+      metadata:
+        wait_condition_data: { get_attr: [ proxy_ready, data ] }
       networks:
         - port: { get_resource: daisy_management_port }
         - port: { get_resource: daisy_data_port }
-        - port: { get_resource: daisy_external_port }
 
   daisy_management_port:
     type: OS::Neutron::Port
@@ -249,6 +342,8 @@ resources:
       network_id: { get_resource: management_net }
       fixed_ips:
         - ip_address: 192.168.122.114
+      security_groups:
+        - { get_resource: server_security_group }
 
   daisy_data_port:
     type: OS::Neutron::Port
@@ -257,25 +352,19 @@ resources:
       fixed_ips:
         - ip_address: 192.168.133.114
 
-  daisy_external_port:
-    type: OS::Neutron::Port
-    properties:
-      network_id: { get_resource: external_net }
-      fixed_ips:
-        - ip_address: 192.168.144.114
-
   eric:
     type: OS::Nova::Server
     properties:
       name: eric
       image: { get_param: image }
       flavor: { get_param: flavor }
-      user_data: { get_resource: user_data_standard }
+      user_data:  { get_resource: host_config }
       user_data_format: RAW
+      metadata:
+        wait_condition_data: { get_attr: [ proxy_ready, data ] }
       networks:
         - port: { get_resource: eric_management_port }
         - port: { get_resource: eric_data_port }
-        - port: { get_resource: eric_external_port }
 
   eric_management_port:
     type: OS::Neutron::Port
@@ -283,6 +372,8 @@ resources:
       network_id: { get_resource: management_net }
       fixed_ips:
         - ip_address: 192.168.122.115
+      security_groups:
+        - { get_resource: server_security_group }
 
   eric_data_port:
     type: OS::Neutron::Port
@@ -291,25 +382,19 @@ resources:
       fixed_ips:
         - ip_address: 192.168.133.115
 
-  eric_external_port:
-    type: OS::Neutron::Port
-    properties:
-      network_id: { get_resource: external_net }
-      fixed_ips:
-        - ip_address: 192.168.144.115
-
   frank:
     type: OS::Nova::Server
     properties:
       name: frank
       image: { get_param: image }
       flavor: { get_param: flavor }
-      user_data: { get_resource: user_data_standard }
+      user_data:  { get_resource: host_config }
       user_data_format: RAW
+      metadata:
+        wait_condition_data: { get_attr: [ proxy_ready, data ] }
       networks:
         - port: { get_resource: frank_management_port }
         - port: { get_resource: frank_data_port }
-        - port: { get_resource: frank_external_port }
 
   frank_management_port:
     type: OS::Neutron::Port
@@ -317,6 +402,8 @@ resources:
       network_id: { get_resource: management_net }
       fixed_ips:
         - ip_address: 192.168.122.116
+      security_groups:
+        - { get_resource: server_security_group }
 
   frank_data_port:
     type: OS::Neutron::Port
@@ -324,13 +411,6 @@ resources:
       network_id: { get_resource: data_net }
       fixed_ips:
         - ip_address: 192.168.133.116
-
-  frank_external_port:
-    type: OS::Neutron::Port
-    properties:
-      network_id: { get_resource: external_net }
-      fixed_ips:
-        - ip_address: 192.168.144.116
 
 outputs:
   public_ip:

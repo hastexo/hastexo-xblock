@@ -33,41 +33,43 @@ limited by the feature set of OpenStack Heat.
 
 ## Deployment
 
-Open edX platform administrators can deploy the hastexo Xblock to a previously
-installed Open edX node or cluster by using the `hastexo_xblock` role and
-accompanying `hastexo_xblock.yml` playbook included in
-[hastexo's fork](https://github.com/hastexo/edx-configuration/tree/integration/cypress)
-of `edx/configuration`. The hastexo XBlock role depends on modifications to
-`edx/configuration` that are yet to be accepted upstream, so it must be run
-from this fork.
+The easiest way for platform administrators to deploy the hastexo XBlock and
+its dependencies to an Open edX installation is to pip install it to the edxapp
+virtualenv, and then to use the `gateone` role included in [hastexo's
+fork](https://github.com/hastexo/edx-configuration/tree/hastexo/master/hastexo)
+of `edx/configuration`.
 
 To deploy the hastexo XBlock:
 
-1. Clone hastexo's fork to your local repository.
-
-2. For Open edX running on a single node, run:
+1. Install it via pip:
 
 ```
+$ sudo /edx/bin/pip.edxapp install -e git+https://github.com/hastexo/hastexo-xblock.git@master#egg=hastexo-xblock
+```
+
+2. Add it to the ADDL\_INSTALLED\_APPS of your LMS environment, by editing
+   `/edx/app/edxapp/lms.env.json` and adding:
+
+```
+    "ADDL_INSTALLED_APPS": [
+        "hastexo"
+    ],
+```
+
+3. Now install gateone by cloning the hastexo fork of edx/configuration and
+   assigning that role to the machine:
+
+```
+$ git clone -b hastexo/master/base https://github.com/hastexo/edx-configuration.git
 $ cd edx-configuration/playbooks
-
-$ ansible-playbook hastexo_xblock.yml \
-  -e hastexo_xblock_repo=https://github.com/hastexo/hastexo-xblock.git \
-  -e hastexo_xblock_version=cypress \
-  --tags edxapp_cfg
+$ ansible-playbook -c local -i "localhost," run_role.yml -e role=gateone
 ```
 
-   For Open edX running on OpenStack that uses multiple nodes (for example,
-   the multi-node Heat template provided same hastexo fork of
-   `edx/configuration`), limit the run to only the app servers:
+4. Finally, restart edxapp and its workers:
 
 ```
-$ cd edx-configuration/playbooks
-
-$ ansible-playbook -i openstack/inventory.py hastexo_xblock.yml \
-  -e hastexo_xblock_repo=https://github.com/hastexo/hastexo-xblock.git \
-  -e hastexo_xblock_version=cypress \
-  --tags edxapp_cfg \
-  --limit app_servers
+sudo /edx/bin/supervisorctl restart edxapp:
+sudo /edx/bin/supervisorctl restart edxapp_worker:
 ```
 
 
@@ -114,7 +116,8 @@ you need to define the `hastexo` tag in your course content with the following
 information:
 
 * The credentials for the public or private OpenStack cloud
-* The static asset path to your Heat template
+* The static asset path to markdown lab instructions
+* The static asset path to a Heat template
 * The name of the user that the Xblock will use to connect to the environment
   via SSH.
 
@@ -122,6 +125,7 @@ information:
 <vertical url_name="lab_introduction">
   <hastexo
     url_name="lab_introduction"
+    instructions_path="markdown_lab.md"
     stack_template_path="hot_lab.yaml"
     stack_user_name="training"
     os_auth_url="https://os.auth.url:5000/v2.0"
@@ -135,12 +139,11 @@ information:
 
 ## Student Experience
 
-When students navigate to a section with a `hastexo` unit in it, a new Heat
-stack will be created (or resumed) for them, even if the student is not
-looking at the `hastexo` unit itself. The Heat stack will be as defined in the
-uploaded Heat template. It is unique per student and per course run. If the
-same tag appears on a different course, or different run of the same course,
-the student will get a different stack.
+When students navigate to a unit with a hastexo XBlock in it, a new Heat
+stack will be created (or resumed) for them. The Heat stack will be as defined
+in the uploaded Heat template. It is unique per student and per course run. If
+the same tag appears on a different course, or different run of the same
+course, the student will get a different stack.
 
 The stack will suspend if the student does not navigate to the `hastexo` unit
 in that section within two minutes. When the student gets to the `hastexo`
