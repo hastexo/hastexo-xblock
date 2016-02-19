@@ -11,6 +11,7 @@ from xblockutils.studio_editable import StudioEditableXBlockMixin
 from xmodule.contentstore.content import StaticContent
 from xmodule.contentstore.django import contentstore
 from xmodule.exceptions import NotFoundError
+from opaque_keys import InvalidKeyError
 
 from .tasks import LaunchStackTask, SuspendStackTask, CheckStudentProgressTask
 
@@ -325,11 +326,12 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         self.user_stack_template = asset.data
 
         # Load the instructions and convert from markdown
+        instructions = None
         try:
             loc = StaticContent.compute_location(course_id, self.instructions_path)
             asset = contentstore().find(loc)
             instructions = markdown2.markdown(asset.data)
-        except NotFoundError:
+        except (NotFoundError, InvalidKeyError):
             pass
 
         # Render the HTML template
