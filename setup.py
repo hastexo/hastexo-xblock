@@ -22,13 +22,17 @@ def package_data(pkg, roots):
 
 setup(
     name='hastexo-xblock',
-    version='0.1',
+    version='0.1.1',
     description='hastexo XBlock',
     packages=[
         'hastexo',
     ],
     install_requires=[
         'XBlock',
+        'xblock-utils',
+        'markdown2==2.3.0',
+        'python-keystoneclient==2.0.0',
+        'python-heatclient==0.8.0'
     ],
     entry_points={
         'xblock.v1': [
