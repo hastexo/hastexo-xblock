@@ -2,9 +2,11 @@ import json
 import logging
 import textwrap
 import markdown2
+import datetime
+import pytz
 
 from xblock.core import XBlock
-from xblock.fields import Scope, Integer, Float, String, Dict, List
+from xblock.fields import Scope, Integer, Float, String, Dict, List, DateTime
 from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
@@ -89,6 +91,10 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         default=[],
         scope=Scope.content,
         help="The list of tests to run.")
+    launch_timeout = Integer(
+        default=600,
+        scope=Scope.content,
+        help="How long to wait for a launch task, in seconds")
 
     # Kept for backwards compatibility.
     os_tenant_id = String(
@@ -123,6 +129,10 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         default="",
         scope=Scope.preferences,
         help="The user stack launch task id")
+    user_stack_launch_timestamp = DateTime(
+        default=None,
+        scope=Scope.preferences,
+        help="The user stack launch task timestamp")
     user_stack_suspend_id = String(
         default="",
         scope=Scope.preferences,
@@ -198,6 +208,7 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         if result.ready():
             # Clear the task ID so we know there is no task running.
             self.user_stack_launch_id = ""
+            self.user_stack_launch_timestamp = None
 
             if (result.successful() and
                     isinstance(result.result, dict) and not
@@ -273,6 +284,7 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
         else:
             result = task.apply_async(args=args, kwargs=kwargs, expires=60)
             self.user_stack_launch_id = result.id
+            self.user_stack_launch_timestamp = datetime.datetime.now(pytz.utc)
 
         # Store the result
         self._save_user_stack_task_result(result)
@@ -372,18 +384,36 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
 
         # If a stack launch task is still pending, check its status.
         if self.user_stack_launch_id:
-            result = LaunchStackTask().AsyncResult(self.user_stack_launch_id)
-            res = self._save_user_stack_task_result(result)
+            if self.user_stack_launch_timestamp:
+                delta = datetime.datetime.now(pytz.utc) - self.user_stack_launch_timestamp
+                if delta.seconds <= self.launch_timeout:
+                    result = LaunchStackTask().AsyncResult(self.user_stack_launch_id)
+                    res = self._save_user_stack_task_result(result)
 
-            # If the launch task was successful, check it synchronously once
-            # more: the stack might have been suspended in the meantime.
-            status = res.get('status')
-            if (status != 'ERROR' and
-                status != 'PENDING' and
-                status != 'CREATE_FAILED' and
-                status != 'RESUME_FAILED'):
-                self.launch_or_resume_user_stack(True)
-                res = self.user_stack_status
+                    # If the launch task was successful, check it synchronously once
+                    # more: the stack might have been suspended in the meantime.
+                    status = res.get('status')
+                    if (status != 'ERROR' and
+                        status != 'PENDING' and
+                        status != 'CREATE_FAILED' and
+                        status != 'RESUME_FAILED'):
+                        self.launch_or_resume_user_stack(True)
+                        res = self.user_stack_status
+                else:
+                    # Timeout reached.  Consider the previous task a failure,
+                    # and report it as such.
+                    res = {'status': 'ERROR',
+                           'error_msg': 'Timeout when launching or resuming stack.'}
+                    self.user_stack_launch_id = ""
+                    self.user_stack_launch_timestamp = None
+                    self.user_stack_status = res
+            else:
+                # No timestamp recorded.  Consider the previous task a failure,
+                # and report it as such.
+                res = {'status': 'ERROR',
+                       'error_msg': 'Timeout when launching or resuming stack.'}
+                self.user_stack_launch_id = ""
+                self.user_stack_status = res
 
         # If there aren't pending launch tasks, we may need to resume it, so
         # run the async procedure once more.

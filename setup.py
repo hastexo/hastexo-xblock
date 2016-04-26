@@ -22,7 +22,7 @@ def package_data(pkg, roots):
 
 setup(
     name='hastexo-xblock',
-    version='0.1.1',
+    version='0.1.2',
     description='hastexo XBlock',
     packages=[
         'hastexo',
