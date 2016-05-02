@@ -2,6 +2,7 @@ import time
 import os
 import paramiko
 import uuid
+import re
 
 from celery import Task
 from celery.utils.log import get_task_logger
@@ -29,6 +30,7 @@ class LaunchStackTask(Task):
         """
 
         status = None
+        verify_status = None
         error_msg = None
         stack = None
         stack_ip = None
@@ -42,13 +44,20 @@ class LaunchStackTask(Task):
         # If launch completed successfully, wait for provisioning, collect
         # its IP address, and save the private key.
         if status == 'CREATE_COMPLETE' or status == 'RESUME_COMPLETE':
-            (status, error_msg, stack_ip) = self.verify_stack(stack, stack_name, stack_user)
+            (verify_status, error_msg, stack_ip) = self.verify_stack(stack, stack_name, stack_user)
 
-        # Make sure a failed stack's resources are not left around racking up
-        # fees.
-        if status == 'CREATE_FAILED':
+        # Roll back in case of failure: if it's a failure during creation,
+        # delete the stack.  If it's a failure to resume, suspend it.
+        if (status == 'CREATE_FAILED'
+            or (status == 'CREATE_COMPLETE' and verify_status != 'VERIFY_COMPLETE')):
             self.logger.debug("Deleting failed stack [%s]" % stack.id)
             heat.stacks.delete(stack_id=stack.id)
+            status = 'CREATE_FAILED'
+        elif (status == 'RESUME_FAILED'
+              or (status == 'RESUME_COMPLETE' and verify_status != 'VERIFY_COMPLETE')):
+            self.logger.debug("Suspending failed stack [%s]" % stack.id)
+            heat.actions.suspend(stack_id=stack.id)
+            status = 'RESUME_FAILED'
 
         return {
             'status': status,
@@ -99,7 +108,8 @@ class LaunchStackTask(Task):
             status = stack.stack_status
             retry += 1
             if retry >= self.retries:
-                status = 'CREATE_FAILED'
+                status_prefix = re.sub('_IN_PROGRESS$', '', status)
+                status = '%s_FAILED' % status_prefix
                 self.logger.debug("Stack [%s] state change [%s] took too long." % (stack_name, status))
 
         # If stack is suspended, resume it.
@@ -140,7 +150,7 @@ class LaunchStackTask(Task):
         possible to SSH into the stack using it.
         """
 
-        status = stack.stack_status
+        verify_status = 'VERIFY_COMPLETE'
         error_msg = None
         stack_ip = None
         stack_key = None
@@ -152,7 +162,7 @@ class LaunchStackTask(Task):
                 stack_key = output['output_value']
 
         if stack_ip is None or stack_key is None:
-            status = 'CREATE_FAILED'
+            verify_status = 'VERIFY_FAILED'
             error_msg = "Stack [%s] did not provide IP or private key." % stack_name
             self.logger.debug(error_msg)
         else:
@@ -165,7 +175,7 @@ class LaunchStackTask(Task):
 
             # Consider stack failed if it isn't network accessible.
             if response != 0:
-                status = 'CREATE_FAILED'
+                verify_status = 'VERIFY_FAILED'
                 error_msg = "Stack [%s] is not network accessible." % stack_name
                 self.logger.debug(error_msg)
             else:
@@ -192,13 +202,13 @@ class LaunchStackTask(Task):
                     retry += 1
 
                 if response != 0:
-                    status = 'CREATE_FAILED'
+                    verify_status = 'VERIFY_FAILED'
                     error_msg = "Stack [%s] provisioning did not complete." % stack_name
                     self.logger.debug(error_msg)
                 else:
                     self.logger.debug("Stack [%s] verification successful." % stack_name)
 
-        return (status, error_msg, stack_ip)
+        return (verify_status, error_msg, stack_ip)
 
 
 class SuspendStackTask(Task):
