@@ -72,6 +72,18 @@ To deploy the hastexo XBlock:
     sudo /edx/bin/supervisorctl restart edxapp_worker:
     ```
 
+5. In your course, go to the advanced settings and add the hastexo module to 
+   the "Advanced Module List" like so:
+   ```
+   [
+    "annotatable",
+    "videoalpha",
+    "openassessment",
+    "hastexo"
+   ]
+   ```
+
+
 
 ## Configuration
 
@@ -137,6 +149,11 @@ information:
 
 **Important**: Do this only *once per section*. Defining it more that once
 per section has undefined behavior.
+
+In order to add the Hastexo Xblock through Studio, open the (sub)unit where
+you want it to appear. Add a new component and select `Advanced`, then select 
+the `Lab` component. This adds the XBlock. Edit the Settings to add the various
+OpenStack variables.
 
 
 ## Student Experience
