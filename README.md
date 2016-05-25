@@ -150,7 +150,7 @@ information:
 **Important**: Do this only *once per section*. Defining it more that once
 per section has undefined behavior.
 
-In order to add the Hastexo Xblock through Studio, open the (sub)unit where
+In order to add the hastexo Xblock through Studio, open the (sub)unit where
 you want it to appear. Add a new component and select `Advanced`, then select 
 the `Lab` component. This adds the XBlock. Edit the Settings to add the various
 OpenStack variables.
