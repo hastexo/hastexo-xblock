@@ -196,7 +196,9 @@ class HastexoXBlock(StudioEditableXBlockMixin, XBlock):
 
         # Attributes become fields.
         for name, value in node.items():
-            cls._set_field_if_present(block, name, value, {})
+            if name in block.fields:
+                value = (block.fields[name]).from_string(value)
+                setattr(block, name, value)
 
         return block
 
