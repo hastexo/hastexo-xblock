@@ -35,8 +35,8 @@ limited by the feature set of OpenStack Heat.
 
 The easiest way for platform administrators to deploy the hastexo XBlock and
 its dependencies to an Open edX installation is to pip install it to the edxapp
-virtualenv, and then to use the `gateone` role included in [hastexo's
-fork](https://github.com/hastexo/edx-configuration/tree/hastexo/master/hastexo)
+virtualenv, and then to use the `gateone` role included in the [hastexo\_xblock
+branch](https://github.com/hastexo/edx-configuration/tree/hastexo/master/hastexo_xblock)
 of `edx/configuration`.
 
 To deploy the hastexo XBlock:
@@ -56,11 +56,11 @@ To deploy the hastexo XBlock:
     ],
     ```
 
-3. Now install gateone by cloning the hastexo fork of edx/configuration and
-   assigning that role to the machine:
+3. Now install gateone by cloning the `hastexo_xblock` fork of
+   edx/configuration and assigning that role to the machine:
 
     ```
-    $ git clone -b hastexo/master/base https://github.com/hastexo/edx-configuration.git
+    $ git clone -b hastexo/master/hastexo_xblock https://github.com/hastexo/edx-configuration.git
     $ cd edx-configuration/playbooks
     $ ansible-playbook -c local -i "localhost," run_role.yml -e role=gateone
     ```
@@ -82,8 +82,6 @@ To deploy the hastexo XBlock:
     "hastexo"
    ]
    ```
-
-
 
 ## Configuration
 
