@@ -32,7 +32,8 @@ setup(
         'xblock-utils',
         'markdown2==2.3.0',
         'python-keystoneclient==2.0.0',
-        'python-heatclient==0.8.0'
+        'python-heatclient==0.8.0',
+        'paramiko>=1.16.0',
     ],
     entry_points={
         'xblock.v1': [
