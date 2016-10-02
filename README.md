@@ -56,7 +56,44 @@ To deploy the hastexo XBlock:
     ],
     ```
 
-3. Now install gateone by cloning the `hastexo_xblock` fork of
+3. Add configuration to `XBLOCK_SETTINGS` on `/edx/app/edxapp/lms.env.json`:
+
+    ```
+    "XBLOCK_SETTINGS": {
+        "hastexo": {
+            "terminal_url": "/terminal",
+            "ssh_dir": "/edx/var/edxapp/terminal_users/ANONYMOUS/.ssh",
+            "ssh_upload": false,
+            "ssh_bucket": "identities",
+            "launch_timeout": 300,
+            "suspend_timeout": 120,
+            "task_timeouts": {
+                "sleep": 5,
+                "retries": 60
+            },
+            "js_timeouts": {
+                "status": 10000,
+                "keepalive": 15000,
+                "idle": 600000,
+                "check": 5000
+            },
+            "os_auth_url": "",
+            "os_auth_token": "",
+            "os_username": "",
+            "os_password": "",
+            "os_user_id": "",
+            "os_user_domain_id": "",
+            "os_user_domain_name": "",
+            "os_project_id": "",
+            "os_project_name": "",
+            "os_project_domain_id": "",
+            "os_project_domain_name": "",
+            "os_region_name": ""
+        }
+    }
+    ```
+
+4. Now install gateone by cloning the `hastexo_xblock` fork of
    edx/configuration and assigning that role to the machine:
 
     ```
@@ -65,37 +102,139 @@ To deploy the hastexo XBlock:
     $ ansible-playbook -c local -i "localhost," run_role.yml -e role=gateone
     ```
 
-4. Finally, restart edxapp and its workers:
+5. Finally, restart edxapp and its workers:
 
     ```
     sudo /edx/bin/supervisorctl restart edxapp:
     sudo /edx/bin/supervisorctl restart edxapp_worker:
     ```
 
-5. In your course, go to the advanced settings and add the hastexo module to 
+6. In your course, go to the advanced settings and add the hastexo module to
    the "Advanced Module List" like so:
+
    ```
    [
     "annotatable",
-    "videoalpha",
     "openassessment",
     "hastexo"
    ]
    ```
 
-## Configuration
 
-To use the hastexo XBlock upload a Heat template to the content store. There
-are some limitations to the configuration of the Heat template (detailed
-below), but otherwise you can customize your training environment as
-you like. A sample template is provided under `heat-templates/hot/openstack-sample.yaml`.
+## XBlock settings
+
+The hastexo XBlock must be configured via `XBLOCK_SETTINGS` in
+`lms.env.json`, under the `hastexo` key.  At the very minimum, you must
+set the OpenStack authentication variables specific to the cloud you will be
+using.  All other variables can be left at their defaults.
+
+This is a brief explanation of each:
+
+* `terminal_url`: The URL path to the GateOne server.  It can be an absolute
+  path, or a ":"-prefixed port (such as ":28010", for use in devstacks).
+  (Default: `/terminal`)
+
+* `ssh_dir`: The local path where SSH keys are stored.  (Default:
+  `/edx/var/edxapp/terminal_users/ANONYMOUS/.ssh`)
+
+* `ssh_upload`: Whether to upload keys to Swift.  Useful for multi-node stacks,
+  where the Celery workers that store SSH keys are not guaranteed to run on the
+  same node where they'll be needed. (Default: `false`)
+
+* `ssh_bucket`: The Swift container in which to store the SSH keys. (Default:
+  `identities`)
+
+* `launch_timeout`: How long to wait for a stack to be launched, in seconds.
+  (Default: `300`)
+
+* `suspend_timeout`: How long to wait before suspending a stack, after the last
+  keepalive was received from the browser, in seconds.  (Default: `120`)
+
+* `task_timeouts`:
+
+    * `sleep`: How long to wait between stack checks, such as pings and SSH
+      attempts, in seconds. (Default: `5`)
+
+    * `retries`: How many times to retry stack checks, such as pings and SSH
+      attempts. (Default: `60`)
+
+* `js_timeouts`:
+
+    * `status`: In the browser, when launching a stack, how long to wait
+      between polling attempts until it is complete, in milliseconds (Default:
+      `10000`)
+
+    * `keepalive`: In the browser, after the stack is ready, how long to wait
+      between keepalives to the server, in milliseconds. (Default: `15000`)
+
+    * `idle`: In the browser, how long to wait until the user is considered
+      idle, when no input is registered in the terminal, in milliseconds.
+      (Default: `600000`)
+
+    * `check`: In the browser, after clicking "Check Progress", how long to
+      wait between polling attempts, in milliseconds. (Default: `5000`)
+
+The following is the list of supported OpenStack credential variables.  In
+practice, it is rarely necessary to set them all.  Consult your OpenStack
+provider for a list of the required ones:
+
+* `os_auth_url`
+* `os_auth_token`
+* `os_username`
+* `os_password`
+* `os_user_id`
+* `os_user_domain_id`
+* `os_user_domain_name`
+* `os_project_id`
+* `os_project_name`
+* `os_project_domain_id`
+* `os_project_domain_name`
+* `os_region_name`
+
+
+## GateOne settings
+
+GateOne is the web-based terminal emulator used by the hastexo XBlock.  In
+order for the XBlock to function correctly, GateOne's configuration must match
+it in a few key areas.
+
+In /etc/gateone/conf.d/10server.conf, the following must be set to the same
+values as the XBlock:
+
+* `url_prefix`: Where GateOne expects to be hosted: useful if it sits behind a
+  reverse proxy (which is the case by default here).  This must match the
+  XBlock's `terminal_url` settings.  The exception is if `terminal_url` is set
+  to a port, such as `:28010`.  In the latter case, `url_prefix` must be set to
+  `""`.  (Default: `/terminal/`)
+
+* `user_dir`: Where GateOne expects to find SSH home directories.  This value
+  must match the leading path in the XBlock's `ssh_dir` configuration.  In
+  other words, where `user_dir` is set to `/edx/app/edxapp/terminal_users`,
+  `ssh_dir` must be set to `/edx/app/edxapp/terminal_users/ANONYMOUS/.ssh`.
+  (Default: `/edx/var/edxapp/terminal_users`)
+
+And in /etc/gateone/conf.d/50terminal.conf:
+
+* `command`: GateOne allows for custom SSH commands, and the hastexo XBlock
+  makes use of this.  For the SSH connection from the browser to the Heat stack
+  to be established automatically, the provided `hastexo_connect.py` script
+  will, among other things, download the key from Swift and make it available
+  to SSH.  You must set `command` to the path where `hastexo_connect.py` is
+  installed.  By default, it is:
+  `/edx/app/edxapp/venvs/edxapp/bin/hastexo_connect.py`
+
+
+## Creating a Heat template for your course
+
+To use the hastexo XBlock, start by creating a Heat template and uploading it
+to the content store.  The XBlock imposes some constraints on the template
+(detailed below), but you are otherwise free to customize your training
+environment as needed.  A sample template is provided under
+`heat-templates/hot/openstack-sample.yaml`.
 
 To ensure your Heat template has the required configuration:
 
-1. Upload a Heat template to the content store and make a note of its static
-   asset file name.
-
-2. Configure the Heat template to generate an SSH key pair dynamically and
+1. Configure the Heat template to generate an SSH key pair dynamically and
    save the private key.  For example:
 
     ```
@@ -107,9 +246,9 @@ To ensure your Heat template has the required configuration:
     ```
 
 2. Configure the Heat template to have an instance that is publicly accessible
-   on the internet via `floating_ip_address`.
+   via `floating_ip_address`.
 
-3. Provide the above two items as outputs, with the following names:
+3. Provide the above two items as outputs, with the following names, verbatim:
 
     ```
     outputs:
@@ -121,15 +260,25 @@ To ensure your Heat template has the required configuration:
         value: { get_attr: [ training_key, private_key ] }
     ```
 
-To create a stack for a student and display a terminal window where invoked,
-you need to define the `hastexo` tag in your course content with the following
-information:
+4. Upload the Heat template to the content store and make a note of its static
+   asset file name.
 
-* The credentials for the public or private OpenStack cloud
-* The static asset path to markdown lab instructions
-* The static asset path to a Heat template
-* The name of the user that the Xblock will use to connect to the environment
-  via SSH.
+
+## Using the hastexo XBlock in a course
+
+To create a stack for a student and display a terminal window where invoked,
+you need to define the `hastexo` tag in your course content.   It must be
+configured with the following attributes:
+
+* `stack_template_path`: The static asset path to a Heat template.
+
+* `stack_user_name`: The name of the user that the Xblock will use to connect
+  to the environment via SSH, as specified in the Heat template.
+
+* `instructions_path`: (Optional) The static asset path to markdown lab
+  instructions stored in the content store.
+
+For example, in XML:
 
 ```
 <vertical url_name="lab_introduction">
@@ -137,24 +286,19 @@ information:
     url_name="lab_introduction"
     instructions_path="markdown_lab.md"
     stack_template_path="hot_lab.yaml"
-    stack_user_name="training"
-    os_auth_url="https://os.auth.url:5000/v2.0"
-    os_tenant_name="example.com"
-    os_username="demo@example.com"
-    os_password="foobarfoobarfoofoo" />
+    stack_user_name="training" />
 </vertical>
 ```
 
 **Important**: Do this only *once per section*. Defining it more that once
-per section has undefined behavior.
+per section is not supported.
 
-In order to add the hastexo Xblock through Studio, open the (sub)unit where
-you want it to appear. Add a new component and select `Advanced`, then select 
-the `Lab` component. This adds the XBlock. Edit the Settings to add the various
-OpenStack variables.
+In order to add the hastexo Xblock through Studio, open the unit where you want
+it to go.  Add a new component, select `Advanced`, then select the `Lab`
+component.  This adds the XBlock.  Edit the Settings as explained above.
 
 
-## Student Experience
+## Student experience
 
 When students navigate to a unit with a hastexo XBlock in it, a new Heat
 stack will be created (or resumed) for them. The Heat stack will be as defined
@@ -163,10 +307,11 @@ the same tag appears on a different course, or different run of the same
 course, the student will get a different stack.
 
 The stack will suspend if the student does not navigate to the `hastexo` unit
-in that section within two minutes. When the student gets to the `hastexo`
-unit, the stack will be resumed and they will be connected automatically and
-securely. They will not need a username, password, or host prompts to their
-personal lab environment. This happens transparently in the browser.
+in that section within the default two minutes (configurable via settings, as
+explained above). When the student gets to the `hastexo` unit, the stack will
+be resumed and they will be connected automatically and securely. They will not
+need a username, password, or host prompts to their personal lab environment.
+This happens transparently in the browser.
 
 The student can work at their own pace in their environment. However, when
 a student closes the browser where the `hastexo` unit is displayed, or if they
@@ -175,6 +320,58 @@ reopen the environment within two minutes their stack will be suspended. When
 a student comes back to the lab environment to finish the exercise, their
 stack is resumed automatically.  They are connected to the same training
 environment they were working with before, in the *same state* they left it in.
+(The process of suspension works just like in a home computer.)
+
+
+## Usage in devstack
+
+It is possible to use this XBlock in devstack.  To do so, however, requires
+tweaking a few settings.
+
+First, due to the fact that in a devstack all Celery calls are synchronous,
+scheduled tasks are executed immediately.  This means that with default
+settings, tasks will be immediately suspended.  To fix this, suspension must be
+disabled.  In addition, since Ajax calls from the browser are also synchronous
+in devstack (i.e., the connection remains open until the task is complete),
+the Javascript timeouts don't make sense.
+
+Finally, devstacks don't install nginx.  Therefore, GateOne is only reachable
+directly at its configured port.  This means that `terminal_url` in the XBlock
+settings must be set to that port (by default, 28010), and the `url_prefix` in
+the GateOne configuration must be reset to "".
+
+These are the recommended devstack settings for `/edx/app/edxapp/lms.env.json`
+(OpenStack settings have been omitted):
+
+    ```
+    "XBLOCK_SETTINGS": {
+        "hastexo": {
+            "terminal_url": ":28010"
+            "ssh_dir": "/edx/var/edxapp/terminal_users/ANONYMOUS/.ssh",
+            "ssh_upload": false,
+            "ssh_bucket": "identities",
+            "launch_timeout": 0,
+            "suspend_timeout": 0,
+            "task_timeouts": {
+                "sleep": 5,
+                "retries": 60
+            },
+            "js_timeouts": {
+                "status": 0,
+                "keepalive": 0,
+                "idle": 0,
+                "check": 0
+            },
+        }
+    }
+    ```
+
+And this must be set in `/etc/gateone/conf.d/10server.conf`:
+
+    ```
+    "url_prefix": "",
+    ```
+
 
 ## Running tests
 
@@ -192,6 +389,7 @@ Or,
 $ cd /edx/app/edxapp/hastexo-xblock
 $ /edx/app/edxapp/venvs/edxapp/bin/nosetests hastexo/tests -v
 ```
+
 
 ## License
 
