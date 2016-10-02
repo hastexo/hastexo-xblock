@@ -140,7 +140,7 @@ function HastexoXBlock(runtime, element, configuration) {
                     var c = GateOne.Utils.getNode('#container');
                     var term_num = GateOne.Terminal.newTerminal(null, null, c);
                     setTimeout(function() {
-                        var s = 'ssh://' + stack.user + '@' + stack.ip + ':22/?identities=' + stack.key + '\n';
+                        var s = 'ssh://' + stack.user + '@' + stack.ip + ':22/?identity=' + stack.key + '\n';
                         GateOne.Terminal.sendString(s);
                         setTimeout(function() {
                             /* Update screen dimensions. */

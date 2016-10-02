@@ -6,7 +6,7 @@ import datetime
 import pytz
 
 from xblock.core import XBlock
-from xblock.fields import Scope, Integer, Float, String, Dict, List, DateTime
+from xblock.fields import Scope, Boolean, Integer, Float, String, Dict, List, DateTime
 from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
@@ -26,8 +26,8 @@ loader = ResourceLoader(__name__)
 class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
     """
     Provides lab environments and an SSH connection to them.
-    """
 
+    """
     # Settings with defaults.
     display_name = String(
         default="Lab",
@@ -46,8 +46,8 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         scope=Scope.settings,
         help="The name of the training user in the stack.")
 
-    # Mandatory runtime configuration: if not set set per instance, will be
-    # retrieved from environment settings.
+    # Not used: only set here for backward compatibility.  They are now set via
+    # XBlock settings exclusively.
     launch_timeout = Integer(
         scope=Scope.settings,
         help="How long to wait for a launch task, in seconds")
@@ -99,7 +99,6 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
     os_tenant_name = String(
         scope=Scope.settings,
         help="The OpenStack tenant name. (v2.0 API)")
-
 
     # Optional
     instructions_path = String(
@@ -154,21 +153,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         'display_name',
         'weight',
         'stack_template_path',
-        'stack_user_name',
-        'launch_timeout',
-        'terminal_url',
-        'os_auth_url',
-        'os_auth_token',
-        'os_username',
-        'os_password',
-        'os_user_id',
-        'os_user_domain_id',
-        'os_user_domain_name',
-        'os_project_id',
-        'os_project_name',
-        'os_project_domain_id',
-        'os_project_domain_name',
-        'os_region_name')
+        'stack_user_name')
 
     has_author_view = True
     has_score = True
@@ -273,6 +258,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         and is suspended.
         """
         args = (
+            self.configuration,
             self.stack_name,
             self.stack_template,
             self.stack_user_name,
@@ -300,11 +286,12 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         self.revoke_suspend()
 
         # (Re)schedule the suspension in the future.
-        args = (self.stack_name, self.configuration.get('os_auth_url'))
+        args = (self.configuration, self.stack_name, self.configuration.get('os_auth_url'))
         kwargs = self._get_os_auth_kwargs()
-        result = SuspendStackTask().apply_async(args=args,
-                                                kwargs=kwargs,
-                                                countdown=self.configuration.get("suspend_timeout"))
+        task = SuspendStackTask()
+        result = task.apply_async(args=args,
+                                  kwargs=kwargs,
+                                  countdown=self.configuration.get("suspend_timeout"))
         self.stack_suspend_id = result.id
 
     def check(self):
@@ -314,8 +301,13 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         for test in self.tests:
             log.info('Test: %s' % test)
 
-        args = (self.tests, self.stack_status['ip'], self.stack_name,
-                self.stack_user_name)
+        args = (
+            self.configuration,
+            self.tests,
+            self.stack_status['ip'],
+            self.stack_name,
+            self.stack_user_name
+        )
         result = CheckStudentProgressTask().apply_async(args=args, expires=60)
         self.check_id = result.id
 
@@ -372,12 +364,19 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
     def get_configuration(self):
         """
         Get the configuration data for the student_view.
-        """
 
+        """
         defaults = {
             "launch_timeout": 300,
             "suspend_timeout": 120,
             "terminal_url": "/terminal",
+            "ssh_dir": "/edx/var/edxapp/terminal_users/ANONYMOUS/.ssh",
+            "ssh_upload": False,
+            "ssh_bucket": "identities",
+            "task_timeouts": {
+                "sleep": 5,
+                "retries": 60
+            },
             "js_timeouts": {
                 "status": 10000,
                 "keepalive": 15000,
@@ -389,43 +388,45 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         settings = self.get_xblock_settings(default=defaults)
 
         # Set defaults
-        launch_timeout = self.launch_timeout or settings.get("launch_timeout", defaults["launch_timeout"])
-        suspend_timeout = self.suspend_timeout or settings.get("suspend_timeout", defaults["suspend_timeout"])
-        terminal_url = self.terminal_url or settings.get("terminal_url", defaults["terminal_url"])
+        launch_timeout = settings.get("launch_timeout", defaults["launch_timeout"])
+        suspend_timeout = settings.get("suspend_timeout", defaults["suspend_timeout"])
+        terminal_url = settings.get("terminal_url", defaults["terminal_url"])
+        ssh_dir = settings.get("ssh_dir", defaults["ssh_dir"])
+        ssh_upload = settings.get("ssh_upload", defaults["ssh_upload"])
+        ssh_bucket = settings.get("ssh_bucket", defaults["ssh_bucket"])
+        task_timeouts = settings.get("task_timeouts", defaults["task_timeouts"])
         js_timeouts = settings.get("js_timeouts", defaults["js_timeouts"])
 
         # tenant_name and tenant_id are deprecated
-        os_project_name = self.os_project_name or settings.get("os_project_name")
-        if not os_project_name:
-            if self.os_tenant_name:
-                os_project_name = self.os_tenant_name
-            elif settings.get("os_tenant_name"):
-                os_project_name = settings.get("os_tenant_name")
+        os_project_name = settings.get("os_project_name")
+        if not os_project_name and settings.get("os_tenant_name"):
+            os_project_name = settings.get("os_tenant_name")
 
-        os_project_id = self.os_project_id or settings.get("os_project_id")
-        if not os_project_id:
-            if self.os_tenant_id:
-                os_project_id = self.os_tenant_id
-            elif settings.get("os_tenant_id"):
-                os_project_id = settings.get("os_tenant_id")
+        os_project_id = settings.get("os_project_id")
+        if not os_project_id and settings.get("os_tenant_id"):
+            os_project_id = settings.get("os_tenant_id")
 
         return {
             "launch_timeout": launch_timeout,
             "suspend_timeout": suspend_timeout,
             "terminal_url": terminal_url,
+            "ssh_dir": ssh_dir,
+            "ssh_upload": ssh_upload,
+            "ssh_bucket": ssh_bucket,
+            "task_timeouts": task_timeouts,
             "js_timeouts": js_timeouts,
-            "os_auth_url": self.os_auth_url or settings.get("os_auth_url"),
-            "os_auth_token": self.os_auth_token or settings.get("os_auth_token"),
-            "os_username": self.os_username or settings.get("os_username"),
-            "os_password": self.os_password or settings.get("os_password"),
-            "os_user_id": self.os_user_id or settings.get("os_user_id"),
-            "os_user_domain_id": self.os_user_domain_id or settings.get("os_user_domain_id"),
-            "os_user_domain_name": self.os_user_domain_name or settings.get("os_user_domain_name"),
+            "os_auth_url": settings.get("os_auth_url"),
+            "os_auth_token": settings.get("os_auth_token"),
+            "os_username": settings.get("os_username"),
+            "os_password": settings.get("os_password"),
+            "os_user_id": settings.get("os_user_id"),
+            "os_user_domain_id": settings.get("os_user_domain_id"),
+            "os_user_domain_name": settings.get("os_user_domain_name"),
             "os_project_id": os_project_id,
             "os_project_name": os_project_name,
-            "os_project_domain_id": self.os_project_domain_id or settings.get("os_project_domain_id"),
-            "os_project_domain_name": self.os_project_domain_name or settings.get("os_project_domain_name"),
-            "os_region_name": self.os_region_name or settings.get("os_region_name")
+            "os_project_domain_id": settings.get("os_project_domain_id"),
+            "os_project_domain_name": settings.get("os_project_domain_name"),
+            "os_region_name": settings.get("os_region_name")
         }
 
     def is_correct(self):

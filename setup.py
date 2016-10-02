@@ -3,6 +3,13 @@
 import os
 from setuptools import setup
 
+def package_scripts(root_list):
+    data = []
+    for root in root_list:
+        for dirname, _, files in os.walk(root):
+            for fname in files:
+                data.append(os.path.join(dirname, fname))
+    return data
 
 def package_data(pkg, roots):
     """Generic function to find package_data.
@@ -19,7 +26,6 @@ def package_data(pkg, roots):
 
     return {pkg: data}
 
-
 setup(
     name='hastexo-xblock',
     version='0.1.2',
@@ -33,6 +39,7 @@ setup(
         'markdown2==2.3.0',
         'python-keystoneclient==2.0.0',
         'python-heatclient==0.8.0',
+        'python-swiftclient>=2.2.0',
         'paramiko>=1.16.0',
     ],
     entry_points={
@@ -40,5 +47,6 @@ setup(
             'hastexo = hastexo:HastexoXBlock',
         ]
     },
+    scripts=package_scripts(["bin"]),
     package_data=package_data("hastexo", ["static", "public"]),
 )
