@@ -18,7 +18,7 @@ from opaque_keys import InvalidKeyError
 
 from .tasks import LaunchStackTask, SuspendStackTask, CheckStudentProgressTask
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 loader = ResourceLoader(__name__)
 
 
@@ -193,6 +193,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         return Fragment(u'<em>This XBlock only renders content when viewed via the LMS.</em></p>')
 
     def _save_user_stack_task_result(self, result):
+        logger.info('Saving stack result id [%s]: [%s]' % (result.id, result.result))
         if result.ready():
             # Clear the task ID so we know there is no task running.
             self.stack_launch_id = ""
@@ -266,9 +267,12 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         kwargs = self._get_os_auth_kwargs()
         task = LaunchStackTask()
         if sync:
+            logger.info('Running synchronous launch task for [%s]' % (self.stack_name))
             result = task.apply(args=args, kwargs=kwargs)
         else:
+            logger.info('Firing async launch task for [%s]' % (self.stack_name))
             result = task.apply_async(args=args, kwargs=kwargs, expires=60)
+            logger.info('Launch task id for stack [%s] is: [%s]' % (self.stack_name, result.id))
             self.stack_launch_id = result.id
             self.stack_launch_timestamp = datetime.datetime.now(pytz.utc)
 
@@ -277,6 +281,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
 
     def revoke_suspend(self):
         if self.stack_suspend_id:
+            logger.info('Revoking suspend tasks for [%s]' % (self.stack_name))
             from lms import CELERY_APP
             CELERY_APP.control.revoke(self.stack_suspend_id)
             self.stack_suspend_id = ""
@@ -289,17 +294,19 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         args = (self.configuration, self.stack_name, self.configuration.get('os_auth_url'))
         kwargs = self._get_os_auth_kwargs()
         task = SuspendStackTask()
+        suspend_timeout = self.configuration.get("suspend_timeout")
+        logger.info('Scheduling suspend task for [%s] in %s seconds' % (self.stack_name, suspend_timeout))
         result = task.apply_async(args=args,
                                   kwargs=kwargs,
-                                  countdown=self.configuration.get("suspend_timeout"))
+                                  countdown=suspend_timeout)
         self.stack_suspend_id = result.id
 
     def check(self):
-        log.info('Executing tests for stack [%s], IP [%s], user [%s]:' %
-                (self.stack_name, self.stack_status['ip'],
-                 self.stack_user_name))
+        logger.info('Executing tests for stack [%s], IP [%s], user [%s]:' %
+                   (self.stack_name, self.stack_status['ip'],
+                    self.stack_user_name))
         for test in self.tests:
-            log.info('Test: %s' % test)
+            logger.info('Test: %s' % test)
 
         args = (
             self.configuration,
@@ -453,6 +460,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
 
         # If a stack launch task is still pending, check its status.
         if self.stack_launch_id:
+            logger.info('Launch task ID [%s] found for [%s]' % (self.stack_launch_id, self.stack_name))
             if self.stack_launch_timestamp:
                 delta = datetime.datetime.now(pytz.utc) - self.stack_launch_timestamp
                 if delta.seconds <= self.configuration.get('launch_timeout'):
@@ -466,11 +474,17 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
                         status != 'PENDING' and
                         status != 'CREATE_FAILED' and
                         status != 'RESUME_FAILED'):
+                        logger.info('Successful launch detected for [%s], with status [%s]' % (self.stack_name, status))
                         self.launch_or_resume_user_stack(True)
                         res = self.stack_status
+                    elif ('PENDING' in status):
+                        logger.info('Launch pending for [%s]' % (self.stack_name))
+                    else:
+                        logger.error('Failed launch detected for [%s], with status [%s]' % (self.stack_name, status))
                 else:
                     # Timeout reached.  Consider the previous task a failure,
                     # and report it as such.
+                    logger.error('Launch timeout reached for [%s] after %s seconds' % (self.stack_name, delta.seconds))
                     res = {'status': 'ERROR',
                            'error_msg': 'Timeout when launching or resuming stack.'}
                     self.stack_launch_id = ""
@@ -479,6 +493,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             else:
                 # No timestamp recorded.  Consider the previous task a failure,
                 # and report it as such.
+                logger.error('Stack launch task found for [%s], but no launch timestamp recorded' % (self.stack_name))
                 res = {'status': 'ERROR',
                        'error_msg': 'Timeout when launching or resuming stack.'}
                 self.stack_launch_id = ""
@@ -487,6 +502,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         # If there aren't pending launch tasks, we may need to resume it, so
         # run the async procedure once more.
         else:
+            logger.info('Initializing stack launch task for [%s]' % (self.stack_name))
             self.launch_or_resume_user_stack()
             res = self.stack_status
 
@@ -503,11 +519,11 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         """
         # If a stack launch task is running, return immediately.
         if self.stack_launch_id:
-            log.info('stack launch task is running: %s' % self.stack_launch_id)
+            logger.info('stack launch task is running: %s' % self.stack_launch_id)
             res = {'status': 'PENDING'}
         # If a check task is running, return its status.
         elif self.check_id:
-            log.info('check task is running: %s' % self.check_id)
+            logger.info('check task is running: %s' % self.check_id)
             result = CheckStudentProgressTask().AsyncResult(self.check_id)
             res = self._save_check_task_result(result)
         # Otherwise, launch the check task.

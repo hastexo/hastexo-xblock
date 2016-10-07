@@ -11,6 +11,8 @@ from heatclient.exc import HTTPNotFound
 from .heat import HeatWrapper
 from .swift import SwiftWrapper
 
+logger = get_task_logger(__name__)
+
 
 class LaunchStackTask(Task):
     """
@@ -23,8 +25,6 @@ class LaunchStackTask(Task):
         Run the celery task.
 
         """
-        logger = get_task_logger(__name__)
-        timeouts = configuration.get('task_timeouts')
         status = None
         verify_status = None
         error_msg = None
@@ -35,25 +35,33 @@ class LaunchStackTask(Task):
         heat = self.get_heat_client(auth_url, **kwargs)
 
         # Launch the stack and wait for it to complete.
-        (status, error_msg, stack) = self.launch_stack(configuration, logger, timeouts, heat, stack_name, stack_template)
+        (status, error_msg, stack) = self.launch_stack(configuration, heat, stack_name, stack_template)
 
         # If launch completed successfully, wait for provisioning, collect
         # its IP address, and save the private key.
         if status == 'CREATE_COMPLETE' or status == 'RESUME_COMPLETE':
-            (verify_status, error_msg, stack_ip) = self.verify_stack(configuration, logger, timeouts, stack, stack_name, stack_user)
+            logger.info("Stack [%s] launched successfully with status [%s]" % (stack_name, status))
+            (verify_status, error_msg, stack_ip) = self.verify_stack(configuration, stack, stack_name, stack_user)
 
         # Roll back in case of failure: if it's a failure during creation,
         # delete the stack.  If it's a failure to resume, suspend it.
         if (status == 'CREATE_FAILED'
             or (status == 'CREATE_COMPLETE' and verify_status != 'VERIFY_COMPLETE')):
-            logger.debug("Deleting failed stack [%s]" % stack.id)
+            logger.error("Deleting unsuccessfully launched stack [%s] with status [%s] "
+                         "and verify status [%s]" % (stack.id, status, verify_status))
             heat.stacks.delete(stack_id=stack.id)
             status = 'CREATE_FAILED'
         elif (status == 'RESUME_FAILED'
               or (status == 'RESUME_COMPLETE' and verify_status != 'VERIFY_COMPLETE')):
-            logger.debug("Suspending failed stack [%s]" % stack.id)
+            logger.error("Suspending unsuccessfully resumed stack [%s] with status [%s] "
+                         "and verify status [%s]" % (stack.id, status, verify_status))
             heat.actions.suspend(stack_id=stack.id)
             status = 'RESUME_FAILED'
+
+
+        if ((status == 'CREATE_COMPLETE' or status == 'RESUME_COMPLETE') and
+                verify_status == 'VERIFY_COMPLETE'):
+            logger.info("Stack [%s] verified successfully" % (stack.id))
 
         return {
             'status': status,
@@ -66,7 +74,7 @@ class LaunchStackTask(Task):
     def get_heat_client(self, auth_url, **kwargs):
         return HeatWrapper().get_client(auth_url, **kwargs)
 
-    def launch_stack(self, configuration, logger, timeouts, heat, stack_name, stack_template):
+    def launch_stack(self, configuration, heat, stack_name, stack_template):
         """
         Launch the user stack, either by creating or resuming it.
 
@@ -75,42 +83,55 @@ class LaunchStackTask(Task):
         error_msg = None
         stack = None
 
-        logger.debug("Launching stack [%s]." % stack_name)
+        timeouts = configuration.get('task_timeouts', {})
+        sleep = timeouts.get('sleep', 5)
+        retries = timeouts.get('retries', 60)
+
+        logger.info("Launching stack [%s]." % stack_name)
 
         # Create the stack if it doesn't exist, resume it if it's suspended.
         try:
+            logger.info("Getting initial stack info for [%s]." % (stack_name))
             stack = heat.stacks.get(stack_id=stack_name)
         except HTTPNotFound:
-            logger.debug("Stack [%s] doesn't exist.  Creating it." % stack_name)
+            logger.info("Stack [%s] doesn't exist.  Creating it." % stack_name)
             res = heat.stacks.create(stack_name=stack_name, template=stack_template)
             stack_id = res['stack']['id']
+            logger.info("Getting initial stack info for [%s]." % (stack_name))
             stack = heat.stacks.get(stack_id=stack_id)
 
         status = stack.stack_status
+        logger.info("Got [%s] status for [%s]." % (status, stack_name))
 
         # If stack is undergoing a change of state, wait until it finishes.
         retry = 0
         while 'IN_PROGRESS' in status:
             if retry:
-                time.sleep(timeouts.get('sleep'))
+                logger.debug("Stack [%s] not ready, with status [%s]. Waiting %s seconds until retry." % (
+                    stack_name, status, sleep))
+                time.sleep(sleep)
             try:
+                logger.info("Getting stack info for [%s], with previous status [%s]." % (stack_name, status))
                 stack = heat.stacks.get(stack_id=stack.id)
             except HTTPNotFound:
-                logger.debug("Stack [%s] disappeared during change of state. Re-creating it." % stack_name)
+                logger.warning("Stack [%s] disappeared during change of state. Re-creating it." % stack_name)
                 res = heat.stacks.create(stack_name=stack_name, template=stack_template)
                 stack_id = res['stack']['id']
+                logger.info("Getting initial stack info for [%s]." % (stack_name))
                 stack = heat.stacks.get(stack_id=stack_id)
 
             status = stack.stack_status
+            logger.info("Got [%s] status for [%s]." % (status, stack_name))
             retry += 1
-            if retry >= timeouts.get('retries'):
+            if retry >= retries:
+                logger.error("Stack [%s] state change [%s] took too long.  Giving up after %s retries" % (
+                    stack_name, status, retry))
                 status_prefix = re.sub('_IN_PROGRESS$', '', status)
                 status = '%s_FAILED' % status_prefix
-                logger.debug("Stack [%s] state change [%s] took too long." % (stack_name, status))
 
         # If stack is suspended, resume it.
         if status == 'SUSPEND_COMPLETE':
-            logger.debug("Resuming stack [%s]." % stack_name)
+            logger.info("Resuming stack [%s]." % stack_name)
             heat.actions.resume(stack_id=stack.id)
 
             # Wait until resume finishes.
@@ -118,28 +139,34 @@ class LaunchStackTask(Task):
             while ('FAILED' not in status and
                    status != 'RESUME_COMPLETE'):
                 if retry:
-                    time.sleep(timeouts.get('sleep'))
+                    logger.debug("Stack [%s] not ready, with status [%s]. Waiting %s seconds until retry." % (
+                        stack_name, status, sleep))
+                    time.sleep(sleep)
+
                 try:
+                    logger.info("Getting stack info for [%s], with previous status [%s]." % (stack_name, status))
                     stack = heat.stacks.get(stack_id=stack.id)
                 except HTTPNotFound:
+                    logger.error("Stack [%s] disappeared during resume." % stack_name)
                     status = 'RESUME_FAILED'
-                    logger.debug("Stack [%s] disappeared during resume." % stack_name)
                 else:
                     status = stack.stack_status
+                    logger.info("Got [%s] status for [%s]." % (status, stack_name))
                     retry += 1
-                    if retry >= timeouts.get('retries'):
+                    if retry >= retries:
+                        logger.error("Stack [%s], status [%s], took too long to resume.  Giving up after %s retries" % (
+                            stack_name, status, retry))
                         status = 'RESUME_FAILED'
-                        logger.debug("Stack [%s] resume took too long." % stack_name)
 
         if status != 'CREATE_COMPLETE' and status != 'RESUME_COMPLETE':
             error_msg = "Stack [%s] launch failed with status [%s]" % (stack_name, status)
-            logger.debug(error_msg)
+            logger.error(error_msg)
         else:
-            logger.debug("Stack [%s] launch successful, with status [%s]." % (stack_name, status))
+            logger.info("Stack [%s] launch successful, with status [%s]." % (stack_name, status))
 
         return (status, error_msg, stack)
 
-    def verify_stack(self, configuration, logger, timeouts, stack, stack_name, stack_user):
+    def verify_stack(self, configuration, stack, stack_name, stack_user):
         """
         Check that the stack has a public IP address, a private key, and is
         network accessible.  Save its private key, and check that it is
@@ -151,29 +178,43 @@ class LaunchStackTask(Task):
         stack_ip = None
         stack_key = None
 
+        timeouts = configuration.get('timeouts', {})
+        sleep = timeouts.get('sleep', 5)
+        retries = timeouts.get('retries', 60)
+
+        logger.info("Verifying stack [%s] network connectivity. " % (stack_name))
+
         for output in stack.to_dict().get('outputs', []):
             if output['output_key'] == 'public_ip':
                 stack_ip = output['output_value']
+                logger.info("Found IP [%s] for stack [%s]" % (stack_ip, stack_name))
             elif output['output_key'] == 'private_key':
                 stack_key = output['output_value']
+                logger.info("Found key for stack [%s]" % (stack_name))
 
         if stack_ip is None or stack_key is None:
             verify_status = 'VERIFY_FAILED'
             error_msg = "Stack [%s] did not provide IP or private key." % stack_name
-            logger.debug(error_msg)
+            logger.error(error_msg)
         else:
             # Wait until stack is network accessible, but not indefinitely.
-            response = 1
+            logger.info("Waiting for stack [%s] to become network accessible at [%s]" % (stack_name, stack_ip))
+            ping_command = "ping -c 1 -W 5 " + stack_ip + " >/dev/null 2>&1"
+            response = os.system(ping_command)
             retry = 0
-            while response != 0 and retry < timeouts.get('retries'):
-                response = os.system("ping -c 1 -W 5 " + stack_ip + " >/dev/null 2>&1")
+            while response != 0 and retry < retries:
+                logger.debug("Could not ping stack [%s] at [%s]. Waiting %s seconds until next attempt." % (
+                    stack_name, stack_ip, sleep))
+                time.sleep(sleep)
+                response = os.system(ping_command)
                 retry += 1
 
             # Consider stack failed if it isn't network accessible.
             if response != 0:
                 verify_status = 'VERIFY_FAILED'
-                error_msg = "Stack [%s] is not network accessible." % stack_name
-                logger.debug(error_msg)
+                error_msg = "Stack [%s] is not network accessible at [%s] after %s tries." % (
+                        stack_name, stack_ip, retry)
+                logger.error(error_msg)
             else:
                 # Export the private key.
                 key_path = "%s/%s" % (configuration.get('ssh_dir'), stack_name)
@@ -194,23 +235,28 @@ class LaunchStackTask(Task):
                 # Now wait until environment is fully provisioned.  One of the
                 # requirements for the Heat template is for it to disallow SSH
                 # access to the training user while provisioning is going on.
-                response = 1
+                logger.info("Checking SSH connection for stack [%s] at [%s]" % (stack_name, stack_ip))
+                response = os.system(ssh_command)
                 retry = 0
-                while response != 0 and retry < timeouts.get('retries'):
-                    response = os.system(ssh_command)
-                    time.sleep(timeouts.get('sleep'))
+                while response != 0 and retry < retries:
+                    logger.debug("Could not SSH into stack [%s] at [%s]. Waiting %s seconds until next attempt." % (
+                        stack_name, stack_ip, sleep))
+                    time.sleep(sleep)
                     retry += 1
+                    response = os.system(ssh_command)
 
                 if response != 0:
                     verify_status = 'VERIFY_FAILED'
-                    error_msg = "Stack [%s] provisioning did not complete." % stack_name
-                    logger.debug(error_msg)
+                    error_msg = "Can't SSH into stack [%s] at [%s].  Giving up after %s tries." % (
+                            stack_name, stack_ip, retry)
+                    logger.error(error_msg)
                 else:
-                    logger.debug("Stack [%s] verification successful." % stack_name)
+                    logger.info("Stack [%s] SSH successful at [%s]." % (stack_name, stack_ip))
 
         return (verify_status, error_msg, stack_ip)
 
     def upload_key(self, key, key_path, configuration):
+        logger.info("Uploading stack key [%s] into [%s]." % (key, configuration.get("ssh_bucket")))
         swift = SwiftWrapper(configuration)
         swift.upload_key(key, key_path)
 
@@ -225,38 +271,42 @@ class SuspendStackTask(Task):
         Suspend a stack.  There is no return value, as nobody will check for it.
 
         """
-        logger = get_task_logger(__name__)
-        timeouts = configuration.get('timeouts')
-
         # Get the Heat client
         heat = self.get_heat_client(auth_url, **kwargs)
 
         # Suspend the stack.
-        self.suspend_stack(logger, timeouts, heat, stack_name)
+        self.suspend_stack(configuration, heat, stack_name)
 
     def get_heat_client(self, auth_url, **kwargs):
         return HeatWrapper().get_client(auth_url, **kwargs)
 
-    def suspend_stack(self, logger, timeouts, heat, stack_name):
+    def suspend_stack(self, configuration, heat, stack_name):
         """
         Suspend the stack.
         """
+
+        logger.info("Initializing stack [%s] suspension." % stack_name)
+
+        timeouts = configuration.get('task_timeouts')
+        sleep = timeouts.get('sleep', 5)
+        retries = timeouts.get('retries', 60)
 
         # Find the stack.  If it doesn't exist, there's nothing to do here.
         try:
             stack = heat.stacks.get(stack_id=stack_name)
         except HTTPNotFound:
-            error_msg = "Stack [%s] doesn't exist." % stack_name
-            logger.debug(error_msg)
+            logger.info("Stack [%s] doesn't exist.  Cannot suspend." % stack_name)
             return
 
         status = stack.stack_status
+        logger.info("Got [%s] status for [%s]." % (status, stack_name))
 
         # If the stack is broken, already suspended, or in the process of, there's
         # nothing to do here.
         if ('FAILED' in status or
              status == 'SUSPEND_COMPLETE' or
              status == 'SUSPEND_IN_PROGRESS'):
+            logger.info("Cannot suspend stack [%s] with status [%s]." % (stack_name, status))
             return
 
         # If the stack is undergoing some other change of state, wait for it to
@@ -264,24 +314,30 @@ class SuspendStackTask(Task):
         retry = 0
         while 'IN_PROGRESS' in status:
             if retry:
-                time.sleep(timeouts.get('sleep'))
+                logger.debug("Stack [%s] is [%s].  Waiting %s seconds to suspend." % (stack_name, status, sleep))
+                time.sleep(sleep)
             try:
+                logger.info("Getting stack info for [%s], with previous status." % (stack_name, status))
                 stack = heat.stacks.get(stack_id=stack.id)
             except HTTPNotFound:
+                logger.error("Stack [%s], with previous status [%s], disappeared "
+                             "when trying to suspend." % (stack_name, status))
                 status = 'SUSPEND_FAILED'
-                error_msg = "Stack disappeared during state change [%s]." % status
-                logger.debug(error_msg)
             else:
                 status = stack.stack_status
+                logger.info("Got [%s] status for [%s]." % (status, stack_name))
                 retry += 1
-                if retry >= timeouts.get('retries'):
+                if retry >= retries:
+                    logger.error("Stack [%s] state change [%s] took too long when trying to suspend. "
+                                 "Giving up after %s retries." % (stack_name, status, retry))
                     status = 'SUSPEND_FAILED'
-                    error_msg = "Stack [%s] state change [%s] took too long." % (stack_name, status)
-                    logger.debug(error_msg)
 
         # At this point, the stack has been verified to be running.  So suspend it.
         if 'FAILED' not in status:
+            logger.info("Suspending stack [%s]." % (stack_name))
             heat.actions.suspend(stack_id=stack_name)
+        else:
+            logger.error("Could not suspend stack [%s]." % (stack_name))
 
 
 class CheckStudentProgressTask(Task):

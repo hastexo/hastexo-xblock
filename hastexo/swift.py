@@ -65,7 +65,6 @@ class SwiftWrapper(object):
     def download_key(self, key, key_path):
         options = self.options
         options["out_file"] = key_path
-        options["skip_identical"] = True
 
         # Download it
         error = None
