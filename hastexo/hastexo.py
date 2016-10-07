@@ -271,7 +271,8 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             result = task.apply(args=args, kwargs=kwargs)
         else:
             logger.info('Firing async launch task for [%s]' % (self.stack_name))
-            result = task.apply_async(args=args, kwargs=kwargs, expires=60)
+            result = task.apply_async(args=args, kwargs=kwargs,
+                    expires=self.configuration.get('launch_timeout'))
             logger.info('Launch task id for stack [%s] is: [%s]' % (self.stack_name, result.id))
             self.stack_launch_id = result.id
             self.stack_launch_timestamp = datetime.datetime.now(pytz.utc)
