@@ -93,12 +93,25 @@ class LaunchStackTask(Task):
         try:
             logger.info("Getting initial stack info for [%s]." % (stack_name))
             stack = heat.stacks.get(stack_id=stack_name)
+
+            # Sleep to avoid throttling.
+            time.sleep(sleep)
         except HTTPNotFound:
+            # Sleep to avoid throttling.
+            time.sleep(sleep)
+
             logger.info("Stack [%s] doesn't exist.  Creating it." % stack_name)
             res = heat.stacks.create(stack_name=stack_name, template=stack_template)
             stack_id = res['stack']['id']
+
+            # Sleep to avoid throttling.
+            time.sleep(sleep)
+
             logger.info("Getting initial stack info for [%s]." % (stack_name))
             stack = heat.stacks.get(stack_id=stack_id)
+
+            # Sleep to avoid throttling.
+            time.sleep(sleep)
 
         status = stack.stack_status
         logger.info("Got [%s] status for [%s]." % (status, stack_name))
@@ -110,13 +123,21 @@ class LaunchStackTask(Task):
                 logger.debug("Stack [%s] not ready, with status [%s]. Waiting %s seconds until retry." % (
                     stack_name, status, sleep))
                 time.sleep(sleep)
+
             try:
                 logger.info("Getting stack info for [%s], with previous status [%s]." % (stack_name, status))
                 stack = heat.stacks.get(stack_id=stack.id)
             except HTTPNotFound:
+                # Sleep to avoid throttling.
+                time.sleep(sleep)
+
                 logger.warning("Stack [%s] disappeared during change of state. Re-creating it." % stack_name)
                 res = heat.stacks.create(stack_name=stack_name, template=stack_template)
                 stack_id = res['stack']['id']
+
+                # Sleep to avoid throttling.
+                time.sleep(sleep)
+
                 logger.info("Getting initial stack info for [%s]." % (stack_name))
                 stack = heat.stacks.get(stack_id=stack_id)
 
@@ -131,8 +152,14 @@ class LaunchStackTask(Task):
 
         # If stack is suspended, resume it.
         if status == 'SUSPEND_COMPLETE':
+            # Sleep to avoid throttling.
+            time.sleep(sleep)
+
             logger.info("Resuming stack [%s]." % stack_name)
             heat.actions.resume(stack_id=stack.id)
+
+            # Sleep to avoid throttling.
+            time.sleep(sleep)
 
             # Wait until resume finishes.
             retry = 0
@@ -226,6 +253,9 @@ class LaunchStackTask(Task):
 
                 # Upload key, if necessary
                 if configuration.get('ssh_upload'):
+                    # Sleep to avoid throttling.
+                    time.sleep(sleep)
+
                     self.upload_key(stack_name, key_path, configuration)
 
                 # Build the SSH command
