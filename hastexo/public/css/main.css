@@ -78,11 +78,8 @@ p.check {
 
 .dialog h1,
 .dialog p {
-    text-align: center;
-}
-
-.dialog h1 {
-    margin-bottom: 20px;
+    text-align: center !important;
+    margin: 0 0 0.5em 0!important;
 }
 
 .dialog {
