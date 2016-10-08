@@ -14,10 +14,11 @@ jQuery.cachedScript = function(url, options) {
 (function($) {
     var current = null;
 
-    $.dialog = function(el, options) {
+    $.dialog = function(el, element, options) {
         $.dialog.close();
         var remove, target;
         this.$body = $('body');
+        this.$block = $(element);
         this.options = $.extend({}, $.dialog.defaults, options);
         this.$elm = el;
         this.$body.append(this.$elm);
@@ -40,14 +41,16 @@ jQuery.cachedScript = function(url, options) {
 
         block: function() {
             this.overlay = $('<div class="dialog-overlay"></div>');
-            this.$body.css('overflow','hidden');
-            this.$body.append(this.overlay);
+            this.$block.css('position', 'relative');
+            this.$block.css('overflow', 'hidden');
+            this.$block.append(this.overlay);
         },
 
         unblock: function() {
             this.overlay.children().appendTo(this.$body);
             this.overlay.remove();
-            this.$body.css('overflow','');
+            this.$block.css('position', '');
+            this.$block.css('overflow', '');
         },
 
         show: function() {
@@ -85,9 +88,9 @@ jQuery.cachedScript = function(url, options) {
         dialogClass: 'dialog'
     };
 
-    $.fn.dialog = function(options){
+    $.fn.dialog = function(element, options){
         if (this.length === 1) {
-            current = new $.dialog(this, options);
+            current = new $.dialog(this, element, options);
         }
         return this;
     };

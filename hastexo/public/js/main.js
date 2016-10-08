@@ -106,7 +106,7 @@ function HastexoXBlock(runtime, element, configuration) {
     };
 
     var get_user_stack_status = function() {
-        $('#launch_pending').dialog();
+        $('#launch_pending').dialog(element);
         $.ajax({
             type: 'POST',
             url: runtime.handlerUrl(element, 'get_user_stack_status'),
@@ -185,7 +185,7 @@ function HastexoXBlock(runtime, element, configuration) {
                 $.dialog.close();
                 location.reload();
             });
-            dialog.dialog();
+            dialog.dialog(element);
         }
     };
 
@@ -204,7 +204,7 @@ function HastexoXBlock(runtime, element, configuration) {
     };
 
     var get_check_status = function() {
-        $('#check_pending').dialog();
+        $('#check_pending').dialog(element);
 
         var show_error = function(error_msg) {
             dialog = $('#check_error');
@@ -216,7 +216,7 @@ function HastexoXBlock(runtime, element, configuration) {
                 $.dialog.close();
                 get_check_status();
             });
-            dialog.dialog();
+            dialog.dialog(element);
         };
 
         $.ajax({
@@ -239,10 +239,10 @@ function HastexoXBlock(runtime, element, configuration) {
                     dialog.find('input.ok').one('click', function() {
                         $.dialog.close();
                     });
-                    dialog.dialog();
+                    dialog.dialog(element);
                 } else if (check.status == 'PENDING') {
                     dialog = $('#check_pending');
-                    dialog.dialog();
+                    dialog.dialog(element);
                     if (check_timer) clearTimeout(check_timer);
                     check_timer = setTimeout(get_check_status, configuration.timeouts['check']);
                 } else {
@@ -272,7 +272,7 @@ function HastexoXBlock(runtime, element, configuration) {
             /* Start over. */
             get_user_stack_status();
         });
-        dialog.dialog();
+        dialog.dialog(element);
     };
 
     init();
