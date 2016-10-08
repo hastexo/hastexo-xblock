@@ -111,23 +111,27 @@ function HastexoXBlock(runtime, element, configuration) {
             type: 'POST',
             url: runtime.handlerUrl(element, 'get_user_stack_status'),
             data: '{}',
-            success: function(data) {
-                var changed = false;
-                if (!stack || stack.status !== data.status) {
-                    changed = true;
-                    stack = data;
-                }
-                if (changed) {
-                    update_user_stack_status(stack);
-                } else if (stack.status == 'PENDING') {
-                    if (status_timer) clearTimeout(status_timer);
-                    status_timer = setTimeout(
-                        get_user_stack_status,
-                        configuration.timeouts['status']
-                    );
-                }
-            },
             dataType: 'json'
+        }).done(function(data) {
+            var changed = false;
+            if (!stack || stack.status !== data.status) {
+                changed = true;
+                stack = data;
+            }
+            if (changed) {
+                update_user_stack_status(stack);
+            } else if (stack.status == 'PENDING') {
+                if (status_timer) clearTimeout(status_timer);
+                status_timer = setTimeout(
+                    get_user_stack_status,
+                    configuration.timeouts['status']
+                );
+            }
+        }).fail(function(request, text, error) {
+            update_user_stack_status({
+                status: 'ERROR',
+                error_msg: text + ': ' + error
+            });
         });
     };
 
@@ -190,62 +194,67 @@ function HastexoXBlock(runtime, element, configuration) {
             type: 'POST',
             url: runtime.handlerUrl(element, 'keepalive'),
             data: '{}',
-            success: function() {
-                if (configuration.timeouts['keepalive']) {
-                    if (keepalive_timer) clearTimeout(keepalive_timer);
-                    keepalive_timer = setTimeout(keepalive, configuration.timeouts['keepalive']);
-                }
-            },
             dataType: 'json'
+        }).always(function() {
+            if (configuration.timeouts['keepalive']) {
+                if (keepalive_timer) clearTimeout(keepalive_timer);
+                keepalive_timer = setTimeout(keepalive, configuration.timeouts['keepalive']);
+            }
         });
     };
 
     var get_check_status = function() {
         $('#check_pending').dialog();
+
+        var show_error = function(error_msg) {
+            dialog = $('#check_error');
+            dialog.find('.error_msg').html(error_msg);
+            dialog.find('input.ok').one('click', function() {
+                $.dialog.close();
+            });
+            dialog.find('input.retry').one('click', function() {
+                $.dialog.close();
+                get_check_status();
+            });
+            dialog.dialog();
+        };
+
         $.ajax({
             type: 'POST',
             url: runtime.handlerUrl(element, 'get_check_status'),
             data: '{}',
-            success: function(data) {
-                var changed = false;
-                if (!check || check.status !== data.status) {
-                    changed = true;
-                    check = data;
-                }
-                if (changed) {
-                    var dialog;
-                    if (check.status == 'COMPLETE') {
-                        dialog = $('#check_complete');
-                        dialog.find('.check_pass').html(data.pass);
-                        dialog.find('.check_total').html(data.total);
-                        dialog.find('input.ok').one('click', function() {
-                            $.dialog.close();
-                        });
-                        dialog.dialog();
-                    } else if (check.status == 'PENDING') {
-                        dialog = $('#check_pending');
-                        dialog.dialog();
-                        if (check_timer) clearTimeout(check_timer);
-                        check_timer = setTimeout(get_check_status, configuration.timeouts['check']);
-                    } else {
-                        /* Unexpected status.  Display error message. */
-                        dialog = $('#check_error');
-                        dialog.find('.error_msg').html(check.error_msg);
-                        dialog.find('input.ok').one('click', function() {
-                            $.dialog.close();
-                        });
-                        dialog.find('input.retry').one('click', function() {
-                            $.dialog.close();
-                            get_check_status();
-                        });
-                        dialog.dialog();
-                    }
+            dataType: 'json'
+        }).done(function(data) {
+            var changed = false;
+            if (!check || check.status !== data.status) {
+                changed = true;
+                check = data;
+            }
+            if (changed) {
+                var dialog;
+                if (check.status == 'COMPLETE') {
+                    dialog = $('#check_complete');
+                    dialog.find('.check_pass').html(data.pass);
+                    dialog.find('.check_total').html(data.total);
+                    dialog.find('input.ok').one('click', function() {
+                        $.dialog.close();
+                    });
+                    dialog.dialog();
                 } else if (check.status == 'PENDING') {
+                    dialog = $('#check_pending');
+                    dialog.dialog();
                     if (check_timer) clearTimeout(check_timer);
                     check_timer = setTimeout(get_check_status, configuration.timeouts['check']);
+                } else {
+                    /* Unexpected status.  Display error message. */
+                    show_error(check.error_msg);
                 }
-            },
-            dataType: 'json'
+            } else if (check.status == 'PENDING') {
+                if (check_timer) clearTimeout(check_timer);
+                check_timer = setTimeout(get_check_status, configuration.timeouts['check']);
+            }
+        }).fail(function(request, text, error) {
+            show_error(text + ': ' + error);
         });
     };
 
