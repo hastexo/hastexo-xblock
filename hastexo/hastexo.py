@@ -131,11 +131,15 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
     stack_launch_timestamp = DateTime(
         default=None,
         scope=Scope.user_state,
-        help="The user stack launch task timestamp")
+        help="The time the user stack launch task started running")
     stack_suspend_id = String(
         default="",
         scope=Scope.user_state,
         help="The user stack suspend task id")
+    stack_suspend_timestamp = DateTime(
+        default=None,
+        scope=Scope.user_state,
+        help="The time the user stack suspend task was scheduled")
     stack_status = Dict(
         default=None,
         scope=Scope.user_state,
@@ -253,7 +257,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             'region_name': self.configuration.get('os_region_name')
         }
 
-    def launch_or_resume_user_stack(self, sync = False):
+    def launch_or_resume_user_stack(self):
         """
         Launches the student stack if it doesn't exist, resume it if it does
         and is suspended.
@@ -265,42 +269,39 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             self.stack_user_name,
             self.configuration.get('os_auth_url'))
         kwargs = self._get_os_auth_kwargs()
+
+        logger.info('Firing async launch task for [%s]' % (self.stack_name))
         task = LaunchStackTask()
-        if sync:
-            logger.info('Running synchronous launch task for [%s]' % (self.stack_name))
-            result = task.apply(args=args, kwargs=kwargs)
-        else:
-            logger.info('Firing async launch task for [%s]' % (self.stack_name))
-            result = task.apply_async(args=args, kwargs=kwargs,
-                    expires=self.configuration.get('launch_timeout'))
-            logger.info('Launch task id for stack [%s] is: [%s]' % (self.stack_name, result.id))
-            self.stack_launch_id = result.id
-            self.stack_launch_timestamp = datetime.datetime.now(pytz.utc)
+        result = task.apply_async(args=args, kwargs=kwargs,
+                expires=self.configuration.get('launch_timeout'))
+
+        logger.info('Launch task id for stack [%s] is: [%s]' % (self.stack_name, result.id))
+        self.stack_launch_id = result.id
+        self.stack_launch_timestamp = datetime.datetime.now(pytz.utc)
 
         # Store the result
-        self._save_user_stack_task_result(result)
-
-    def revoke_suspend(self):
-        if self.stack_suspend_id:
-            logger.info('Revoking suspend tasks for [%s]' % (self.stack_name))
-            from lms import CELERY_APP
-            CELERY_APP.control.revoke(self.stack_suspend_id)
-            self.stack_suspend_id = ""
+        return self._save_user_stack_task_result(result)
 
     def suspend_user_stack(self):
-        # If the suspend task is pending, revoke it.
-        self.revoke_suspend()
-
-        # (Re)schedule the suspension in the future.
-        args = (self.configuration, self.stack_name, self.configuration.get('os_auth_url'))
-        kwargs = self._get_os_auth_kwargs()
-        task = SuspendStackTask()
         suspend_timeout = self.configuration.get("suspend_timeout")
-        logger.info('Scheduling suspend task for [%s] in %s seconds' % (self.stack_name, suspend_timeout))
-        result = task.apply_async(args=args,
-                                  kwargs=kwargs,
-                                  countdown=suspend_timeout)
-        self.stack_suspend_id = result.id
+        if suspend_timeout:
+            # If the suspend task is pending, revoke it.
+            if self.stack_suspend_id:
+                logger.info('Revoking suspend task for [%s]' % (self.stack_name))
+                from lms import CELERY_APP
+                CELERY_APP.control.revoke(self.stack_suspend_id)
+                self.stack_suspend_id = ""
+
+            # (Re)schedule the suspension in the future.
+            args = (self.configuration, self.stack_name, self.configuration.get('os_auth_url'))
+            kwargs = self._get_os_auth_kwargs()
+            task = SuspendStackTask()
+            logger.info('Scheduling suspend task for [%s] in %s seconds' % (self.stack_name, suspend_timeout))
+            result = task.apply_async(args=args,
+                                      kwargs=kwargs,
+                                      countdown=suspend_timeout)
+            self.stack_suspend_id = result.id
+            self.stack_suspend_timestamp = datetime.datetime.now(pytz.utc)
 
     def check(self):
         logger.info('Executing tests for stack [%s], IP [%s], user [%s]:' %
@@ -450,66 +451,88 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
 
     @XBlock.json_handler
     def keepalive(self, data, suffix=''):
-        # Reset the dead man's switch
-        if self.configuration.get("suspend_timeout"):
-            self.suspend_user_stack()
+        # Restart the dead man's switch, if necessary.
+        self.suspend_user_stack()
 
     @XBlock.json_handler
     def get_user_stack_status(self, data, suffix=''):
-        # Stop the dead man's switch
-        self.revoke_suspend()
+        now = datetime.datetime.now(pytz.utc)
+        suspend_timeout = self.configuration.get("suspend_timeout")
+        time_since_suspend = 0
+        if suspend_timeout and self.stack_suspend_timestamp:
+            delta_suspend = now - self.stack_suspend_timestamp
+            time_since_suspend = delta_suspend.seconds
 
-        # If a stack launch task is still pending, check its status.
-        if self.stack_launch_id:
-            logger.info('Launch task ID [%s] found for [%s]' % (self.stack_launch_id, self.stack_name))
-            if self.stack_launch_timestamp:
-                delta = datetime.datetime.now(pytz.utc) - self.stack_launch_timestamp
-                if delta.seconds <= self.configuration.get('launch_timeout'):
-                    result = LaunchStackTask().AsyncResult(self.stack_launch_id)
-                    res = self._save_user_stack_task_result(result)
-
-                    # If the launch task was successful, check it synchronously once
-                    # more: the stack might have been suspended in the meantime.
-                    status = res.get('status')
-                    if (status != 'ERROR' and
-                        status != 'PENDING' and
-                        status != 'CREATE_FAILED' and
-                        status != 'RESUME_FAILED'):
-                        logger.info('Successful launch detected for [%s], with status [%s]' % (self.stack_name, status))
-                        self.launch_or_resume_user_stack(True)
-                        res = self.stack_status
-                    elif ('PENDING' in status):
-                        logger.info('Launch pending for [%s]' % (self.stack_name))
-                    else:
-                        logger.error('Failed launch detected for [%s], with status [%s]' % (self.stack_name, status))
-                else:
-                    # Timeout reached.  Consider the previous task a failure,
-                    # and report it as such.
-                    logger.error('Launch timeout reached for [%s] after %s seconds' % (self.stack_name, delta.seconds))
-                    res = {'status': 'ERROR',
-                           'error_msg': 'Timeout when launching or resuming stack.'}
-                    self.stack_launch_id = ""
-                    self.stack_launch_timestamp = None
-                    self.stack_status = res
-            else:
-                # No timestamp recorded.  Consider the previous task a failure,
-                # and report it as such.
-                logger.error('Stack launch task found for [%s], but no launch timestamp recorded' % (self.stack_name))
-                res = {'status': 'ERROR',
-                       'error_msg': 'Timeout when launching or resuming stack.'}
-                self.stack_launch_id = ""
-                self.stack_status = res
-
-        # If there aren't pending launch tasks, we may need to resume it, so
-        # run the async procedure once more.
-        else:
-            logger.info('Initializing stack launch task for [%s]' % (self.stack_name))
-            self.launch_or_resume_user_stack()
+        # First off, check if there was a previous launch and if it's
+        # reasonable to assume it hasn't been suspended.
+        if (self.stack_status and
+                'COMPLETE' in self.stack_status.get('status', '') and
+                (not suspend_timeout or time_since_suspend < suspend_timeout)):
             res = self.stack_status
 
-        # Start the dead man's switch
-        if self.configuration.get("suspend_timeout"):
-            self.suspend_user_stack()
+        # Otherwise, if the user just entered the unit, or if there is no
+        # pending task, force a new launch/resume task.
+        elif data['initialize'] or not self.stack_launch_id:
+            logger.info('Launching/resuming stack [%s]' % (self.stack_name))
+            res = self.launch_or_resume_user_stack()
+
+        # If we get here, there is a pending launch task.
+        else:
+            logger.info('Launch task ID [%s] found for [%s]' % (self.stack_launch_id, self.stack_name))
+
+            # Get the current result.
+            result = LaunchStackTask().AsyncResult(self.stack_launch_id)
+            res = self._save_user_stack_task_result(result)
+
+            # Check the returned status.
+            status = res.get('status')
+            if 'COMPLETE' in status:
+                logger.info('Successful launch detected for [%s], with status [%s]' % (self.stack_name, status))
+                # The stack was launched/resumed successfully, but there may
+                # have been no status check for some time afterward.  Check how
+                # likely it is that the stack was suspended since the last
+                # check.
+                if (suspend_timeout and time_since_suspend >= suspend_timeout):
+                    logger.info('Stack [%s] may have suspended.  Relaunching.' % (self.stack_name))
+                    res = self.launch_or_resume_user_stack()
+
+            elif 'PENDING' in status:
+                # Check if the pending task hasn't timed out.
+                if self.stack_launch_timestamp:
+                    delta_launch = now - self.stack_launch_timestamp
+                    time_since_launch = delta_launch.seconds
+                    launch_timeout = self.configuration.get('launch_timeout')
+
+                    if time_since_launch <= launch_timeout:
+                        # The pending task has not timed out.  Nothing to see
+                        # here, move along.
+                        logger.info('Launch pending for [%s]' % (self.stack_name))
+
+                    else:
+                        # Timeout reached.  Consider the task a failure and let the
+                        # user retry manually.
+                        logger.error('Launch timeout reached for [%s] after %s seconds' % (self.stack_name, delta_launch.seconds))
+                        res = {'status': 'ERROR',
+                               'error_msg': 'Timeout when launching or resuming stack.'}
+                        self.stack_status = res
+                        self.stack_launch_id = ""
+                        self.stack_launch_timestamp = None
+
+                else:
+                    # No launch timestamp recorded.  Consider the task a failure
+                    # and let the user retry manually.
+                    logger.error('Stack launch task found for [%s], but no launch timestamp recorded' % (self.stack_name))
+                    res = {'status': 'ERROR',
+                           'error_msg': 'Timeout when launching or resuming stack.'}
+                    self.stack_status = res
+                    self.stack_launch_id = ""
+
+            else:
+                # Unexpected stack status.
+                logger.error('Failed launch detected for [%s], with status [%s]' % (self.stack_name, status))
+
+        # Restart the dead man's switch, if necessary.
+        self.suspend_user_stack()
 
         return res
 

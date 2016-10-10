@@ -49,7 +49,7 @@ function HastexoXBlock(runtime, element, configuration) {
                     logLevel: 'WARNING'
                 });
 
-                get_user_stack_status();
+                get_user_stack_status(true);
             });
         } else {
             /* If the stack status is known, the keepalive timer hasn't been
@@ -100,17 +100,19 @@ function HastexoXBlock(runtime, element, configuration) {
                 }
 
                 /* Start over. */
-                get_user_stack_status();
+                get_user_stack_status(true);
             }
         }
     };
 
-    var get_user_stack_status = function() {
+    var get_user_stack_status = function(initialize = false) {
         $('#launch_pending').dialog(element);
         $.ajax({
             type: 'POST',
             url: runtime.handlerUrl(element, 'get_user_stack_status'),
-            data: '{}',
+            data: JSON.stringify({
+                initialize: initialize
+            }),
             dataType: 'json'
         }).done(function(data) {
             var changed = false;
@@ -270,7 +272,7 @@ function HastexoXBlock(runtime, element, configuration) {
             GateOne.Terminal.closeTerminal(1);
 
             /* Start over. */
-            get_user_stack_status();
+            get_user_stack_status(true);
         });
         dialog.dialog(element);
     };
