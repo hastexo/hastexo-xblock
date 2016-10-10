@@ -196,7 +196,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
 
         return retval
 
-    def _save_user_stack_task_result(self, result):
+    def stack_save_result(self, result):
         logger.info('Saving stack result id [%s]: [%s]' % (result.id, result.result))
         if result.ready():
             # Clear the task ID so we know there is no task running.
@@ -218,7 +218,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
 
         return res
 
-    def _save_check_task_result(self, result):
+    def check_save_result(self, result):
         if result.ready():
             # Clear the task ID so we know there is no task running.
             self.check_id = ""
@@ -281,7 +281,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         self.stack_set("launch_timestamp", int(time.time()))
 
         # Store the result
-        return self._save_user_stack_task_result(result)
+        return self.stack_save_result(result)
 
     def suspend_user_stack(self):
         suspend_timeout = self.configuration.get("suspend_timeout")
@@ -324,7 +324,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         self.check_id = result.id
 
         # Store the result
-        self._save_check_task_result(result)
+        self.check_save_result(result)
 
     def student_view(self, context=None):
         """
@@ -486,7 +486,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
 
             # Get the current result.
             result = LaunchStackTask().AsyncResult(self.stack_get("launch_id"))
-            res = self._save_user_stack_task_result(result)
+            res = self.stack_save_result(result)
 
             # Check the returned status.
             status = res.get('status')
@@ -529,7 +529,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
                     res = {'status': 'ERROR',
                            'error_msg': 'Timeout when launching or resuming stack.'}
                     self.stack_set("status", res)
-                    self.stack_set("launch_id", None
+                    self.stack_set("launch_id", None)
 
             else:
                 # Unexpected stack status.
@@ -553,7 +553,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         elif self.check_id:
             logger.info('check task is running: %s' % self.check_id)
             result = CheckStudentProgressTask().AsyncResult(self.check_id)
-            res = self._save_check_task_result(result)
+            res = self.check_save_result(result)
         # Otherwise, launch the check task.
         else:
             self.check()
