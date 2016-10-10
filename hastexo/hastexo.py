@@ -2,11 +2,10 @@ import json
 import logging
 import textwrap
 import markdown2
-import datetime
-import pytz
+import time
 
 from xblock.core import XBlock
-from xblock.fields import Scope, Boolean, Integer, Float, String, Dict, List, DateTime
+from xblock.fields import Scope, Boolean, Integer, Float, String, Dict, List
 from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
@@ -111,7 +110,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         scope=Scope.content,
         help="The list of tests to run.")
 
-    # User state.
+    # User state, per instance.
     configuration = Dict(
         scope=Scope.user_state,
         default={},
@@ -124,26 +123,6 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         default="",
         scope=Scope.user_state,
         help="The name of the user's stack")
-    stack_launch_id = String(
-        default="",
-        scope=Scope.user_state,
-        help="The user stack launch task id")
-    stack_launch_timestamp = DateTime(
-        default=None,
-        scope=Scope.user_state,
-        help="The time the user stack launch task started running")
-    stack_suspend_id = String(
-        default="",
-        scope=Scope.user_state,
-        help="The user stack suspend task id")
-    stack_suspend_timestamp = DateTime(
-        default=None,
-        scope=Scope.user_state,
-        help="The time the user stack suspend task was scheduled")
-    stack_status = Dict(
-        default=None,
-        scope=Scope.user_state,
-        help="The user stack status")
     check_id = String(
         default="",
         scope=Scope.user_state,
@@ -152,6 +131,12 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         default=None,
         scope=Scope.user_state,
         help="The check status")
+
+    # Stack states per user, across all courses
+    stacks = Dict(
+        default={},
+        scope=Scope.preferences,
+        help="Stack states for this user's courses: one entry per stack")
 
     editable_fields = (
         'display_name',
@@ -196,12 +181,27 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         """ Studio View """
         return Fragment(u'<em>This XBlock only renders content when viewed via the LMS.</em></p>')
 
+    def stack_set(self, prop, value):
+        if not self.stacks.get(self.stack_name):
+            self.stacks[self.stack_name] = {}
+
+        self.stacks[self.stack_name][prop] = value
+
+    def stack_get(self, l1 = None, l2 = None):
+        retval = self.stacks.get(self.stack_name)
+        if retval and l1:
+            retval = retval.get(l1)
+            if retval and l2:
+                retval = retval.get(l2)
+
+        return retval
+
     def _save_user_stack_task_result(self, result):
         logger.info('Saving stack result id [%s]: [%s]' % (result.id, result.result))
         if result.ready():
             # Clear the task ID so we know there is no task running.
-            self.stack_launch_id = ""
-            self.stack_launch_timestamp = None
+            self.stack_set("launch_id", None)
+            self.stack_set("launch_timestamp", None)
 
             if (result.successful() and
                     isinstance(result.result, dict) and not
@@ -214,7 +214,8 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             res = {'status': 'PENDING'}
 
         # Store the result
-        self.stack_status = res
+        self.stack_set("status", res)
+
         return res
 
     def _save_check_task_result(self, result):
@@ -276,8 +277,8 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
                 expires=self.configuration.get('launch_timeout'))
 
         logger.info('Launch task id for stack [%s] is: [%s]' % (self.stack_name, result.id))
-        self.stack_launch_id = result.id
-        self.stack_launch_timestamp = datetime.datetime.now(pytz.utc)
+        self.stack_set("launch_id", result.id)
+        self.stack_set("launch_timestamp", int(time.time()))
 
         # Store the result
         return self._save_user_stack_task_result(result)
@@ -286,11 +287,12 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         suspend_timeout = self.configuration.get("suspend_timeout")
         if suspend_timeout:
             # If the suspend task is pending, revoke it.
-            if self.stack_suspend_id:
+            stack_suspend_id = self.stack_get("suspend_id")
+            if stack_suspend_id:
                 logger.info('Revoking suspend task for [%s]' % (self.stack_name))
                 from lms import CELERY_APP
-                CELERY_APP.control.revoke(self.stack_suspend_id)
-                self.stack_suspend_id = ""
+                CELERY_APP.control.revoke(stack_suspend_id)
+                self.stack_set("suspend_id", None)
 
             # (Re)schedule the suspension in the future.
             args = (self.configuration, self.stack_name, self.configuration.get('os_auth_url'))
@@ -300,12 +302,13 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             result = task.apply_async(args=args,
                                       kwargs=kwargs,
                                       countdown=suspend_timeout)
-            self.stack_suspend_id = result.id
-            self.stack_suspend_timestamp = datetime.datetime.now(pytz.utc)
+            self.stack_set("suspend_id", result.id)
+            self.stack_set("suspend_timestamp", int(time.time()))
 
     def check(self):
+        stack_ip = self.stack_get("status", "ip")
         logger.info('Executing tests for stack [%s], IP [%s], user [%s]:' %
-                   (self.stack_name, self.stack_status['ip'],
+                   (self.stack_name, stack_ip,
                     self.stack_user_name))
         for test in self.tests:
             logger.info('Test: %s' % test)
@@ -313,7 +316,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         args = (
             self.configuration,
             self.tests,
-            self.stack_status['ip'],
+            stack_ip,
             self.stack_name,
             self.stack_user_name
         )
@@ -456,32 +459,33 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
 
     @XBlock.json_handler
     def get_user_stack_status(self, data, suffix=''):
-        now = datetime.datetime.now(pytz.utc)
+        now = int(time.time())
         suspend_timeout = self.configuration.get("suspend_timeout")
+        suspend_timestamp = self.stack_get("suspend_timestamp")
         time_since_suspend = 0
-        if suspend_timeout and self.stack_suspend_timestamp:
-            delta_suspend = now - self.stack_suspend_timestamp
-            time_since_suspend = delta_suspend.seconds
+        if suspend_timeout and suspend_timestamp:
+            time_since_suspend = now - suspend_timestamp
 
         # First off, check if there was a previous launch and if it's
         # reasonable to assume it hasn't been suspended.
-        if (self.stack_status and
-                'COMPLETE' in self.stack_status.get('status', '') and
+        stack_status = self.stack_get("status")
+        if (stack_status and
+                "COMPLETE" in stack_status.get("status", "") and
                 (not suspend_timeout or time_since_suspend < suspend_timeout)):
-            res = self.stack_status
+            res = stack_status
 
         # Otherwise, if the user just entered the unit, or if there is no
         # pending task, force a new launch/resume task.
-        elif data['initialize'] or not self.stack_launch_id:
+        elif data["initialize"] or not self.stack_get("launch_id"):
             logger.info('Launching/resuming stack [%s]' % (self.stack_name))
             res = self.launch_or_resume_user_stack()
 
         # If we get here, there is a pending launch task.
         else:
-            logger.info('Launch task ID [%s] found for [%s]' % (self.stack_launch_id, self.stack_name))
+            logger.info('Launch task ID [%s] found for [%s]' % (self.stack_get("launch_id"), self.stack_name))
 
             # Get the current result.
-            result = LaunchStackTask().AsyncResult(self.stack_launch_id)
+            result = LaunchStackTask().AsyncResult(self.stack_get("launch_id"))
             res = self._save_user_stack_task_result(result)
 
             # Check the returned status.
@@ -498,9 +502,9 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
 
             elif 'PENDING' in status:
                 # Check if the pending task hasn't timed out.
-                if self.stack_launch_timestamp:
-                    delta_launch = now - self.stack_launch_timestamp
-                    time_since_launch = delta_launch.seconds
+                launch_timestamp = self.stack_get("launch_timestamp")
+                if launch_timestamp:
+                    time_since_launch = now - launch_timestamp
                     launch_timeout = self.configuration.get('launch_timeout')
 
                     if time_since_launch <= launch_timeout:
@@ -511,12 +515,12 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
                     else:
                         # Timeout reached.  Consider the task a failure and let the
                         # user retry manually.
-                        logger.error('Launch timeout reached for [%s] after %s seconds' % (self.stack_name, delta_launch.seconds))
+                        logger.error('Launch timeout reached for [%s] after %s seconds' % (self.stack_name, time_since_launch))
                         res = {'status': 'ERROR',
                                'error_msg': 'Timeout when launching or resuming stack.'}
-                        self.stack_status = res
-                        self.stack_launch_id = ""
-                        self.stack_launch_timestamp = None
+                        self.stack_set("status", res)
+                        self.stack_set("launch_id", None)
+                        self.stack_set("launch_timestamp", None)
 
                 else:
                     # No launch timestamp recorded.  Consider the task a failure
@@ -524,8 +528,8 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
                     logger.error('Stack launch task found for [%s], but no launch timestamp recorded' % (self.stack_name))
                     res = {'status': 'ERROR',
                            'error_msg': 'Timeout when launching or resuming stack.'}
-                    self.stack_status = res
-                    self.stack_launch_id = ""
+                    self.stack_set("status", res)
+                    self.stack_set("launch_id", None
 
             else:
                 # Unexpected stack status.
@@ -542,8 +546,8 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         Checks the current student score.
         """
         # If a stack launch task is running, return immediately.
-        if self.stack_launch_id:
-            logger.info('stack launch task is running: %s' % self.stack_launch_id)
+        if self.stack_get("launch_id"):
+            logger.info('stack launch task is running: %s' % self.stack_get("launch_id"))
             res = {'status': 'PENDING'}
         # If a check task is running, return its status.
         elif self.check_id:
