@@ -341,10 +341,20 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         course_code = course_id.course
         self.stack_name = "%s_%s" % (course_code, user_id)
 
+        def error_out(msg):
+            context = {'error_msg': msg}
+            html = loader.render_template('static/html/error.html', context)
+            frag = Fragment(html)
+            frag.add_css_url(self.runtime.local_resource_url(self, 'public/css/main.css'))
+            return frag
+
         # Load the stack template from the course's content store
-        loc = StaticContent.compute_location(course_id, self.stack_template_path)
-        asset = contentstore().find(loc)
-        self.stack_template = asset.data
+        try:
+            loc = StaticContent.compute_location(course_id, self.stack_template_path)
+            asset = contentstore().find(loc)
+            self.stack_template = asset.data
+        except NotFoundError as detail:
+            return error_out('Stack template not found: {0}'.format(detail))
 
         # Load the instructions and convert from markdown
         instructions = None

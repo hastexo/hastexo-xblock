@@ -52,12 +52,8 @@ p.check {
     margin-right: -0.05em;
 }
 
-.dialog {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 1002;
+.dialog,
+.error {
     max-width: 480px;
     background: #fff;
     padding: 20px;
@@ -66,7 +62,19 @@ p.check {
     text-align: left;
 }
 
-.dialog .inner {
+.dialog {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1002;
+}
+
+.error {
+    margin: 0 auto;
+}
+
+.inner {
     background: rgb(245, 245, 245);
     border-radius: 0;
     border: 1px solid rgba(0, 0, 0, 0.9);
@@ -76,8 +84,8 @@ p.check {
     position: relative;
 }
 
-.dialog h1,
-.dialog p {
+.inner h1,
+.inner p {
     text-align: center !important;
     margin: 0 0 0.5em 0!important;
 }
