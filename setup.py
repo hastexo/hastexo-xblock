@@ -37,10 +37,11 @@ setup(
         'XBlock',
         'xblock-utils',
         'markdown2==2.3.0',
+        'keystoneauth1==2.14.0',
         'python-keystoneclient==2.0.0',
         'python-heatclient==0.8.0',
-        'python-swiftclient>=2.2.0',
-        'paramiko>=1.16.0',
+        'python-swiftclient==3.1.0',
+        'paramiko==2.0.2',
     ],
     entry_points={
         'xblock.v1': [
