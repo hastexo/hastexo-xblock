@@ -65,6 +65,7 @@ class SwiftWrapper(object):
     def download_key(self, key, key_path):
         options = self.options
         options["out_file"] = key_path
+        options["skip_identical"] = True
 
         # Download it
         error = None
@@ -75,13 +76,14 @@ class SwiftWrapper(object):
                     container = r['container']
                     obj = r['object']
                     if isinstance(error, ClientException):
+                        # Skipped identical is not an error
                         if error.http_status == 304 and options["skip_identical"]:
-                            # Skipped identical is not an error
                             continue
+                        # Ignore missing object: upload is optional
                         if error.http_status == 404:
                             print("Object '{0}/{1}' not found".format(container, obj))
                             continue
-                        print("Error downloading '{0}/{1}'".format(container, obj))
+                        print("Could not download '{0}/{1}'".format(container, obj))
 
         # Fix permissions so SSH doesn't complain
         if not error:
