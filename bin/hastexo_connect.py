@@ -17,6 +17,7 @@ from __future__ import unicode_literals
 import os, sys, readline, signal
 import tempfile, io
 import traceback
+import logging
 import socket
 import errno
 import json
@@ -32,6 +33,10 @@ if bytes != str:
 
 # Disable ESC autocomplete for local paths (prevents information disclosure)
 readline.parse_and_bind('esc: none')
+
+# Disable swiftclient logs
+swiftclient_logger = logging.getLogger("swiftclient")
+swiftclient_logger.propagate = False
 
 wrapper_script = """\
 #!/bin/sh
@@ -129,9 +134,10 @@ def download_identity(identity, identity_path):
     xblock_settings = tokens.get('XBLOCK_SETTINGS')
     configuration = xblock_settings.get('hastexo')
 
-    # Download it
-    swift = SwiftWrapper(configuration)
-    swift.download_key(identity, identity_path)
+    # Download it, if necessary
+    if configuration.get('ssh_upload'):
+        swift = SwiftWrapper(configuration)
+        swift.download_key(identity, identity_path)
 
 def openssh_connect(user, host, identity,
         port=22,
@@ -195,10 +201,9 @@ def openssh_connect(user, host, identity,
     if not os.path.exists(users_ssh_dir):
         mkdir_p(users_ssh_dir)
 
-    # If the identity file doesn't exist, download it.
+    # Download it
     identity_path = os.path.join(users_ssh_dir, identity)
-    if not os.path.exists(identity_path):
-        download_identity(identity, identity_path)
+    download_identity(identity, identity_path)
 
     ssh_config_path = os.path.join(users_ssh_dir, 'config')
     if not os.path.exists(ssh_config_path):
