@@ -347,7 +347,7 @@ class SuspendStackTask(Task):
                 logger.debug("Stack [%s] is [%s].  Waiting %s seconds to suspend." % (stack_name, status, sleep))
                 time.sleep(sleep)
             try:
-                logger.info("Getting stack info for [%s], with previous status." % (stack_name, status))
+                logger.info("Getting stack info for [%s], with previous status [%s]." % (stack_name, status))
                 stack = heat.stacks.get(stack_id=stack.id)
             except HTTPNotFound:
                 logger.error("Stack [%s], with previous status [%s], disappeared "
