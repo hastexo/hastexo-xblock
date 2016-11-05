@@ -15,6 +15,7 @@ from xmodule.contentstore.django import contentstore
 from xmodule.exceptions import NotFoundError
 from opaque_keys import InvalidKeyError
 
+from .utils import UP_STATES
 from .tasks import LaunchStackTask, SuspendStackTask, CheckStudentProgressTask
 
 logger = logging.getLogger(__name__)
@@ -444,7 +445,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             status = _process_result(result)
 
         # The stack was previously launched successfully
-        elif "COMPLETE" in last_status_string:
+        elif last_status_string in UP_STATES:
             # Is it reasonable to assume the stack hasn't been suspended since the last check?
             if not suspend_timeout or time_since_suspend < suspend_timeout:
                 logger.info('Successful launch detected for [%s], with status [%s]' % (self.stack_name, last_status_string))
@@ -457,7 +458,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
                 status = _process_result(result)
 
         # There was a previous attempt at launching the stack
-        elif "PENDING" in last_status_string:
+        elif last_status_string == "PENDING":
             # Update task result
             result = LaunchStackTask().AsyncResult(self.stack_get("launch_id"))
             status = _process_result(result)
@@ -465,7 +466,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             current_status_string = status.get('status')
 
             # Stack changed from PENDING to COMPLETE.
-            if "COMPLETE" in current_status_string:
+            if current_status_string in UP_STATES:
                 # The stack couldn't have been suspended, yet.
                 if not suspend_timeout or time_since_suspend < suspend_timeout:
                     logger.info('Successful launch detected for [%s], with status [%s]' % (self.stack_name, current_status_string))
@@ -477,7 +478,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
                     status = _process_result(result)
 
             # Stack is still PENDING since last check.
-            elif "PENDING" in current_status_string:
+            elif current_status_string == "PENDING":
                 # Calculate time since launch
                 launch_timestamp = self.stack_get("launch_timestamp")
                 time_since_launch = now - launch_timestamp

@@ -8,6 +8,7 @@ from celery import Task
 from celery.utils.log import get_task_logger
 from heatclient.exc import HTTPNotFound
 
+from .utils import UP_STATES
 from .heat import HeatWrapper
 from .swift import SwiftWrapper
 
@@ -39,7 +40,7 @@ class LaunchStackTask(Task):
 
         # If launch completed successfully, wait for provisioning, collect
         # its IP address, and save the private key.
-        if status == 'CREATE_COMPLETE' or status == 'RESUME_COMPLETE':
+        if status in UP_STATES:
             logger.info("Stack [%s] launched successfully with status [%s]" % (stack_name, status))
             (verify_status, error_msg, stack_ip) = self.verify_stack(configuration, stack, stack_name, stack_user)
 
@@ -58,9 +59,7 @@ class LaunchStackTask(Task):
             heat.actions.suspend(stack_id=stack.id)
             status = 'RESUME_FAILED'
 
-
-        if ((status == 'CREATE_COMPLETE' or status == 'RESUME_COMPLETE') and
-                verify_status == 'VERIFY_COMPLETE'):
+        if (status in UP_STATES and verify_status == 'VERIFY_COMPLETE'):
             logger.info("Stack [%s] verified successfully" % (stack.id))
 
         return {
@@ -185,7 +184,7 @@ class LaunchStackTask(Task):
                             stack_name, status, retry))
                         status = 'RESUME_FAILED'
 
-        if status != 'CREATE_COMPLETE' and status != 'RESUME_COMPLETE':
+        if status not in UP_STATES:
             error_msg = "Stack [%s] launch failed with status [%s]" % (stack_name, status)
             logger.error(error_msg)
         else:
