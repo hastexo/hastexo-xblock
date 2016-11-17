@@ -21,7 +21,7 @@ class LaunchStackTask(Task):
     user.
 
     """
-    def run(self, configuration, stack_name, stack_template, stack_user, auth_url, **kwargs):
+    def run(self, configuration, stack_name, stack_template, stack_user, reset, auth_url, **kwargs):
         """
         Run the celery task.
 
@@ -36,7 +36,7 @@ class LaunchStackTask(Task):
         heat = self.get_heat_client(auth_url, **kwargs)
 
         # Launch the stack and wait for it to complete.
-        (status, error_msg, stack) = self.launch_stack(configuration, heat, stack_name, stack_template)
+        (status, error_msg, stack) = self.launch_stack(configuration, heat, stack_name, stack_template, reset)
 
         # If launch completed successfully, wait for provisioning, collect
         # its IP address, and save the private key.
@@ -73,9 +73,10 @@ class LaunchStackTask(Task):
     def get_heat_client(self, auth_url, **kwargs):
         return HeatWrapper().get_client(auth_url, **kwargs)
 
-    def launch_stack(self, configuration, heat, stack_name, stack_template):
+    def launch_stack(self, configuration, heat, stack_name, stack_template, reset):
         """
-        Launch the user stack, either by creating or resuming it.
+        Launch the user stack, either by creating or resuming it.  If a reset
+        is requested, delete the stack and recreate it.
 
         """
         status = None
@@ -88,6 +89,8 @@ class LaunchStackTask(Task):
 
         logger.info("Launching stack [%s]." % stack_name)
 
+        new_stack = False
+
         # Create the stack if it doesn't exist, resume it if it's suspended.
         try:
             logger.info("Getting initial stack info for [%s]." % (stack_name))
@@ -98,6 +101,9 @@ class LaunchStackTask(Task):
         except HTTPNotFound:
             # Sleep to avoid throttling.
             time.sleep(sleep)
+
+            # Signal that we just created the stack.
+            new_stack = True
 
             logger.info("Stack [%s] doesn't exist.  Creating it." % stack_name)
             res = heat.stacks.create(stack_name=stack_name, template=stack_template)
@@ -130,6 +136,9 @@ class LaunchStackTask(Task):
                 # Sleep to avoid throttling.
                 time.sleep(sleep)
 
+                # Signal that we just created the stack.
+                new_stack = True
+
                 logger.warning("Stack [%s] disappeared during change of state. Re-creating it." % stack_name)
                 res = heat.stacks.create(stack_name=stack_name, template=stack_template)
                 stack_id = res['stack']['id']
@@ -148,6 +157,93 @@ class LaunchStackTask(Task):
                     stack_name, status, retry))
                 status_prefix = re.sub('_IN_PROGRESS$', '', status)
                 status = '%s_FAILED' % status_prefix
+
+        # If this is a reset request and we didn't just create it, delete the
+        # stack and recreate it.
+        if reset and not new_stack:
+            # Sleep to avoid throttling.
+            time.sleep(sleep)
+
+            logger.info("Resetting stack [%s]." % stack_name)
+            heat.stacks.delete(stack_id=stack.id)
+
+            # Sleep to avoid throttling.
+            time.sleep(sleep)
+
+            # Wait until delete finishes.
+            retry = 0
+            while ('FAILED' not in status and
+                   status != 'DELETE_COMPLETE'):
+                if retry:
+                    logger.debug("Stack [%s] not ready, with status [%s]. Waiting %s seconds until retry." % (
+                        stack_name, status, sleep))
+                    time.sleep(sleep)
+
+                try:
+                    logger.info("Getting stack info for [%s], with previous status [%s]." % (stack_name, status))
+                    stack = heat.stacks.get(stack_id=stack.id)
+                except HTTPNotFound:
+                    status = 'DELETE_COMPLETE'
+                else:
+                    status = stack.stack_status
+                    logger.info("Got [%s] status for [%s]." % (status, stack_name))
+                    retry += 1
+                    if retry >= retries:
+                        logger.error("Stack [%s], status [%s], took too long to delete.  Giving up after %s retries" % (
+                            stack_name, status, retry))
+                        status = 'DELETE_FAILED'
+
+            if status == 'DELETE_COMPLETE':
+                logger.info("Stack [%s] deleted successfully.  Recreating it." % stack_name)
+                res = heat.stacks.create(stack_name=stack_name, template=stack_template)
+                stack_id = res['stack']['id']
+
+                # Sleep to avoid throttling.
+                time.sleep(sleep)
+
+                logger.info("Getting initial stack info for [%s]." % (stack_name))
+                stack = heat.stacks.get(stack_id=stack_id)
+
+                # Sleep to avoid throttling.
+                time.sleep(sleep)
+
+                status = stack.stack_status
+                logger.info("Got [%s] status for [%s]." % (status, stack_name))
+
+                # Wait for stack creation
+                retry = 0
+                while 'IN_PROGRESS' in status:
+                    if retry:
+                        logger.debug("Stack [%s] not ready, with status [%s]. Waiting %s seconds until retry." % (
+                            stack_name, status, sleep))
+                        time.sleep(sleep)
+
+                    try:
+                        logger.info("Getting stack info for [%s], with previous status [%s]." % (stack_name, status))
+                        stack = heat.stacks.get(stack_id=stack.id)
+                    except HTTPNotFound:
+                        # Sleep to avoid throttling.
+                        time.sleep(sleep)
+
+                        logger.warning("Stack [%s] disappeared during change of state. Re-creating it." % stack_name)
+                        res = heat.stacks.create(stack_name=stack_name, template=stack_template)
+                        stack_id = res['stack']['id']
+
+                        # Sleep to avoid throttling.
+                        time.sleep(sleep)
+
+                        logger.info("Getting initial stack info for [%s]." % (stack_name))
+                        stack = heat.stacks.get(stack_id=stack_id)
+
+                    status = stack.stack_status
+                    logger.info("Got [%s] status for [%s]." % (status, stack_name))
+
+                    retry += 1
+                    if retry >= retries:
+                        logger.error("Stack [%s] state change [%s] took too long.  Giving up after %s retries" % (
+                            stack_name, status, retry))
+                        status_prefix = re.sub('_IN_PROGRESS$', '', status)
+                        status = '%s_FAILED' % status_prefix
 
         # If stack is suspended, resume it.
         if status == 'SUSPEND_COMPLETE':

@@ -9,7 +9,10 @@
       <div id="container" class="terminal" />
     </div>
   </div>
-  <p class="check"><input type="button" value="Check progress"></input></p>
+  <p class="buttons">
+    <input type="button" value="Reset" class="reset"></input>
+    <input type="button" value="Check progress" class="check"></input>
+  </div>
   <div class="dialog" id="launch_pending">
     <div class="inner">
       <h1><span>Please wait</span><span class="loader"></span></h1>
@@ -61,6 +64,16 @@
       <p>Click <strong>Ok</strong> to resume it.</p>
       <p class="buttons">
         <input type="button" class="ok" value="Ok"></input>
+      </p>
+    </div>
+  </div>
+  <div class="dialog" id="reset_dialog">
+    <div class="inner">
+      <h1>Are you sure?</h1>
+      <p class="message">Resetting your lab environment cannot be undone!</p>
+      <p class="buttons">
+        <input type="button" class="reset" value="Reset"></input>
+        <input type="button" class="cancel" value="Cancel"></input>
       </p>
     </div>
   </div>

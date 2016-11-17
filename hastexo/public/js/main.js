@@ -18,8 +18,11 @@ function HastexoXBlock(runtime, element, configuration) {
             }
         });
 
+        /* Bind reset button action. */
+        $(element).find('.buttons .reset').on('click', reset_dialog);
+
         /* Bind check button action. */
-        $(element).find('p.check input').on('click', get_check_status);
+        $(element).find('.buttons .check').on('click', get_check_status);
 
         /* edX recreates the DOM for every vertical unit when navigating to and
          * from them.  However, after navigating away from a lab unit (but
@@ -66,9 +69,6 @@ function HastexoXBlock(runtime, element, configuration) {
                     /* Scroll to the bottom of the terminal manually. */
                     GateOne.Utils.scrollToBottom('#go_default_term1_pre');
 
-                    /* Display assessment test button. */
-                    $(element).find('.check').show();
-
                     /* Reset keepalive timer. */
                     if (configuration.timeouts['keepalive']) {
                         if (keepalive_timer) clearTimeout(keepalive_timer);
@@ -105,13 +105,14 @@ function HastexoXBlock(runtime, element, configuration) {
         }
     };
 
-    var get_user_stack_status = function(initialize = false) {
+    var get_user_stack_status = function(initialize = false, reset = false) {
         $('#launch_pending').dialog(element);
         $.ajax({
             type: 'POST',
             url: runtime.handlerUrl(element, 'get_user_stack_status'),
             data: JSON.stringify({
-                initialize: initialize
+                initialize: initialize,
+                reset: reset
             }),
             dataType: 'json'
         }).done(function(data) {
@@ -151,9 +152,6 @@ function HastexoXBlock(runtime, element, configuration) {
                         setTimeout(function() {
                             /* Update screen dimensions. */
                             GateOne.Terminal.sendDimensions();
-
-                            /* Display assessment test button. */
-                            $(element).find('.check').show();
 
                             /* Reset keepalive timer. */
                             if (configuration.timeouts['keepalive']) {
@@ -274,6 +272,25 @@ function HastexoXBlock(runtime, element, configuration) {
             /* Start over. */
             get_user_stack_status(true);
         });
+        dialog.dialog(element);
+    };
+
+    var reset_dialog = function() {
+        var dialog = $('#reset_dialog');
+
+        dialog.find('input.cancel').one('click', function() {
+            $.dialog.close();
+        });
+
+        dialog.find('input.reset').one('click', function() {
+            $.dialog.close();
+            /* Close old terminals. */
+            for (var term in GateOne.Terminal.terminals) {
+                GateOne.Terminal.closeTerminal(term);
+            }
+            get_user_stack_status(true, true);
+        });
+
         dialog.dialog(element);
     };
 

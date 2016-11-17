@@ -372,12 +372,13 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
 
     @XBlock.json_handler
     def get_user_stack_status(self, data, suffix=''):
-        def _launch_stack():
+        def _launch_stack(reset = False):
             args = (
                 self.configuration,
                 self.stack_name,
                 self.stack_template,
                 self.stack_user_name,
+                reset,
                 self.configuration.get('os_auth_url'))
             kwargs = self.get_os_auth_kwargs()
 
@@ -432,6 +433,10 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         if suspend_timeout and suspend_timestamp:
             time_since_suspend = now - suspend_timestamp
 
+        # Request type
+        initialize = data.get("initialize", False)
+        reset = data.get("reset", False)
+
         # Get the last stack status
         last_status_string = ""
         last_status = self.stack_get("status")
@@ -441,21 +446,8 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         # No last stack status: this is the first time the user launches this stack.
         if not last_status_string:
             logger.info('Launching/resuming stack [%s]' % (self.stack_name))
-            result = _launch_stack()
+            result = _launch_stack(reset)
             status = _process_result(result)
-
-        # The stack was previously launched successfully
-        elif last_status_string in UP_STATES:
-            # Is it reasonable to assume the stack hasn't been suspended since the last check?
-            if not suspend_timeout or time_since_suspend < suspend_timeout:
-                logger.info('Successful launch detected for [%s], with status [%s]' % (self.stack_name, last_status_string))
-                status = last_status
-
-            # The stack could have been suspended (or deleted) since the last check, so recheck.
-            else:
-                logger.info('Stack [%s] may have suspended.  Relaunching.' % (self.stack_name))
-                result = _launch_stack()
-                status = _process_result(result)
 
         # There was a previous attempt at launching the stack
         elif last_status_string == "PENDING":
@@ -465,20 +457,8 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
 
             current_status_string = status.get('status')
 
-            # Stack changed from PENDING to COMPLETE.
-            if current_status_string in UP_STATES:
-                # The stack couldn't have been suspended, yet.
-                if not suspend_timeout or time_since_suspend < suspend_timeout:
-                    logger.info('Successful launch detected for [%s], with status [%s]' % (self.stack_name, current_status_string))
-
-                # The stack could have been suspended (or deleted) since the last check, so recheck.
-                else:
-                    logger.info('Stack [%s] may have suspended.  Relaunching.' % (self.stack_name))
-                    result = _launch_stack()
-                    status = _process_result(result)
-
             # Stack is still PENDING since last check.
-            elif current_status_string == "PENDING":
+            if current_status_string == "PENDING":
                 # Calculate time since launch
                 launch_timestamp = self.stack_get("launch_timestamp")
                 time_since_launch = now - launch_timestamp
@@ -489,11 +469,11 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
                     # The pending task still has some time to finish.  Please wait.
                     logger.info('Launch pending for [%s]' % (self.stack_name))
 
-                elif data["initialize"]:
-                    # Timeout reached, but the user just entered the page.
-                    # Try launching the stack again.
+                elif initialize or reset:
+                    # Timeout reached, but the user just entered the page or
+                    # requested a reset.  Try launching the stack again.
                     logger.info('Launching/resuming stack [%s]' % (self.stack_name))
-                    result = _launch_stack()
+                    result = _launch_stack(reset)
                     status = _process_result(result)
 
                 else:
@@ -502,11 +482,26 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
                     logger.error('Launch timeout reached for [%s] after %s seconds' % (self.stack_name, time_since_launch))
                     status = _process_error("Timeout when launching or resuming stack.")
 
-            # Detected a failed launch attempt, but the user has requested a retry,
-            # or just entered the page, so start from scratch.
-            elif data["initialize"]:
+            # Stack changed from PENDING to COMPLETE.
+            elif current_status_string in UP_STATES:
+                if reset or (suspend_timeout and time_since_suspend >= suspend_timeout):
+                    if reset:
+                        logger.info('Resetting stack [%s].' % (self.stack_name))
+                    else:
+                        logger.info('Stack [%s] may have suspended.  Relaunching.' % (self.stack_name))
+                    result = _launch_stack(reset)
+                    status = _process_result(result)
+
+                # The stack couldn't have been suspended, yet.
+                else:
+                    logger.info('Successful launch detected for [%s], with status [%s]' % (self.stack_name, current_status_string))
+
+            # Detected a failed launch attempt, but the user has requested a
+            # retry, just entered the page, or requested a reset, so start from
+            # scratch.
+            elif initialize or reset:
                 logger.info('Launching/resuming stack [%s]' % (self.stack_name))
-                result = _launch_stack()
+                result = _launch_stack(reset)
                 status = _process_result(result)
 
             # Detected a failed launch attempt.  Report the error and let the user
@@ -514,11 +509,25 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             else:
                 logger.error('Failed launch detected for [%s], with status [%s]' % (self.stack_name, current_status_string))
 
-        # Detected a failed launch attempt, but the user has requested a retry,
-        # or just entered the page, so start from scratch.
-        elif data["initialize"]:
+        # The stack was previously launched successfully
+        elif last_status_string in UP_STATES:
+            if reset or (suspend_timeout and time_since_suspend >= suspend_timeout):
+                if reset:
+                    logger.info('Resetting stack [%s].' % (self.stack_name))
+                else:
+                    logger.info('Stack [%s] may have suspended.  Relaunching.' % (self.stack_name))
+                result = _launch_stack(reset)
+                status = _process_result(result)
+
+            else:
+                logger.info('Successful launch detected for [%s], with status [%s]' % (self.stack_name, last_status_string))
+                status = last_status
+
+        # Detected a failed launch attempt, but the user just entered the page,
+        # or requested a retry or reset, so start from scratch.
+        elif initialize or reset:
             logger.info('Launching/resuming stack [%s]' % (self.stack_name))
-            result = _launch_stack()
+            result = _launch_stack(reset)
             status = _process_result(result)
 
         # Detected a failed launch attempt.  Report the error and let the user

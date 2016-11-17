@@ -42,7 +42,6 @@ jQuery.cachedScript = function(url, options) {
         block: function() {
             this.overlay = $('<div class="dialog-overlay"></div>');
             this.$block.css('position', 'relative');
-            this.$block.css('overflow', 'hidden');
             this.$block.append(this.overlay);
         },
 
@@ -50,7 +49,6 @@ jQuery.cachedScript = function(url, options) {
             this.overlay.children().appendTo(this.$body);
             this.overlay.remove();
             this.$block.css('position', '');
-            this.$block.css('overflow', '');
         },
 
         show: function() {
