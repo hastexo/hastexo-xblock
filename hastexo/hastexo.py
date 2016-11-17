@@ -245,7 +245,8 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         # Call the JS initialization function
         frag.initialize_js('HastexoXBlock', {
             "terminal_url": self.configuration.get("terminal_url"),
-            "timeouts": self.configuration.get("js_timeouts")
+            "timeouts": self.configuration.get("js_timeouts"),
+            "has_tests": len(self.tests) > 0
         })
 
         return frag

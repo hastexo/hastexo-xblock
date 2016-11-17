@@ -21,8 +21,12 @@ function HastexoXBlock(runtime, element, configuration) {
         /* Bind reset button action. */
         $(element).find('.buttons .reset').on('click', reset_dialog);
 
-        /* Bind check button action. */
-        $(element).find('.buttons .check').on('click', get_check_status);
+        /* Display progress check button, if there are tests. */
+        if (configuration.has_tests) {
+            var button = $(element).find('.buttons .check');
+            button.show();
+            button.on('click', get_check_status);
+        }
 
         /* edX recreates the DOM for every vertical unit when navigating to and
          * from them.  However, after navigating away from a lab unit (but

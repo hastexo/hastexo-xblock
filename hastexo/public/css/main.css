@@ -2,6 +2,10 @@
     text-align: right;
 }
 
+.buttons .check {
+    display: none;
+}
+
 .buttons .reset {
     color: red;
 }
