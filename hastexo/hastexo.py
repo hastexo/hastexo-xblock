@@ -355,7 +355,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             # If the suspend task is pending, revoke it.
             stack_suspend_id = self.stack_get("suspend_id")
             if stack_suspend_id:
-                logger.info('Revoking suspend task for [%s]' % (self.stack_name))
+                logger.debug('Revoking suspend task for [%s]' % (self.stack_name))
                 from lms import CELERY_APP
                 CELERY_APP.control.revoke(stack_suspend_id)
                 self.stack_set("suspend_id", None)
@@ -364,7 +364,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             args = (self.configuration, self.stack_name, self.configuration.get('os_auth_url'))
             kwargs = self.get_os_auth_kwargs()
             task = SuspendStackTask()
-            logger.info('Scheduling suspend task for [%s] in %s seconds' % (self.stack_name, suspend_timeout))
+            logger.debug('Scheduling suspend task for [%s] in %s seconds' % (self.stack_name, suspend_timeout))
             result = task.apply_async(args=args,
                                       kwargs=kwargs,
                                       countdown=suspend_timeout)
@@ -388,7 +388,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             result = task.apply_async(args=args, kwargs=kwargs,
                     expires=self.configuration.get('launch_timeout'))
 
-            logger.info('Launch task id for stack [%s] is: [%s]' % (self.stack_name, result.id))
+            logger.debug('Launch task id for stack [%s] is: [%s]' % (self.stack_name, result.id))
 
             # Save task ID and timestamp
             self.stack_set("launch_id", result.id)
@@ -446,7 +446,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
 
         # No last stack status: this is the first time the user launches this stack.
         if not last_status_string:
-            logger.info('Launching/resuming stack [%s]' % (self.stack_name))
+            logger.info('Launching stack [%s] for the first time.' % (self.stack_name))
             result = _launch_stack(reset)
             status = _process_result(result)
 
@@ -468,12 +468,15 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
                 # Check if the pending task hasn't timed out.
                 if time_since_launch <= launch_timeout:
                     # The pending task still has some time to finish.  Please wait.
-                    logger.info('Launch pending for [%s]' % (self.stack_name))
+                    logger.debug('Launch pending for [%s]' % (self.stack_name))
 
                 elif initialize or reset:
                     # Timeout reached, but the user just entered the page or
                     # requested a reset.  Try launching the stack again.
-                    logger.info('Launching/resuming stack [%s]' % (self.stack_name))
+                    if initialize:
+                        logger.info('Launch timeout detected on initialize.  Launching stack [%s]' % (self.stack_name))
+                    else:
+                        logger.info('Launch timeout detected on reset.  Resetting stack [%s]' % (self.stack_name))
                     result = _launch_stack(reset)
                     status = _process_result(result)
 
@@ -487,7 +490,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             elif current_status_string in UP_STATES:
                 if reset or (suspend_timeout and time_since_suspend >= suspend_timeout):
                     if reset:
-                        logger.info('Resetting stack [%s].' % (self.stack_name))
+                        logger.info('Resetting successfully launched stack [%s].' % (self.stack_name))
                     else:
                         logger.info('Stack [%s] may have suspended.  Relaunching.' % (self.stack_name))
                     result = _launch_stack(reset)
@@ -501,7 +504,10 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             # retry, just entered the page, or requested a reset, so start from
             # scratch.
             elif initialize or reset:
-                logger.info('Launching/resuming stack [%s]' % (self.stack_name))
+                if reset:
+                    logger.info('Resetting failed stack [%s].' % (self.stack_name))
+                else:
+                    logger.info('Retrying previously failed stack [%s].' % (self.stack_name))
                 result = _launch_stack(reset)
                 status = _process_result(result)
 
@@ -514,7 +520,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         elif last_status_string in UP_STATES:
             if reset or (suspend_timeout and time_since_suspend >= suspend_timeout):
                 if reset:
-                    logger.info('Resetting stack [%s].' % (self.stack_name))
+                    logger.info('Resetting successfully launched stack [%s].' % (self.stack_name))
                 else:
                     logger.info('Stack [%s] may have suspended.  Relaunching.' % (self.stack_name))
                 result = _launch_stack(reset)
@@ -527,7 +533,10 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         # Detected a failed launch attempt, but the user just entered the page,
         # or requested a retry or reset, so start from scratch.
         elif initialize or reset:
-            logger.info('Launching/resuming stack [%s]' % (self.stack_name))
+            if reset:
+                logger.info('Resetting failed stack [%s].' % (self.stack_name))
+            else:
+                logger.info('Retrying previously failed stack [%s].' % (self.stack_name))
             result = _launch_stack(reset)
             status = _process_result(result)
 
@@ -558,7 +567,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
                        (self.stack_name, stack_ip,
                         self.stack_user_name))
             for test in self.tests:
-                logger.info('Test: %s' % test)
+                logger.debug('Test: %s' % test)
 
             args = (
                 self.configuration,
@@ -604,7 +613,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
 
         # If a check task is running, return its status.
         if self.check_id:
-            logger.info('check task is running: %s' % self.check_id)
+            logger.debug('Check progress task is running: %s' % self.check_id)
             result = CheckStudentProgressTask().AsyncResult(self.check_id)
             status = _process_result(result)
 

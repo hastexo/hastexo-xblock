@@ -93,7 +93,7 @@ class LaunchStackTask(Task):
 
         # Create the stack if it doesn't exist, resume it if it's suspended.
         try:
-            logger.info("Getting initial stack info for [%s]." % (stack_name))
+            logger.debug("Getting initial stack info for [%s]." % (stack_name))
             stack = heat.stacks.get(stack_id=stack_name)
 
             # Sleep to avoid throttling.
@@ -112,14 +112,14 @@ class LaunchStackTask(Task):
             # Sleep to avoid throttling.
             time.sleep(sleep)
 
-            logger.info("Getting initial stack info for [%s]." % (stack_name))
+            logger.debug("Getting initial stack info for [%s]." % (stack_name))
             stack = heat.stacks.get(stack_id=stack_id)
 
             # Sleep to avoid throttling.
             time.sleep(sleep)
 
         status = stack.stack_status
-        logger.info("Got [%s] status for [%s]." % (status, stack_name))
+        logger.debug("Got [%s] status for [%s]." % (status, stack_name))
 
         # If stack is undergoing a change of state, wait until it finishes.
         retry = 0
@@ -130,7 +130,7 @@ class LaunchStackTask(Task):
                 time.sleep(sleep)
 
             try:
-                logger.info("Getting stack info for [%s], with previous status [%s]." % (stack_name, status))
+                logger.debug("Getting stack info for [%s], with previous status [%s]." % (stack_name, status))
                 stack = heat.stacks.get(stack_id=stack.id)
             except HTTPNotFound:
                 # Sleep to avoid throttling.
@@ -146,11 +146,11 @@ class LaunchStackTask(Task):
                 # Sleep to avoid throttling.
                 time.sleep(sleep)
 
-                logger.info("Getting initial stack info for [%s]." % (stack_name))
+                logger.debug("Getting initial stack info for [%s]." % (stack_name))
                 stack = heat.stacks.get(stack_id=stack_id)
 
             status = stack.stack_status
-            logger.info("Got [%s] status for [%s]." % (status, stack_name))
+            logger.debug("Got [%s] status for [%s]." % (status, stack_name))
             retry += 1
             if retry >= retries:
                 logger.error("Stack [%s] state change [%s] took too long.  Giving up after %s retries" % (
@@ -180,13 +180,13 @@ class LaunchStackTask(Task):
                     time.sleep(sleep)
 
                 try:
-                    logger.info("Getting stack info for [%s], with previous status [%s]." % (stack_name, status))
+                    logger.debug("Getting stack info for [%s], with previous status [%s]." % (stack_name, status))
                     stack = heat.stacks.get(stack_id=stack.id)
                 except HTTPNotFound:
                     status = 'DELETE_COMPLETE'
                 else:
                     status = stack.stack_status
-                    logger.info("Got [%s] status for [%s]." % (status, stack_name))
+                    logger.debug("Got [%s] status for [%s]." % (status, stack_name))
                     retry += 1
                     if retry >= retries:
                         logger.error("Stack [%s], status [%s], took too long to delete.  Giving up after %s retries" % (
@@ -201,14 +201,14 @@ class LaunchStackTask(Task):
                 # Sleep to avoid throttling.
                 time.sleep(sleep)
 
-                logger.info("Getting initial stack info for [%s]." % (stack_name))
+                logger.debug("Getting initial stack info for [%s]." % (stack_name))
                 stack = heat.stacks.get(stack_id=stack_id)
 
                 # Sleep to avoid throttling.
                 time.sleep(sleep)
 
                 status = stack.stack_status
-                logger.info("Got [%s] status for [%s]." % (status, stack_name))
+                logger.debug("Got [%s] status for [%s]." % (status, stack_name))
 
                 # Wait for stack creation
                 retry = 0
@@ -219,7 +219,7 @@ class LaunchStackTask(Task):
                         time.sleep(sleep)
 
                     try:
-                        logger.info("Getting stack info for [%s], with previous status [%s]." % (stack_name, status))
+                        logger.debug("Getting stack info for [%s], with previous status [%s]." % (stack_name, status))
                         stack = heat.stacks.get(stack_id=stack.id)
                     except HTTPNotFound:
                         # Sleep to avoid throttling.
@@ -232,11 +232,11 @@ class LaunchStackTask(Task):
                         # Sleep to avoid throttling.
                         time.sleep(sleep)
 
-                        logger.info("Getting initial stack info for [%s]." % (stack_name))
+                        logger.debug("Getting initial stack info for [%s]." % (stack_name))
                         stack = heat.stacks.get(stack_id=stack_id)
 
                     status = stack.stack_status
-                    logger.info("Got [%s] status for [%s]." % (status, stack_name))
+                    logger.debug("Got [%s] status for [%s]." % (status, stack_name))
 
                     retry += 1
                     if retry >= retries:
@@ -266,14 +266,14 @@ class LaunchStackTask(Task):
                     time.sleep(sleep)
 
                 try:
-                    logger.info("Getting stack info for [%s], with previous status [%s]." % (stack_name, status))
+                    logger.debug("Getting stack info for [%s], with previous status [%s]." % (stack_name, status))
                     stack = heat.stacks.get(stack_id=stack.id)
                 except HTTPNotFound:
                     logger.error("Stack [%s] disappeared during resume." % stack_name)
                     status = 'RESUME_FAILED'
                 else:
                     status = stack.stack_status
-                    logger.info("Got [%s] status for [%s]." % (status, stack_name))
+                    logger.debug("Got [%s] status for [%s]." % (status, stack_name))
                     retry += 1
                     if retry >= retries:
                         logger.error("Stack [%s], status [%s], took too long to resume.  Giving up after %s retries" % (
@@ -304,15 +304,15 @@ class LaunchStackTask(Task):
         sleep = timeouts.get('sleep', 5)
         retries = timeouts.get('retries', 60)
 
-        logger.info("Verifying stack [%s] network connectivity. " % (stack_name))
+        logger.debug("Verifying stack [%s] network connectivity. " % (stack_name))
 
         for output in stack.to_dict().get('outputs', []):
             if output['output_key'] == 'public_ip':
                 stack_ip = output['output_value']
-                logger.info("Found IP [%s] for stack [%s]" % (stack_ip, stack_name))
+                logger.debug("Found IP [%s] for stack [%s]" % (stack_ip, stack_name))
             elif output['output_key'] == 'private_key':
                 stack_key = output['output_value']
-                logger.info("Found key for stack [%s]" % (stack_name))
+                logger.debug("Found key for stack [%s]" % (stack_name))
 
         if stack_ip is None or stack_key is None:
             verify_status = 'VERIFY_FAILED'
@@ -410,7 +410,7 @@ class SuspendStackTask(Task):
         Suspend the stack.
         """
 
-        logger.info("Initializing stack [%s] suspension." % stack_name)
+        logger.debug("Initializing stack [%s] suspension." % stack_name)
 
         timeouts = configuration.get('task_timeouts')
         sleep = timeouts.get('sleep', 5)
@@ -424,14 +424,14 @@ class SuspendStackTask(Task):
             return
 
         status = stack.stack_status
-        logger.info("Got [%s] status for [%s]." % (status, stack_name))
+        logger.debug("Got [%s] status for [%s]." % (status, stack_name))
 
         # If the stack is broken, already suspended, or in the process of, there's
         # nothing to do here.
         if ('FAILED' in status or
              status == 'SUSPEND_COMPLETE' or
              status == 'SUSPEND_IN_PROGRESS'):
-            logger.info("Cannot suspend stack [%s] with status [%s]." % (stack_name, status))
+            logger.warning("Cannot suspend stack [%s] with status [%s]." % (stack_name, status))
             return
 
         # If the stack is undergoing some other change of state, wait for it to
@@ -442,7 +442,7 @@ class SuspendStackTask(Task):
                 logger.debug("Stack [%s] is [%s].  Waiting %s seconds to suspend." % (stack_name, status, sleep))
                 time.sleep(sleep)
             try:
-                logger.info("Getting stack info for [%s], with previous status [%s]." % (stack_name, status))
+                logger.debug("Getting stack info for [%s], with previous status [%s]." % (stack_name, status))
                 stack = heat.stacks.get(stack_id=stack.id)
             except HTTPNotFound:
                 logger.error("Stack [%s], with previous status [%s], disappeared "
@@ -450,7 +450,7 @@ class SuspendStackTask(Task):
                 status = 'SUSPEND_FAILED'
             else:
                 status = stack.stack_status
-                logger.info("Got [%s] status for [%s]." % (status, stack_name))
+                logger.debug("Got [%s] status for [%s]." % (status, stack_name))
                 retry += 1
                 if retry >= retries:
                     logger.error("Stack [%s] state change [%s] took too long when trying to suspend. "
