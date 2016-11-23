@@ -21,7 +21,7 @@ class LaunchStackTask(Task):
     user.
 
     """
-    def run(self, configuration, stack_name, stack_template, stack_user, reset, auth_url, **kwargs):
+    def run(self, configuration, stack_name, stack_template, stack_user, reset):
         """
         Run the celery task.
 
@@ -33,7 +33,7 @@ class LaunchStackTask(Task):
         stack_ip = None
 
         # Get the Heat client
-        heat = self.get_heat_client(auth_url, **kwargs)
+        heat = self.get_heat_client(configuration)
 
         # Launch the stack and wait for it to complete.
         (status, error_msg, stack) = self.launch_stack(configuration, heat, stack_name, stack_template, reset)
@@ -70,8 +70,8 @@ class LaunchStackTask(Task):
             'key': stack_name
         }
 
-    def get_heat_client(self, auth_url, **kwargs):
-        return HeatWrapper().get_client(auth_url, **kwargs)
+    def get_heat_client(self, configuration):
+        return HeatWrapper(**configuration).get_client()
 
     def launch_stack(self, configuration, heat, stack_name, stack_template, reset):
         """
@@ -166,6 +166,7 @@ class LaunchStackTask(Task):
 
             logger.info("Resetting stack [%s]." % stack_name)
             heat.stacks.delete(stack_id=stack.id)
+            status = 'DELETE_IN_PROGRESS'
 
             # Sleep to avoid throttling.
             time.sleep(sleep)
@@ -382,7 +383,7 @@ class LaunchStackTask(Task):
 
     def upload_key(self, key, key_path, configuration):
         logger.info("Uploading stack key [%s] into [%s]." % (key, configuration.get("ssh_bucket")))
-        swift = SwiftWrapper(configuration)
+        swift = SwiftWrapper(**configuration)
         swift.upload_key(key, key_path)
 
 
@@ -391,19 +392,19 @@ class SuspendStackTask(Task):
     Suspend a stack.
 
     """
-    def run(self, configuration, stack_name, auth_url, **kwargs):
+    def run(self, configuration, stack_name):
         """
         Suspend a stack.  There is no return value, as nobody will check for it.
 
         """
         # Get the Heat client
-        heat = self.get_heat_client(auth_url, **kwargs)
+        heat = self.get_heat_client(configuration)
 
         # Suspend the stack.
         self.suspend_stack(configuration, heat, stack_name)
 
-    def get_heat_client(self, auth_url, **kwargs):
-        return HeatWrapper().get_client(auth_url, **kwargs)
+    def get_heat_client(self, configuration):
+        return HeatWrapper(**configuration).get_client()
 
     def suspend_stack(self, configuration, heat, stack_name):
         """
@@ -529,5 +530,5 @@ class CheckStudentProgressTask(Task):
         return ssh
 
     def download_key(self, key, key_path, configuration):
-        swift = SwiftWrapper(configuration)
+        swift = SwiftWrapper(**configuration)
         swift.download_key(key, key_path)

@@ -77,18 +77,36 @@ To deploy the hastexo XBlock:
                 "idle": 600000,
                 "check": 5000
             },
-            "os_auth_url": "",
-            "os_auth_token": "",
-            "os_username": "",
-            "os_password": "",
-            "os_user_id": "",
-            "os_user_domain_id": "",
-            "os_user_domain_name": "",
-            "os_project_id": "",
-            "os_project_name": "",
-            "os_project_domain_id": "",
-            "os_project_domain_name": "",
-            "os_region_name": ""
+            "providers": {
+                "default": {
+                    "os_auth_url": "",
+                    "os_auth_token": "",
+                    "os_username": "",
+                    "os_password": "",
+                    "os_user_id": "",
+                    "os_user_domain_id": "",
+                    "os_user_domain_name": "",
+                    "os_project_id": "",
+                    "os_project_name": "",
+                    "os_project_domain_id": "",
+                    "os_project_domain_name": "",
+                    "os_region_name": ""
+                },
+                "provider2": {
+                    "os_auth_url": "",
+                    "os_auth_token": "",
+                    "os_username": "",
+                    "os_password": "",
+                    "os_user_id": "",
+                    "os_user_domain_id": "",
+                    "os_user_domain_name": "",
+                    "os_project_id": "",
+                    "os_project_name": "",
+                    "os_project_domain_id": "",
+                    "os_project_domain_name": "",
+                    "os_region_name": ""
+                },
+            }
         }
     }
     ```
@@ -125,8 +143,9 @@ To deploy the hastexo XBlock:
 
 The hastexo XBlock must be configured via `XBLOCK_SETTINGS` in
 `lms.env.json`, under the `hastexo` key.  At the very minimum, you must
-set the OpenStack authentication variables specific to the cloud you will be
-using.  All other variables can be left at their defaults.
+configure a single "default" provider with the OpenStack credentials specific
+to the cloud you will be using.  All other variables can be left at their
+defaults.
 
 This is a brief explanation of each:
 
@@ -174,22 +193,23 @@ This is a brief explanation of each:
     * `check`: In the browser, after clicking "Check Progress", how long to
       wait between polling attempts, in milliseconds. (Default: `5000`)
 
-The following is the list of supported OpenStack credential variables.  In
-practice, it is rarely necessary to set them all.  Consult your OpenStack
-provider for a list of the required ones:
+* `providers`: A dictionary of OpenStack providers that course authors can pick
+  from.  Each entry is itself a dictionary containing OpenStack credentials.
+  You must configure at least one, named "default".  The following is a list
+  of supported OpenStack credential variables:
 
-* `os_auth_url`
-* `os_auth_token`
-* `os_username`
-* `os_password`
-* `os_user_id`
-* `os_user_domain_id`
-* `os_user_domain_name`
-* `os_project_id`
-* `os_project_name`
-* `os_project_domain_id`
-* `os_project_domain_name`
-* `os_region_name`
+    * `os_auth_url`
+    * `os_auth_token`
+    * `os_username`
+    * `os_password`
+    * `os_user_id`
+    * `os_user_domain_id`
+    * `os_user_domain_name`
+    * `os_project_id`
+    * `os_project_name`
+    * `os_project_domain_id`
+    * `os_project_domain_name`
+    * `os_region_name`
 
 
 ## GateOne settings
@@ -278,6 +298,9 @@ configured with the following attributes:
 * `instructions_path`: (Optional) The static asset path to markdown lab
   instructions stored in the content store.
 
+* `provider`: (Optional) The name of an OpenStack provider configured in the
+  platform.
+
 For example, in XML:
 
 ```
@@ -286,7 +309,8 @@ For example, in XML:
     url_name="lab_introduction"
     instructions_path="markdown_lab.md"
     stack_template_path="hot_lab.yaml"
-    stack_user_name="training" />
+    stack_user_name="training"
+    provider="default" />
 </vertical>
 ```
 
@@ -341,7 +365,7 @@ settings must be set to that port (by default, 28010), and the `url_prefix` in
 the GateOne configuration must be reset to "".
 
 These are the recommended devstack settings for `/edx/app/edxapp/lms.env.json`
-(OpenStack settings have been omitted):
+(OpenStack providers have been omitted):
 
     ```
     "XBLOCK_SETTINGS": {
@@ -375,19 +399,12 @@ And this must be set in `/etc/gateone/conf.d/10server.conf`:
 
 ## Running tests
 
-For now, one must run the provided unit tests (which are currently limited to
-tasks) from the edxapp virtualenv, as deployed by fullstack.  Thus, on such a
-box:
+Run available tests as `edxapp` on devstack:
 
 ```
-$ sudo /edx/bin/python.edxapp -m unittest hastexo.tests.unit.test_tasks
-```
-
-Or,
-
-```
-$ cd /edx/app/edxapp/hastexo-xblock
-$ /edx/app/edxapp/venvs/edxapp/bin/nosetests hastexo/tests -v
+$ sudo su edxapp
+$ cd ~/venvs/edxapp/src/hastexo-xblock
+$ nosetests hastexo/tests -v
 ```
 
 

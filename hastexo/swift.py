@@ -11,7 +11,7 @@ from swiftclient.exceptions import ClientException
 
 class SwiftWrapper(object):
     """
-    A class that wraps the swift service for the Hastexo XBlock.
+    A class that wraps the Swift service for the Hastexo XBlock.
 
     """
     os_options = (
@@ -30,7 +30,6 @@ class SwiftWrapper(object):
         'os_project_domain_name',
         'os_service_type',
         'os_endpoint_type',
-        'os_auth_token',
         'os_storage_url',
         'os_region_name'
     )
@@ -39,12 +38,13 @@ class SwiftWrapper(object):
 
     ssh_bucket = ""
 
-    def __init__(self, configuration={}):
+    def __init__(self, **configuration):
         self.ssh_bucket = configuration.get("ssh_bucket", "identities")
 
         # Set OpenStack options
+        credentials = configuration.get("credentials")
         for os_option in self.os_options:
-            self.options[os_option] = configuration.get(os_option)
+            self.options[os_option] = credentials.get(os_option)
 
     def upload_key(self, key, key_path):
         # Upload it

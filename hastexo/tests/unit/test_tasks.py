@@ -28,241 +28,430 @@ class TestHastexoTasks(TestCase):
             self.stacks[state] = stack
 
         # Mock settings
+        self.configuration = {
+            "launch_timeout": 300,
+            "suspend_timeout": 120,
+            "terminal_url": "/terminal",
+            "ssh_dir": "/edx/var/edxapp/terminal_users/ANONYMOUS/.ssh",
+            "ssh_upload": False,
+            "ssh_bucket": "identities",
+            "task_timeouts": {
+                "sleep": 0,
+                "retries": 10
+            },
+            "js_timeouts": {
+                "status": 10000,
+                "keepalive": 15000,
+                "idle": 600000,
+                "check": 5000
+            },
+            "credentials": {
+                "os_auth_url": "bogus_auth_url",
+                "os_auth_token": "",
+                "os_username": "bogus_username",
+                "os_password": "bogus_password",
+                "os_user_id": "",
+                "os_user_domain_id": "",
+                "os_user_domain_name": "",
+                "os_project_id": "bogus_project_id",
+                "os_project_name": "",
+                "os_project_domain_id": "",
+                "os_project_domain_name": "",
+                "os_region_name": "bogus_region_name"
+            }
+        }
         self.stack_name = 'bogus_stack_name'
         self.stack_template = 'bogus_stack_template'
         self.stack_user = 'bogus_stack_user'
         self.stack_ip = '127.0.0.1'
-        self.auth_url = 'bogus_auth_url'
 
     def test_create_stack_during_launch(self):
         task = LaunchStackTask()
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [
-                HTTPNotFound,
-                self.stacks['CREATE_IN_PROGRESS'],
-                self.stacks['CREATE_IN_PROGRESS'],
-                self.stacks['CREATE_COMPLETE']]
-        mock_heat_client.stacks.create.return_value = {'stack': {'id': self.stack_name}}
-        mock_verify_stack = Mock(return_value=('CREATE_COMPLETE', None, self.stack_ip))
+            HTTPNotFound,
+            self.stacks['CREATE_IN_PROGRESS'],
+            self.stacks['CREATE_IN_PROGRESS'],
+            self.stacks['CREATE_COMPLETE']
+        ]
+        mock_heat_client.stacks.create.return_value = {
+            'stack': {'id': self.stack_name}
+        }
+        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE', None, self.stack_ip))
         with patch.multiple(task,
-                sleep=0,
-                get_heat_client=Mock(return_value=mock_heat_client),
-                verify_stack=mock_verify_stack):
-            res = task.run(self.stack_name, self.stack_template, self.stack_user, self.auth_url)
+            get_heat_client=Mock(return_value=mock_heat_client),
+            verify_stack=mock_verify_stack
+        ):
+            res = task.run(
+                self.configuration,
+                self.stack_name,
+                self.stack_template,
+                self.stack_user,
+                False
+            )
             assert res['status'] == 'CREATE_COMPLETE'
             mock_heat_client.stacks.create.assert_called_with(
-                    stack_name=self.stack_name,
-                    template=self.stack_template)
+                stack_name=self.stack_name,
+                template=self.stack_template
+            )
             mock_verify_stack.assert_called_with(
-                    self.stacks['CREATE_COMPLETE'],
-                    self.stack_name,
-                    self.stack_user)
+                self.configuration,
+                self.stacks['CREATE_COMPLETE'],
+                self.stack_name,
+                self.stack_user
+            )
+
+    def test_reset_stack_during_launch(self):
+        task = LaunchStackTask()
+        mock_heat_client = Mock()
+        mock_heat_client.stacks.get.side_effect = [
+            self.stacks['RESUME_FAILED'],
+            self.stacks['DELETE_IN_PROGRESS'],
+            HTTPNotFound,
+            self.stacks['CREATE_IN_PROGRESS'],
+            self.stacks['CREATE_COMPLETE']
+        ]
+        mock_heat_client.stacks.create.return_value = {
+            'stack': {'id': self.stack_name}
+        }
+        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE', None, self.stack_ip))
+        with patch.multiple(task,
+            get_heat_client=Mock(return_value=mock_heat_client),
+            verify_stack=mock_verify_stack
+        ):
+            res = task.run(
+                self.configuration,
+                self.stack_name,
+                self.stack_template,
+                self.stack_user,
+                True
+            )
+            mock_heat_client.stacks.delete.assert_called_with(
+                stack_id=self.stacks['RESUME_FAILED'].id
+            )
+            mock_heat_client.stacks.create.assert_called_with(
+                stack_name=self.stack_name,
+                template=self.stack_template
+            )
+            mock_verify_stack.assert_called_with(
+                self.configuration,
+                self.stacks['CREATE_COMPLETE'],
+                self.stack_name,
+                self.stack_user
+            )
+            assert res['status'] == 'CREATE_COMPLETE'
+
+    def test_dont_reset_new_stack_during_launch(self):
+        task = LaunchStackTask()
+        mock_heat_client = Mock()
+        mock_heat_client.stacks.get.side_effect = [
+            HTTPNotFound,
+            self.stacks['CREATE_IN_PROGRESS'],
+            self.stacks['CREATE_COMPLETE']
+        ]
+        mock_heat_client.stacks.create.return_value = {
+            'stack': {'id': self.stack_name}
+        }
+        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE', None, self.stack_ip))
+        with patch.multiple(task,
+            get_heat_client=Mock(return_value=mock_heat_client),
+            verify_stack=mock_verify_stack
+        ):
+            res = task.run(
+                self.configuration,
+                self.stack_name,
+                self.stack_template,
+                self.stack_user,
+                True
+            )
+            mock_heat_client.stacks.delete.assert_not_called()
+            mock_heat_client.stacks.create.assert_called_with(
+                stack_name=self.stack_name,
+                template=self.stack_template
+            )
+            mock_verify_stack.assert_called_with(
+                self.configuration,
+                self.stacks['CREATE_COMPLETE'],
+                self.stack_name,
+                self.stack_user
+            )
+            assert res['status'] == 'CREATE_COMPLETE'
 
     def test_resume_suspended_stack_during_launch(self):
         task = LaunchStackTask()
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [
-                self.stacks['SUSPEND_COMPLETE'],
-                self.stacks['RESUME_IN_PROGRESS'],
-                self.stacks['RESUME_IN_PROGRESS'],
-                self.stacks['RESUME_COMPLETE']]
-        mock_verify_stack = Mock(return_value=('RESUME_COMPLETE', None, self.stack_ip))
+            self.stacks['SUSPEND_COMPLETE'],
+            self.stacks['RESUME_IN_PROGRESS'],
+            self.stacks['RESUME_IN_PROGRESS'],
+            self.stacks['RESUME_COMPLETE']
+        ]
+        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE', None, self.stack_ip))
         with patch.multiple(task,
-                sleep=0,
-                get_heat_client=Mock(return_value=mock_heat_client),
-                verify_stack=mock_verify_stack):
-            res = task.run(self.stack_name, self.stack_template, self.stack_user, self.auth_url)
+            get_heat_client=Mock(return_value=mock_heat_client),
+            verify_stack=mock_verify_stack
+        ):
+            res = task.run(
+                self.configuration,
+                self.stack_name,
+                self.stack_template,
+                self.stack_user,
+                False
+            )
             assert res['status'] == 'RESUME_COMPLETE'
             mock_heat_client.actions.resume.assert_called_with(
-                    stack_id=self.stacks['SUSPEND_COMPLETE'].id)
+                stack_id=self.stacks['SUSPEND_COMPLETE'].id
+            )
             mock_verify_stack.assert_called_with(
-                    self.stacks['RESUME_COMPLETE'],
-                    self.stack_name,
-                    self.stack_user)
+                self.configuration,
+                self.stacks['RESUME_COMPLETE'],
+                self.stack_name,
+                self.stack_user
+            )
 
     def test_resume_suspending_stack_during_launch(self):
         task = LaunchStackTask()
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [
-                self.stacks['SUSPEND_IN_PROGRESS'],
-                self.stacks['SUSPEND_IN_PROGRESS'],
-                self.stacks['SUSPEND_COMPLETE'],
-                self.stacks['RESUME_IN_PROGRESS'],
-                self.stacks['RESUME_IN_PROGRESS'],
-                self.stacks['RESUME_COMPLETE']]
-        mock_verify_stack = Mock(return_value=('RESUME_COMPLETE', None, self.stack_ip))
+            self.stacks['SUSPEND_IN_PROGRESS'],
+            self.stacks['SUSPEND_IN_PROGRESS'],
+            self.stacks['SUSPEND_COMPLETE'],
+            self.stacks['RESUME_IN_PROGRESS'],
+            self.stacks['RESUME_IN_PROGRESS'],
+            self.stacks['RESUME_COMPLETE']
+        ]
+        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE', None, self.stack_ip))
         with patch.multiple(task,
-                sleep=0,
-                get_heat_client=Mock(return_value=mock_heat_client),
-                verify_stack=mock_verify_stack):
-            res = task.run(self.stack_name, self.stack_template, self.stack_user, self.auth_url)
+            get_heat_client=Mock(return_value=mock_heat_client),
+            verify_stack=mock_verify_stack
+        ):
+            res = task.run(
+                self.configuration,
+                self.stack_name,
+                self.stack_template,
+                self.stack_user,
+                False
+            )
             assert res['status'] == 'RESUME_COMPLETE'
             mock_heat_client.actions.resume.assert_called_with(
-                    stack_id=self.stacks['SUSPEND_COMPLETE'].id)
+                stack_id=self.stacks['SUSPEND_COMPLETE'].id
+            )
             mock_verify_stack.assert_called_with(
-                    self.stacks['RESUME_COMPLETE'],
-                    self.stack_name,
-                    self.stack_user)
+                self.configuration,
+                self.stacks['RESUME_COMPLETE'],
+                self.stack_name,
+                self.stack_user
+            )
 
     def test_delete_stack_on_create_failed_during_launch(self):
         task = LaunchStackTask()
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [
-                HTTPNotFound,
-                self.stacks['CREATE_IN_PROGRESS'],
-                self.stacks['CREATE_FAILED']]
-        mock_heat_client.stacks.create.return_value = {'stack': {'id': self.stack_name}}
+            HTTPNotFound,
+            self.stacks['CREATE_IN_PROGRESS'],
+            self.stacks['CREATE_FAILED']
+        ]
+        mock_heat_client.stacks.create.return_value = {
+            'stack': {'id': self.stack_name}
+        }
         with patch.multiple(task,
-                sleep=0,
-                get_heat_client=Mock(return_value=mock_heat_client)):
-            res = task.run(self.stack_name, self.stack_template, self.stack_user, self.auth_url)
+            get_heat_client=Mock(return_value=mock_heat_client)
+        ):
+            res = task.run(
+                self.configuration,
+                self.stack_name,
+                self.stack_template,
+                self.stack_user,
+                False
+            )
             assert res['status'] == 'CREATE_FAILED'
-            mock_heat_client.stacks.delete.assert_called_with(stack_id=self.stacks['CREATE_FAILED'].id)
+            mock_heat_client.stacks.delete.assert_called_with(
+                stack_id=self.stacks['CREATE_FAILED'].id
+            )
 
-    def test_dont_wait_forever_for_suspension_and_delete_during_launch(self):
+    def test_dont_wait_forever_for_suspension_during_launch(self):
         task = LaunchStackTask()
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [
-                self.stacks['SUSPEND_IN_PROGRESS'],
-                self.stacks['SUSPEND_IN_PROGRESS'],
-                self.stacks['SUSPEND_IN_PROGRESS'],
-                self.stacks['SUSPEND_IN_PROGRESS'],
-                self.stacks['SUSPEND_IN_PROGRESS']]
+            self.stacks['SUSPEND_IN_PROGRESS'],
+            self.stacks['SUSPEND_IN_PROGRESS'],
+            self.stacks['SUSPEND_IN_PROGRESS'],
+            self.stacks['SUSPEND_IN_PROGRESS'],
+            self.stacks['SUSPEND_IN_PROGRESS']
+        ]
         with patch.multiple(task,
-                sleep=0, retries=3,
-                get_heat_client=Mock(return_value=mock_heat_client)):
-            res = task.run(self.stack_name, self.stack_template, self.stack_user, self.auth_url)
-            assert res['status'] == 'CREATE_FAILED'
-            mock_heat_client.stacks.delete.assert_called_with(stack_id=self.stacks['SUSPEND_IN_PROGRESS'].id)
+            get_heat_client=Mock(return_value=mock_heat_client)
+        ):
+            self.configuration['task_timeouts']['retries'] = 3
+            res = task.run(
+                self.configuration,
+                self.stack_name,
+                self.stack_template,
+                self.stack_user,
+                False
+            )
+            assert res['status'] == 'SUSPEND_FAILED'
+            mock_heat_client.stacks.delete.assert_not_called()
 
     def test_dont_wait_forever_for_creation_and_delete_during_launch(self):
         task = LaunchStackTask()
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [
-                HTTPNotFound,
-                self.stacks['CREATE_IN_PROGRESS'],
-                self.stacks['CREATE_IN_PROGRESS'],
-                self.stacks['CREATE_IN_PROGRESS'],
-                self.stacks['CREATE_IN_PROGRESS'],
-                self.stacks['CREATE_IN_PROGRESS']]
-        mock_heat_client.stacks.create.return_value = {'stack': {'id': self.stack_name}}
+            HTTPNotFound,
+            self.stacks['CREATE_IN_PROGRESS'],
+            self.stacks['CREATE_IN_PROGRESS'],
+            self.stacks['CREATE_IN_PROGRESS'],
+            self.stacks['CREATE_IN_PROGRESS'],
+            self.stacks['CREATE_IN_PROGRESS']
+        ]
+        mock_heat_client.stacks.create.return_value = {
+            'stack': {'id': self.stack_name}
+        }
         with patch.multiple(task,
-                sleep=0, retries=3,
-                get_heat_client=Mock(return_value=mock_heat_client)):
-            res = task.run(self.stack_name, self.stack_template, self.stack_user, self.auth_url)
+            get_heat_client=Mock(return_value=mock_heat_client)
+        ):
+            self.configuration['task_timeouts']['retries'] = 3
+            res = task.run(
+                self.configuration,
+                self.stack_name,
+                self.stack_template,
+                self.stack_user,
+                False
+            )
             assert res['status'] == 'CREATE_FAILED'
-            mock_heat_client.stacks.delete.assert_called_with(stack_id=self.stacks['CREATE_IN_PROGRESS'].id)
+            mock_heat_client.stacks.delete.assert_called_with(
+                stack_id=self.stacks['CREATE_IN_PROGRESS'].id
+            )
 
     def test_exit_resume_failed_exit_status_during_launch(self):
         task = LaunchStackTask()
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [
-                self.stacks['SUSPEND_COMPLETE'],
-                self.stacks['RESUME_IN_PROGRESS'],
-                self.stacks['RESUME_IN_PROGRESS'],
-                self.stacks['RESUME_FAILED']]
+            self.stacks['SUSPEND_COMPLETE'],
+            self.stacks['RESUME_IN_PROGRESS'],
+            self.stacks['RESUME_IN_PROGRESS'],
+            self.stacks['RESUME_FAILED']
+        ]
         with patch.multiple(task,
-                sleep=0,
-                get_heat_client=Mock(return_value=mock_heat_client)):
-            res = task.run(self.stack_name, self.stack_template, self.stack_user, self.auth_url)
+            get_heat_client=Mock(return_value=mock_heat_client)
+        ):
+            res = task.run(
+                self.configuration,
+                self.stack_name,
+                self.stack_template,
+                self.stack_user,
+                False
+            )
             assert res['status'] == 'RESUME_FAILED'
 
     def test_suspend_stack_for_the_first_time(self):
         task = SuspendStackTask()
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [
-                self.stacks['CREATE_COMPLETE']]
+            self.stacks['CREATE_COMPLETE']
+        ]
         with patch.multiple(task,
-                sleep=0,
-                get_heat_client=Mock(return_value=mock_heat_client)):
-            res = task.run(self.stack_name, self.auth_url)
+            get_heat_client=Mock(return_value=mock_heat_client)
+        ):
+            res = task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_called_with(
-                    stack_id=self.stack_name)
+                stack_id=self.stack_name
+            )
 
     def test_suspend_stack_for_the_second_time(self):
         task = SuspendStackTask()
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [
-                self.stacks['RESUME_COMPLETE']]
+            self.stacks['RESUME_COMPLETE']
+        ]
         with patch.multiple(task,
-                sleep=0,
-                get_heat_client=Mock(return_value=mock_heat_client)):
-            res = task.run(self.stack_name, self.auth_url)
+            get_heat_client=Mock(return_value=mock_heat_client)
+        ):
+            res = task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_called_with(
-                    stack_id=self.stack_name)
+                stack_id=self.stack_name
+            )
 
     def test_dont_suspend_unexistent_stack(self):
         task = SuspendStackTask()
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [
-                HTTPNotFound]
+            HTTPNotFound
+        ]
         with patch.multiple(task,
-                sleep=0,
-                get_heat_client=Mock(return_value=mock_heat_client)):
-            res = task.run(self.stack_name, self.auth_url)
+            get_heat_client=Mock(return_value=mock_heat_client)
+        ):
+            res = task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_not_called()
 
     def test_dont_suspend_failed_stack(self):
         task = SuspendStackTask()
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [
-                self.stacks['RESUME_FAILED']]
+            self.stacks['RESUME_FAILED']
+        ]
         with patch.multiple(task,
-                sleep=0,
-                get_heat_client=Mock(return_value=mock_heat_client)):
-            res = task.run(self.stack_name, self.auth_url)
+            get_heat_client=Mock(return_value=mock_heat_client)
+        ):
+            res = task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_not_called()
 
     def test_dont_suspend_suspending_stack(self):
         task = SuspendStackTask()
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [
-                self.stacks['SUSPEND_IN_PROGRESS']]
+            self.stacks['SUSPEND_IN_PROGRESS']
+        ]
         with patch.multiple(task,
-                sleep=0,
-                get_heat_client=Mock(return_value=mock_heat_client)):
-            res = task.run(self.stack_name, self.auth_url)
+            get_heat_client=Mock(return_value=mock_heat_client)
+        ):
+            res = task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_not_called()
 
     def test_dont_suspend_suspended_stack(self):
         task = SuspendStackTask()
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [
-                self.stacks['SUSPEND_COMPLETE']]
+            self.stacks['SUSPEND_COMPLETE']
+        ]
         with patch.multiple(task,
-                sleep=0,
-                get_heat_client=Mock(return_value=mock_heat_client)):
-            res = task.run(self.stack_name, self.auth_url)
+            get_heat_client=Mock(return_value=mock_heat_client)
+        ):
+            res = task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_not_called()
 
     def test_wait_for_create_during_suspend(self):
         task = SuspendStackTask()
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [
-                self.stacks['CREATE_IN_PROGRESS'],
-                self.stacks['CREATE_IN_PROGRESS'],
-                self.stacks['CREATE_IN_PROGRESS'],
-                self.stacks['CREATE_COMPLETE']]
+            self.stacks['CREATE_IN_PROGRESS'],
+            self.stacks['CREATE_IN_PROGRESS'],
+            self.stacks['CREATE_IN_PROGRESS'],
+            self.stacks['CREATE_COMPLETE']
+        ]
         with patch.multiple(task,
-                sleep=0,
-                get_heat_client=Mock(return_value=mock_heat_client)):
-            res = task.run(self.stack_name, self.auth_url)
+            get_heat_client=Mock(return_value=mock_heat_client)
+        ):
+            res = task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_called_with(
-                    stack_id=self.stack_name)
+                stack_id=self.stack_name
+            )
 
     def test_dont_wait_forever_during_suspend(self):
         task = SuspendStackTask()
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [
-                self.stacks['CREATE_IN_PROGRESS'],
-                self.stacks['CREATE_IN_PROGRESS'],
-                self.stacks['CREATE_IN_PROGRESS'],
-                self.stacks['CREATE_IN_PROGRESS'],
-                self.stacks['CREATE_IN_PROGRESS']]
+            self.stacks['CREATE_IN_PROGRESS'],
+            self.stacks['CREATE_IN_PROGRESS'],
+            self.stacks['CREATE_IN_PROGRESS'],
+            self.stacks['CREATE_IN_PROGRESS'],
+            self.stacks['CREATE_IN_PROGRESS']
+        ]
         with patch.multiple(task,
-                sleep=0, retries=3,
-                get_heat_client=Mock(return_value=mock_heat_client)):
-            res = task.run(self.stack_name, self.auth_url)
+            get_heat_client=Mock(return_value=mock_heat_client)
+        ):
+            self.configuration['task_timeouts']['retries'] = 3
+            res = task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_not_called()
 
     def test_check_student_progress(self):
@@ -273,14 +462,23 @@ class TestHastexoTasks(TestCase):
         mock_stdout_fail = Mock()
         mock_stdout_fail.channel.recv_exit_status.return_value = 1
         mock_ssh.exec_command.side_effect = [
-                (None, mock_stdout_pass, None),
-                (None, mock_stdout_fail, None),
-                (None, mock_stdout_pass, None)]
-        tests = ['test pass',
-                 'test fail',
-                 'test pass']
+            (None, mock_stdout_pass, None),
+            (None, mock_stdout_fail, None),
+            (None, mock_stdout_pass, None)
+        ]
+        tests = [
+            'test pass',
+            'test fail',
+            'test pass'
+        ]
         with patch.object(task, 'open_ssh_connection', Mock(return_value=mock_ssh)):
-            res = task.run(tests, self.stack_ip, self.stack_name, self.stack_user)
+            res = task.run(
+                self.configuration,
+                tests,
+                self.stack_ip,
+                self.stack_name,
+                self.stack_user
+            )
             assert res['status'] == 'COMPLETE'
             assert res['pass'] == 2
             assert res['total'] == 3

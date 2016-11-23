@@ -25,6 +25,7 @@ import re
 
 from optparse import OptionParser, OptionError
 from hastexo.swift import SwiftWrapper
+from hastexo.utils import SETTINGS_KEY, DEFAULT_SETTINGS, get_xblock_configuration
 from concurrent import futures
 
 # Python 3 compatibility
@@ -124,22 +125,26 @@ def valid_ip(ipaddr):
         except socket.error:
             return False
 
-def download_identity(identity, identity_path):
+def download_identity(provider, identity, identity_path):
     # Load LMS env file
     lms_env_path = '/edx/app/edxapp/lms.env.json'
     with open(lms_env_path) as env_file:
         tokens = json.load(env_file)
 
-    # Get settings
+    # Get configuration
     xblock_settings = tokens.get('XBLOCK_SETTINGS')
-    configuration = xblock_settings.get('hastexo')
+    if xblock_settings:
+        settings = xblock_settings.get(SETTINGS_KEY, DEFAULT_SETTINGS)
+    else:
+        settings = DEFAULT_SETTINGS
+    configuration = get_xblock_configuration(settings, provider)
 
     # Download it, if necessary
     if configuration.get('ssh_upload'):
-        swift = SwiftWrapper(configuration)
+        swift = SwiftWrapper(**configuration)
         swift.download_key(identity, identity_path)
 
-def openssh_connect(user, host, identity,
+def openssh_connect(user, host, provider, identity,
         port=22,
         config=None,
         env=None,
@@ -203,7 +208,7 @@ def openssh_connect(user, host, identity,
 
     # Download it
     identity_path = os.path.join(users_ssh_dir, identity)
-    download_identity(identity, identity_path)
+    download_identity(provider, identity, identity_path)
 
     ssh_config_path = os.path.join(users_ssh_dir, 'config')
     if not os.path.exists(ssh_config_path):
@@ -314,6 +319,7 @@ def parse_url(url):
             'host': host,
             'port': port,
             'password': password,
+            'provider': provider,
             'identity': identity,
             'debug': debug
         }
@@ -325,11 +331,11 @@ def parse_url(url):
 
     SSH identity may be specified as a query string:
 
-        ssh://user@host:22/?identity=id_rsa
+        ssh://user@host:22/?provider=name&identity=id_rsa
 
     .. note::
 
-        *password* and *identity* may be returned as None
+        *password*, *provider*, and *identity* may be returned as None
     """
     identity = None
     debug = False
@@ -373,7 +379,7 @@ def bad_chars(chars):
 
         This is to prevent things like "ssh://user@host && <malicious commands>"
     """
-    bad_chars = re.compile('.*[\$\n\!\;&` |<>].*')
+    bad_chars = re.compile('.*[\$\n\!\;` |<>].*')
     if bad_chars.match(chars):
         return True
     return False
@@ -413,11 +419,12 @@ def main():
             user = parsed.get('user')
             host = parsed.get('host')
             port = parsed.get('port')
+            provider = parsed.get('provider')
             identity = parsed.get('identity')
             debug=parsed.get('debug', False)
 
             # Connect
-            openssh_connect(user, host, identity,
+            openssh_connect(user, host, provider, identity,
                 port=port,
                 additional_args=options.additional_args,
                 debug=debug
@@ -446,6 +453,7 @@ def main():
         user = parsed.get('user')
         host = parsed.get('host')
         port = parsed.get('port')
+        provider = parsed.get('provider')
         identity = parsed.get('identity')
         debug = parsed.get('debug', False)
 
@@ -482,7 +490,7 @@ def main():
         print("\x1b]_;ssh|set;connect_string;{0}\007".format(connect_string))
 
         # Connect
-        openssh_connect(user, host, identity,
+        openssh_connect(user, host, provider, identity,
             port=port,
             additional_args=options.additional_args,
             debug=debug

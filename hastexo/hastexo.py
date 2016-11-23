@@ -15,7 +15,7 @@ from xmodule.contentstore.django import contentstore
 from xmodule.exceptions import NotFoundError
 from opaque_keys import InvalidKeyError
 
-from .utils import UP_STATES
+from .utils import UP_STATES, SETTINGS_KEY, DEFAULT_SETTINGS, get_xblock_configuration
 from .tasks import LaunchStackTask, SuspendStackTask, CheckStudentProgressTask
 
 logger = logging.getLogger(__name__)
@@ -45,60 +45,10 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
     stack_user_name = String(
         scope=Scope.settings,
         help="The name of the training user in the stack.")
-
-    # Not used: only set here for backward compatibility.  They are now set via
-    # XBlock settings exclusively.
-    launch_timeout = Integer(
+    provider = String(
+        default="default",
         scope=Scope.settings,
-        help="How long to wait for a launch task, in seconds")
-    suspend_timeout = Integer(
-        scope=Scope.settings,
-        help="How long to wait until stack is suspended, in seconds")
-    terminal_url = String(
-        scope=Scope.settings,
-        help="Where the terminal server is running.")
-    os_auth_url = String(
-        scope=Scope.settings,
-        help="The OpenStack authentication URL.")
-    os_auth_token = String(
-        scope=Scope.settings,
-        help="The OpenStack authentication token.")
-    os_username = String(
-        scope=Scope.settings,
-        help="The OpenStack user name.")
-    os_password = String(
-        scope=Scope.settings,
-        help="The OpenStack password.")
-    os_user_id = String(
-        scope=Scope.settings,
-        help="The OpenStack user ID. (v3 API)")
-    os_user_domain_id = String(
-        scope=Scope.settings,
-        help="The OpenStack user domain ID. (v3 API)")
-    os_user_domain_name = String(
-        scope=Scope.settings,
-        help="The OpenStack user domain name. (v3 API)")
-    os_project_id = String(
-        scope=Scope.settings,
-        help="The OpenStack project ID. (v3 API)")
-    os_project_name = String(
-        scope=Scope.settings,
-        help="The OpenStack project name. (v3 API)")
-    os_project_domain_id = String(
-        scope=Scope.settings,
-        help="The OpenStack project domain ID. (v3 API)")
-    os_project_domain_name = String(
-        scope=Scope.settings,
-        help="The OpenStack project domain name. (v3 API)")
-    os_region_name = String(
-        scope=Scope.settings,
-        help="The OpenStack region name.")
-    os_tenant_id = String(
-        scope=Scope.settings,
-        help="The OpenStack tenant ID. (v2.0 API)")
-    os_tenant_name = String(
-        scope=Scope.settings,
-        help="The OpenStack tenant name. (v2.0 API)")
+        help="Where to launch the stack.")
 
     # Optional
     instructions_path = String(
@@ -143,13 +93,14 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         'display_name',
         'weight',
         'stack_template_path',
-        'stack_user_name')
+        'stack_user_name',
+        'provider')
 
     has_author_view = True
     has_score = True
     has_children = True
     icon_class = 'problem'
-    block_settings_key = 'hastexo'
+    block_settings_key = SETTINGS_KEY
 
     @classmethod
     def parse_xml(cls, node, runtime, keys, id_generator):
@@ -246,7 +197,8 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         frag.initialize_js('HastexoXBlock', {
             "terminal_url": self.configuration.get("terminal_url"),
             "timeouts": self.configuration.get("js_timeouts"),
-            "has_tests": len(self.tests) > 0
+            "has_tests": len(self.tests) > 0,
+            "provider": self.provider
         })
 
         return frag
@@ -256,68 +208,8 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         Get the configuration data for the student_view.
 
         """
-        defaults = {
-            "launch_timeout": 300,
-            "suspend_timeout": 120,
-            "terminal_url": "/terminal",
-            "ssh_dir": "/edx/var/edxapp/terminal_users/ANONYMOUS/.ssh",
-            "ssh_upload": False,
-            "ssh_bucket": "identities",
-            "task_timeouts": {
-                "sleep": 5,
-                "retries": 60
-            },
-            "js_timeouts": {
-                "status": 10000,
-                "keepalive": 15000,
-                "idle": 600000,
-                "check": 5000
-            }
-        }
-
-        settings = self.get_xblock_settings(default=defaults)
-
-        # Set defaults
-        launch_timeout = settings.get("launch_timeout", defaults["launch_timeout"])
-        suspend_timeout = settings.get("suspend_timeout", defaults["suspend_timeout"])
-        terminal_url = settings.get("terminal_url", defaults["terminal_url"])
-        ssh_dir = settings.get("ssh_dir", defaults["ssh_dir"])
-        ssh_upload = settings.get("ssh_upload", defaults["ssh_upload"])
-        ssh_bucket = settings.get("ssh_bucket", defaults["ssh_bucket"])
-        task_timeouts = settings.get("task_timeouts", defaults["task_timeouts"])
-        js_timeouts = settings.get("js_timeouts", defaults["js_timeouts"])
-
-        # tenant_name and tenant_id are deprecated
-        os_project_name = settings.get("os_project_name")
-        if not os_project_name and settings.get("os_tenant_name"):
-            os_project_name = settings.get("os_tenant_name")
-
-        os_project_id = settings.get("os_project_id")
-        if not os_project_id and settings.get("os_tenant_id"):
-            os_project_id = settings.get("os_tenant_id")
-
-        return {
-            "launch_timeout": launch_timeout,
-            "suspend_timeout": suspend_timeout,
-            "terminal_url": terminal_url,
-            "ssh_dir": ssh_dir,
-            "ssh_upload": ssh_upload,
-            "ssh_bucket": ssh_bucket,
-            "task_timeouts": task_timeouts,
-            "js_timeouts": js_timeouts,
-            "os_auth_url": settings.get("os_auth_url"),
-            "os_auth_token": settings.get("os_auth_token"),
-            "os_username": settings.get("os_username"),
-            "os_password": settings.get("os_password"),
-            "os_user_id": settings.get("os_user_id"),
-            "os_user_domain_id": settings.get("os_user_domain_id"),
-            "os_user_domain_name": settings.get("os_user_domain_name"),
-            "os_project_id": os_project_id,
-            "os_project_name": os_project_name,
-            "os_project_domain_id": settings.get("os_project_domain_id"),
-            "os_project_domain_name": settings.get("os_project_domain_name"),
-            "os_region_name": settings.get("os_region_name")
-        }
+        settings = self.get_xblock_settings(default=DEFAULT_SETTINGS)
+        return get_xblock_configuration(settings, self.provider)
 
     def stack_set(self, prop, value):
         if not self.stacks.get(self.stack_name):
@@ -334,21 +226,6 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
 
         return retval
 
-    def get_os_auth_kwargs(self):
-        return {
-            'auth_token': self.configuration.get('os_auth_token'),
-            'username': self.configuration.get('os_username'),
-            'password': self.configuration.get('os_password'),
-            'user_id': self.configuration.get('os_user_id'),
-            'user_domain_id': self.configuration.get('os_user_domain_id'),
-            'user_domain_name': self.configuration.get('os_user_domain_name'),
-            'project_id': self.configuration.get('os_project_id'),
-            'project_name': self.configuration.get('os_project_name'),
-            'project_domain_id': self.configuration.get('os_project_domain_id'),
-            'project_domain_name': self.configuration.get('os_project_domain_name'),
-            'region_name': self.configuration.get('os_region_name')
-        }
-
     def suspend_user_stack(self):
         suspend_timeout = self.configuration.get("suspend_timeout")
         if suspend_timeout:
@@ -361,13 +238,10 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
                 self.stack_set("suspend_id", None)
 
             # (Re)schedule the suspension in the future.
-            args = (self.configuration, self.stack_name, self.configuration.get('os_auth_url'))
-            kwargs = self.get_os_auth_kwargs()
+            args = (self.configuration, self.stack_name)
             task = SuspendStackTask()
             logger.debug('Scheduling suspend task for [%s] in %s seconds' % (self.stack_name, suspend_timeout))
-            result = task.apply_async(args=args,
-                                      kwargs=kwargs,
-                                      countdown=suspend_timeout)
+            result = task.apply_async(args=args, countdown=suspend_timeout)
             self.stack_set("suspend_id", result.id)
             self.stack_set("suspend_timestamp", int(time.time()))
 
@@ -379,14 +253,11 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
                 self.stack_name,
                 self.stack_template,
                 self.stack_user_name,
-                reset,
-                self.configuration.get('os_auth_url'))
-            kwargs = self.get_os_auth_kwargs()
+                reset)
 
             logger.info('Firing async launch task for [%s]' % (self.stack_name))
             task = LaunchStackTask()
-            result = task.apply_async(args=args, kwargs=kwargs,
-                    expires=self.configuration.get('launch_timeout'))
+            result = task.apply_async(args=args, expires=self.configuration.get('launch_timeout'))
 
             logger.debug('Launch task id for stack [%s] is: [%s]' % (self.stack_name, result.id))
 
