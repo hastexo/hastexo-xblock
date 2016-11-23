@@ -9,10 +9,6 @@ from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 from xblockutils.settings import XBlockWithSettingsMixin
-from xmodule.contentstore.content import StaticContent
-from xmodule.contentstore.django import contentstore
-from xmodule.exceptions import NotFoundError
-from opaque_keys import InvalidKeyError
 
 from .utils import UP_STATES, SETTINGS_KEY, DEFAULT_SETTINGS, get_xblock_configuration
 from .tasks import LaunchStackTask, SuspendStackTask, CheckStudentProgressTask
@@ -138,35 +134,62 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
                 score = self.check_status.get('pass')
                 return score == total
 
+    def get_block_ids(self):
+        user_id = self.xmodule_runtime.anonymous_student_id
+        course_id = self.xmodule_runtime.course_id
+        course_code = course_id.course
+
+        return (user_id, course_id, course_code)
+
+    def get_stack_template(self, course_id):
+        """
+        Load the stack template directly from the course's content store.
+
+        Note: accessing the contentstore directly is not supported by the
+        XBlock API, so this depends on keeping pace with changes to
+        edx-platform itself.  Because of it, this should be replaced with an
+        HTTP GET to the LMS, in the future.
+
+        """
+        stack_template = None
+        try:
+            from xmodule.contentstore.content import StaticContent
+            from xmodule.contentstore.django import contentstore
+            from xmodule.exceptions import NotFoundError
+
+            loc = StaticContent.compute_location(course_id, self.stack_template_path)
+            asset = contentstore().find(loc)
+            stack_template = asset.data
+        except ImportError, NotFoundError:
+            pass
+
+        return stack_template
+
     def student_view(self, context=None):
         """
         The primary view of the HastexoXBlock, shown to students when viewing
         courses.
         """
-        # Load configuration
-        self.configuration = self.get_configuration()
-
-        # Get the course id and anonymous user id, and derive the stack name
-        # from them
-        user_id = self.xmodule_runtime.anonymous_student_id
-        course_id = self.xmodule_runtime.course_id
-        course_code = course_id.course
-        self.stack_name = "%s_%s" % (course_code, user_id)
-
-        def error_out(msg):
+        def error_frag(msg):
+            """ Build a fragment to display runtime errors. """
             context = {'error_msg': msg}
             html = loader.render_template('static/html/error.html', context)
             frag = Fragment(html)
             frag.add_css_url(self.runtime.local_resource_url(self, 'public/css/main.css'))
             return frag
 
+        # Load configuration
+        self.configuration = self.get_configuration()
+
+        # Get the course id and anonymous user id, and derive the stack name
+        # from them
+        user_id, course_id, course_code = self.get_block_ids()
+        self.stack_name = "%s_%s" % (course_code, user_id)
+
         # Load the stack template from the course's content store
-        try:
-            loc = StaticContent.compute_location(course_id, self.stack_template_path)
-            asset = contentstore().find(loc)
-            self.stack_template = asset.data
-        except NotFoundError as detail:
-            return error_out('Stack template not found: {0}'.format(detail))
+        self.stack_template = self.get_stack_template(course_id)
+        if not self.stack_template:
+            return error_frag('Stack template not found.')
 
         # Render the HTML template
         html = loader.render_template('static/html/main.html')
@@ -229,6 +252,16 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             self.stack_set("suspend_id", result.id)
             self.stack_set("suspend_timestamp", int(time.time()))
 
+    def launch_stack_task(self, args):
+        task = LaunchStackTask()
+        result = task.apply_async(args=args, expires=self.configuration.get('launch_timeout'))
+        logger.debug('Launch task id for stack [%s] is: [%s]' % (self.stack_name, result.id))
+
+        return result
+
+    def launch_stack_task_result(self, task_id):
+        return LaunchStackTask().AsyncResult(task_id)
+
     @XBlock.json_handler
     def get_user_stack_status(self, data, suffix=''):
         def _launch_stack(reset = False):
@@ -237,13 +270,11 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
                 self.stack_name,
                 self.stack_template,
                 self.stack_user_name,
-                reset)
+                reset
+            )
 
             logger.info('Firing async launch task for [%s]' % (self.stack_name))
-            task = LaunchStackTask()
-            result = task.apply_async(args=args, expires=self.configuration.get('launch_timeout'))
-
-            logger.debug('Launch task id for stack [%s] is: [%s]' % (self.stack_name, result.id))
+            result = self.launch_stack_task(args)
 
             # Save task ID and timestamp
             self.stack_set("launch_id", result.id)
@@ -308,7 +339,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         # There was a previous attempt at launching the stack
         elif last_status_string == "PENDING":
             # Update task result
-            result = LaunchStackTask().AsyncResult(self.stack_get("launch_id"))
+            result = self.launch_stack_task_result(self.stack_get("launch_id"))
             status = _process_result(result)
 
             current_status_string = status.get('status')

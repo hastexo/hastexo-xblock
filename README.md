@@ -395,12 +395,12 @@ And this must be set in `/etc/gateone/conf.d/10server.conf`:
 
 ## Running tests
 
-Run available tests as `edxapp` on devstack:
+To run the available tests:
 
 ```
-$ sudo su edxapp
-$ cd ~/venvs/edxapp/src/hastexo-xblock
-$ nosetests hastexo/tests -v
+$ mkvirtualenv hastexo-xblock
+$ ./install_test_deps.sh
+$ ./run_tests.py
 ```
 
 
