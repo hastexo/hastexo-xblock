@@ -1,7 +1,6 @@
 import json
 import logging
 import textwrap
-import markdown2
 import time
 
 from xblock.core import XBlock
@@ -49,11 +48,6 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         default="default",
         scope=Scope.settings,
         help="Where to launch the stack.")
-
-    # Optional
-    instructions_path = String(
-        scope=Scope.settings,
-        help="The relative path to the markdown lab instructions.  For example, \"markdown_lab.md\".")
 
     # Set exclusively via XML
     tests = List(
@@ -174,18 +168,8 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         except NotFoundError as detail:
             return error_out('Stack template not found: {0}'.format(detail))
 
-        # Load the instructions and convert from markdown
-        instructions = None
-        try:
-            loc = StaticContent.compute_location(course_id, self.instructions_path)
-            asset = contentstore().find(loc)
-            instructions = markdown2.markdown(asset.data)
-        except (NotFoundError, InvalidKeyError, AttributeError):
-            pass
-
         # Render the HTML template
-        html_context = {'instructions': instructions}
-        html = loader.render_template('static/html/main.html', html_context)
+        html = loader.render_template('static/html/main.html')
         frag = Fragment(html)
 
         # Add the public CSS and JS

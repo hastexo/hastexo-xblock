@@ -10,13 +10,6 @@
     color: red;
 }
 
-.instructions {
-    height: 20em;
-    overflow-y: auto;
-    margin-bottom: 1em;
-    box-shadow: .5em .5em .5em black;
-}
-
 #gateonecontainer {
     position: relative;
     width: 100%;

@@ -295,9 +295,6 @@ configured with the following attributes:
 * `stack_user_name`: The name of the user that the Xblock will use to connect
   to the environment via SSH, as specified in the Heat template.
 
-* `instructions_path`: (Optional) The static asset path to markdown lab
-  instructions stored in the content store.
-
 * `provider`: (Optional) The name of an OpenStack provider configured in the
   platform.
 
@@ -307,7 +304,6 @@ For example, in XML:
 <vertical url_name="lab_introduction">
   <hastexo
     url_name="lab_introduction"
-    instructions_path="markdown_lab.md"
     stack_template_path="hot_lab.yaml"
     stack_user_name="training"
     provider="default" />

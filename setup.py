@@ -36,7 +36,6 @@ setup(
     install_requires=[
         'XBlock',
         'xblock-utils',
-        'markdown2==2.3.0',
         'keystoneauth1==2.14.0',
         'python-keystoneclient==2.0.0',
         'python-heatclient==0.8.0',
