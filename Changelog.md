@@ -1,0 +1,14 @@
+Version 0.4.0 (2016-11-23)
+---------------------------
+
+* [Settings change] Multiple cloud providers
+* [Breaks backward compatibility] Remove support for markdown instructions
+* [Testing] Improve unit tests
+
+Version 0.3.0 (2016-11-17)
+---------------------------
+
+* [UI change] Improve idle message
+* [UI change] Implement reset button
+* [UI change] Hide check progress button if there are no tests
+* [Logging] Restructure log levels
