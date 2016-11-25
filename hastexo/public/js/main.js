@@ -211,7 +211,7 @@ function HastexoXBlock(runtime, element, configuration) {
         $('#check_pending').dialog(element);
 
         var show_error = function(error_msg) {
-            dialog = $('#check_error');
+            var dialog = $('#check_error');
             dialog.find('.error_msg').html(error_msg);
             dialog.find('input.ok').one('click', function() {
                 $.dialog.close();
