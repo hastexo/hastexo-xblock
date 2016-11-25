@@ -518,12 +518,11 @@ class CheckStudentProgressTask(Task):
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         key_filename = "%s/%s" % (configuration.get('ssh_dir'), stack_name)
-        if not os.path.exists(key_filename):
-            # Download key, if necessary
-            if configuration.get('ssh_upload', False):
-                self.download_key(stack_name, key_filename, configuration)
-            else:
-                raise Exception
+
+        # Always try to download key, as it may have changed since the last
+        # download (via a stack reset, for instance).
+        if configuration.get('ssh_upload', False):
+            self.download_key(stack_name, key_filename, configuration)
 
         ssh.connect(stack_ip, username=stack_user, key_filename=key_filename)
 
