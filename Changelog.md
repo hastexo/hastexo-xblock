@@ -1,3 +1,9 @@
+Version 0.4.1 (2016-11-25)
+---------------------------
+
+* [Bug fix] Always download key during progress check
+* [Bug fix] Fix check progress endless hang
+
 Version 0.4.0 (2016-11-23)
 ---------------------------
 

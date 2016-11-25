@@ -28,7 +28,7 @@ def package_data(pkg, roots):
 
 setup(
     name='hastexo-xblock',
-    version='0.4.0',
+    version='0.4.1',
     description='hastexo XBlock',
     packages=[
         'hastexo',
