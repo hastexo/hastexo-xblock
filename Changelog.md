@@ -1,3 +1,8 @@
+Version 0.4.2 (2016-12-02)
+---------------------------
+
+* [Bug fix] Fix ssh connection failure when a provider is set
+
 Version 0.4.1 (2016-11-25)
 ---------------------------
 
