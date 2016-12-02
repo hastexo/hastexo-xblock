@@ -337,6 +337,7 @@ def parse_url(url):
 
         *password*, *provider*, and *identity* may be returned as None
     """
+    provider = None
     identity = None
     debug = False
 
@@ -350,6 +351,7 @@ def parse_url(url):
     parsed = urlparse(url)
     if parsed.query:
         q_attrs = parse_qs(parsed.query)
+        provider = q_attrs.get('provider')[0]
         identity = q_attrs.get('identity')[0]
         debug = q_attrs.get('debug', False)
         if debug: # Passing anything turns on debug
@@ -366,6 +368,7 @@ def parse_url(url):
         'host': parsed.hostname,
         'port': port,
         'password': parsed.password,
+        'provider': provider,
         'identity': identity,
         'debug': debug
     }
