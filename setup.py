@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Setup for hastexo XBlock."""
 
 import os
