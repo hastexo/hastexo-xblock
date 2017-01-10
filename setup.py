@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Setup for hastexo XBlock."""
 
 import os
@@ -29,7 +30,21 @@ def package_data(pkg, roots):
 setup(
     name='hastexo-xblock',
     version='0.4.2',
-    description='hastexo XBlock',
+    description='hastexo XBlock: Makes arbitrarily complex lab environments available on an Open edX LMS',
+    url='https://github.com/hastexo/hastexo-xblock',
+    author='hastexo',
+    author_email='pypi@hastexo.com',
+    license='AGPL-3.0',
+    classifiers=[
+        'Development Status :: 4 - Beta',
+        'Environment :: OpenStack',
+        'Framework :: Django',
+        'Intended Audience :: Education',
+        'License :: OSI Approved :: GNU Affero General Public License v3',
+        'Operating System :: POSIX :: Linux',
+        'Topic :: Education :: Computer Aided Instruction (CAI)',
+        'Topic :: Education',
+    ],
     packages=[
         'hastexo',
     ],
