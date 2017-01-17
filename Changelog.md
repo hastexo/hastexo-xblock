@@ -1,3 +1,9 @@
+Version 0.4.3 (2017-01-17)
+---------------------------
+
+* [Bug fix] Freeze oslo
+* [Enhancement] Add PyPI metadata
+
 Version 0.4.2 (2016-12-02)
 ---------------------------
 
