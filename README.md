@@ -1,3 +1,5 @@
+[![PyPI version](https://img.shields.io/pypi/v/hastexo-xblock.svg)](https://pypi.python.org/pypi/hastexo-xblock)
+
 # hastexo XBlock
 
 The hastexo [XBlock](https://xblock.readthedocs.org/en/latest/) is an
