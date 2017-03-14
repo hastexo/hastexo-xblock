@@ -51,15 +51,10 @@ setup(
     install_requires=[
         'XBlock',
         'xblock-utils',
-        'keystoneauth1==2.14.0',
-        'python-keystoneclient==2.0.0',
-        'python-heatclient==0.8.0',
-        'python-swiftclient==3.1.0',
-        'oslo.utils==3.16.0',
-        'oslo.config==3.17.0',
-        'oslo.i18n==3.9.0',
-        'oslo.serialization==2.13.0',
-        'paramiko==2.0.2',
+        'python-keystoneclient==3.10.0',
+        'python-heatclient==1.8.0',
+        'python-swiftclient==3.3.0',
+        'paramiko==2.1.2',
     ],
     entry_points={
         'xblock.v1': [
