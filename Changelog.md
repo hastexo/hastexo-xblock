@@ -1,3 +1,8 @@
+Version 0.5.1 (2017-05-02)
+---------------------------
+
+* [Enhancement] Tune requirements for latest edx-platform
+
 Version 0.5.0 (2017-03-14)
 ---------------------------
 
