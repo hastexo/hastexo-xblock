@@ -1,10 +1,9 @@
-import json
 import logging
 import textwrap
 import time
 
 from xblock.core import XBlock
-from xblock.fields import Scope, Boolean, Integer, Float, String, Dict, List
+from xblock.fields import Scope, Float, String, Dict, List
 from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin

@@ -1,1 +1,1 @@
-from .hastexo import HastexoXBlock
+from .hastexo import HastexoXBlock  # noqa: F401
