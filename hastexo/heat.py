@@ -2,6 +2,7 @@ from keystoneauth1.identity import generic
 from keystoneauth1 import session as kssession
 from heatclient import client as heat_client
 
+
 class HeatWrapper(object):
     """
     A class that wraps the Heat service for the Hastexo XBlock.

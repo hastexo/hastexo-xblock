@@ -4,6 +4,7 @@
 import os
 from setuptools import setup
 
+
 def package_scripts(root_list):
     data = []
     for root in root_list:
@@ -11,6 +12,7 @@ def package_scripts(root_list):
             for fname in files:
                 data.append(os.path.join(dirname, fname))
     return data
+
 
 def package_data(pkg, roots):
     """Generic function to find package_data.
@@ -26,6 +28,7 @@ def package_data(pkg, roots):
                 data.append(os.path.relpath(os.path.join(dirname, fname), pkg))
 
     return {pkg: data}
+
 
 setup(
     name='hastexo-xblock',

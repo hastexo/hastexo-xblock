@@ -9,6 +9,7 @@ from workbench.runtime import WorkbenchRuntime
 from xblock.fields import ScopeIds
 from xblock.runtime import KvsFieldData, DictKeyValueStore
 
+
 def make_request(data, method='POST'):
     """
     Make a webob JSON request
@@ -85,10 +86,8 @@ class TestHastexoXBlock(unittest.TestCase):
             launch_stack_task=mock_launch_stack_task,
             suspend_user_stack=mock_suspend_user_stack
         ):
-            data = {
-                "initialize": True,
-                "reset": False
-            }
+            data = { "initialize": True,
+                     "reset": False }
             result = self.call_handler("get_user_stack_status", data)
 
         self.assertEqual(result, mock_result.result)

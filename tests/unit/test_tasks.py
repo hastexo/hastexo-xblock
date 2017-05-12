@@ -3,6 +3,7 @@ from mock import Mock, patch
 from heatclient.exc import HTTPNotFound
 from hastexo.tasks import LaunchStackTask, SuspendStackTask, CheckStudentProgressTask
 
+
 class TestHastexoTasks(TestCase):
     def setUp(self):
         self.stack_states = {

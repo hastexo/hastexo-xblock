@@ -27,6 +27,7 @@ DEFAULT_SETTINGS = {
     }
 }
 
+
 def get_xblock_configuration(settings, provider):
     # Set defaults
     launch_timeout = settings.get("launch_timeout", DEFAULT_SETTINGS["launch_timeout"])

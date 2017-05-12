@@ -50,6 +50,7 @@ rm -f {temp} # Cleanup
 exit 0
 """
 
+
 def mkdir_p(path):
     """Pythonic version of mkdir -p"""
     try:
@@ -58,6 +59,7 @@ def mkdir_p(path):
         if exc.errno == errno.EEXIST:
             pass
         else: raise
+
 
 def which(binary, path=None):
     """
@@ -79,6 +81,7 @@ def which(binary, path=None):
             return os.path.join(path, binary)
 
     return None
+
 
 def valid_hostname(hostname):
     """
@@ -107,6 +110,7 @@ def valid_hostname(hostname):
 
     return all(allowed.match(x) for x in hostname.split("."))
 
+
 def valid_ip(ipaddr):
     """
     Returns True if *ipaddr* is a valid IPv4 or IPv6 address.
@@ -124,6 +128,7 @@ def valid_ip(ipaddr):
             return True
         except socket.error:
             return False
+
 
 def download_identity(provider, identity, identity_path):
     # Load LMS env file
@@ -143,6 +148,7 @@ def download_identity(provider, identity, identity_path):
     if configuration.get('ssh_upload'):
         swift = SwiftWrapper(**configuration)
         swift.download_key(identity, identity_path)
+
 
 def openssh_connect(user, host, provider, identity,
         port=22,
@@ -309,6 +315,7 @@ def openssh_connect(user, host, provider, identity,
     os.execvpe('/bin/sh', args, env)
     os._exit(0)
 
+
 def parse_url(url):
     """
     Parses a URL like, 'ssh://user@host:22' and returns a dict of::
@@ -373,6 +380,7 @@ def parse_url(url):
         'debug': debug
     }
 
+
 def bad_chars(chars):
     """
     Returns ``False`` if the given *chars* are OK, ``True`` if there's bad
@@ -386,6 +394,7 @@ def bad_chars(chars):
     if bad_chars.match(chars):
         return True
     return False
+
 
 def main():
     """
@@ -509,6 +518,7 @@ def main():
         traceback.print_exc(file=sys.stdout)
         raw_input("[Press any key to close this terminal]")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     # No zombies
