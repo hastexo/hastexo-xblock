@@ -61,8 +61,8 @@ class LaunchStackTask(Task):
 
         # Roll back in case of failure: if it's a failure during creation,
         # delete the stack.  If it's a failure to resume, suspend it.
-        if (status == 'CREATE_FAILED'
-            or (status == 'CREATE_COMPLETE' and verify_status != 'VERIFY_COMPLETE')):  # noqa: E501
+        if (status == 'CREATE_FAILED' or
+            (status == 'CREATE_COMPLETE' and verify_status != 'VERIFY_COMPLETE')):  # noqa: E501
             logger.error("Deleting unsuccessfully "
                          "launched stack [%s] with status [%s] "
                          "and verify status [%s]" % (stack.id,
@@ -70,8 +70,8 @@ class LaunchStackTask(Task):
                                                      verify_status))
             heat.stacks.delete(stack_id=stack.id)
             status = 'CREATE_FAILED'
-        elif (status == 'RESUME_FAILED'
-              or (status == 'RESUME_COMPLETE' and verify_status != 'VERIFY_COMPLETE')):  # noqa: E501
+        elif (status == 'RESUME_FAILED' or
+              (status == 'RESUME_COMPLETE' and verify_status != 'VERIFY_COMPLETE')):  # noqa: E501
             logger.error("Suspending unsuccessfully "
                          "resumed stack [%s] with status [%s] "
                          "and verify status [%s]" % (stack.id,
