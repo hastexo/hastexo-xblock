@@ -1,7 +1,9 @@
 from unittest import TestCase
 from mock import Mock, patch
 from heatclient.exc import HTTPNotFound
-from hastexo.tasks import LaunchStackTask, SuspendStackTask, CheckStudentProgressTask
+from hastexo.tasks import LaunchStackTask, SuspendStackTask
+from hastexo.tasks import CheckStudentProgressTask
+
 
 class TestHastexoTasks(TestCase):
     def setUp(self):
@@ -77,11 +79,12 @@ class TestHastexoTasks(TestCase):
         mock_heat_client.stacks.create.return_value = {
             'stack': {'id': self.stack_name}
         }
-        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE', None, self.stack_ip))
+        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
+                                               None,
+                                               self.stack_ip))
         with patch.multiple(task,
-            get_heat_client=Mock(return_value=mock_heat_client),
-            verify_stack=mock_verify_stack
-        ):
+                            get_heat_client=Mock(return_value=mock_heat_client),  # noqa: E501
+                            verify_stack=mock_verify_stack):
             res = task.run(
                 self.configuration,
                 self.stack_name,
@@ -114,11 +117,12 @@ class TestHastexoTasks(TestCase):
         mock_heat_client.stacks.create.return_value = {
             'stack': {'id': self.stack_name}
         }
-        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE', None, self.stack_ip))
+        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
+                                               None,
+                                               self.stack_ip))
         with patch.multiple(task,
-            get_heat_client=Mock(return_value=mock_heat_client),
-            verify_stack=mock_verify_stack
-        ):
+                            get_heat_client=Mock(return_value=mock_heat_client),  # noqa: E501
+                            verify_stack=mock_verify_stack):
             res = task.run(
                 self.configuration,
                 self.stack_name,
@@ -152,11 +156,12 @@ class TestHastexoTasks(TestCase):
         mock_heat_client.stacks.create.return_value = {
             'stack': {'id': self.stack_name}
         }
-        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE', None, self.stack_ip))
+        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
+                                               None,
+                                               self.stack_ip))
         with patch.multiple(task,
-            get_heat_client=Mock(return_value=mock_heat_client),
-            verify_stack=mock_verify_stack
-        ):
+                            get_heat_client=Mock(return_value=mock_heat_client),  # noqa: E501
+                            verify_stack=mock_verify_stack):
             res = task.run(
                 self.configuration,
                 self.stack_name,
@@ -186,11 +191,12 @@ class TestHastexoTasks(TestCase):
             self.stacks['RESUME_IN_PROGRESS'],
             self.stacks['RESUME_COMPLETE']
         ]
-        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE', None, self.stack_ip))
+        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
+                                               None,
+                                               self.stack_ip))
         with patch.multiple(task,
-            get_heat_client=Mock(return_value=mock_heat_client),
-            verify_stack=mock_verify_stack
-        ):
+                            get_heat_client=Mock(return_value=mock_heat_client),  # noqa: E501
+                            verify_stack=mock_verify_stack):
             res = task.run(
                 self.configuration,
                 self.stack_name,
@@ -220,11 +226,12 @@ class TestHastexoTasks(TestCase):
             self.stacks['RESUME_IN_PROGRESS'],
             self.stacks['RESUME_COMPLETE']
         ]
-        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE', None, self.stack_ip))
+        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
+                                               None,
+                                               self.stack_ip))
         with patch.multiple(task,
-            get_heat_client=Mock(return_value=mock_heat_client),
-            verify_stack=mock_verify_stack
-        ):
+                            get_heat_client=Mock(return_value=mock_heat_client),  # noqa: E501
+                            verify_stack=mock_verify_stack):
             res = task.run(
                 self.configuration,
                 self.stack_name,
@@ -255,8 +262,7 @@ class TestHastexoTasks(TestCase):
             'stack': {'id': self.stack_name}
         }
         with patch.multiple(task,
-            get_heat_client=Mock(return_value=mock_heat_client)
-        ):
+                            get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
             res = task.run(
                 self.configuration,
                 self.stack_name,
@@ -280,8 +286,7 @@ class TestHastexoTasks(TestCase):
             self.stacks['SUSPEND_IN_PROGRESS']
         ]
         with patch.multiple(task,
-            get_heat_client=Mock(return_value=mock_heat_client)
-        ):
+                            get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
             self.configuration['task_timeouts']['retries'] = 3
             res = task.run(
                 self.configuration,
@@ -308,8 +313,7 @@ class TestHastexoTasks(TestCase):
             'stack': {'id': self.stack_name}
         }
         with patch.multiple(task,
-            get_heat_client=Mock(return_value=mock_heat_client)
-        ):
+                            get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
             self.configuration['task_timeouts']['retries'] = 3
             res = task.run(
                 self.configuration,
@@ -333,8 +337,7 @@ class TestHastexoTasks(TestCase):
             self.stacks['RESUME_FAILED']
         ]
         with patch.multiple(task,
-            get_heat_client=Mock(return_value=mock_heat_client)
-        ):
+                            get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
             res = task.run(
                 self.configuration,
                 self.stack_name,
@@ -351,9 +354,8 @@ class TestHastexoTasks(TestCase):
             self.stacks['CREATE_COMPLETE']
         ]
         with patch.multiple(task,
-            get_heat_client=Mock(return_value=mock_heat_client)
-        ):
-            res = task.run(self.configuration, self.stack_name)
+                            get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
+            task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_called_with(
                 stack_id=self.stack_name
             )
@@ -365,9 +367,8 @@ class TestHastexoTasks(TestCase):
             self.stacks['RESUME_COMPLETE']
         ]
         with patch.multiple(task,
-            get_heat_client=Mock(return_value=mock_heat_client)
-        ):
-            res = task.run(self.configuration, self.stack_name)
+                            get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
+            task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_called_with(
                 stack_id=self.stack_name
             )
@@ -379,9 +380,8 @@ class TestHastexoTasks(TestCase):
             HTTPNotFound
         ]
         with patch.multiple(task,
-            get_heat_client=Mock(return_value=mock_heat_client)
-        ):
-            res = task.run(self.configuration, self.stack_name)
+                            get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
+            task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_not_called()
 
     def test_dont_suspend_failed_stack(self):
@@ -391,9 +391,8 @@ class TestHastexoTasks(TestCase):
             self.stacks['RESUME_FAILED']
         ]
         with patch.multiple(task,
-            get_heat_client=Mock(return_value=mock_heat_client)
-        ):
-            res = task.run(self.configuration, self.stack_name)
+                            get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
+            task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_not_called()
 
     def test_dont_suspend_suspending_stack(self):
@@ -403,9 +402,8 @@ class TestHastexoTasks(TestCase):
             self.stacks['SUSPEND_IN_PROGRESS']
         ]
         with patch.multiple(task,
-            get_heat_client=Mock(return_value=mock_heat_client)
-        ):
-            res = task.run(self.configuration, self.stack_name)
+                            get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
+            task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_not_called()
 
     def test_dont_suspend_suspended_stack(self):
@@ -415,9 +413,8 @@ class TestHastexoTasks(TestCase):
             self.stacks['SUSPEND_COMPLETE']
         ]
         with patch.multiple(task,
-            get_heat_client=Mock(return_value=mock_heat_client)
-        ):
-            res = task.run(self.configuration, self.stack_name)
+                            get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
+            task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_not_called()
 
     def test_wait_for_create_during_suspend(self):
@@ -430,9 +427,8 @@ class TestHastexoTasks(TestCase):
             self.stacks['CREATE_COMPLETE']
         ]
         with patch.multiple(task,
-            get_heat_client=Mock(return_value=mock_heat_client)
-        ):
-            res = task.run(self.configuration, self.stack_name)
+                            get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
+            task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_called_with(
                 stack_id=self.stack_name
             )
@@ -448,10 +444,9 @@ class TestHastexoTasks(TestCase):
             self.stacks['CREATE_IN_PROGRESS']
         ]
         with patch.multiple(task,
-            get_heat_client=Mock(return_value=mock_heat_client)
-        ):
+                            get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
             self.configuration['task_timeouts']['retries'] = 3
-            res = task.run(self.configuration, self.stack_name)
+            task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_not_called()
 
     def test_check_student_progress(self):
@@ -471,7 +466,9 @@ class TestHastexoTasks(TestCase):
             'test fail',
             'test pass'
         ]
-        with patch.object(task, 'open_ssh_connection', Mock(return_value=mock_ssh)):
+        with patch.object(task,
+                          'open_ssh_connection',
+                          Mock(return_value=mock_ssh)):
             res = task.run(
                 self.configuration,
                 tests,

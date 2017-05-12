@@ -9,6 +9,7 @@ from workbench.runtime import WorkbenchRuntime
 from xblock.fields import ScopeIds
 from xblock.runtime import KvsFieldData, DictKeyValueStore
 
+
 def make_request(data, method='POST'):
     """
     Make a webob JSON request
@@ -26,8 +27,13 @@ class TestHastexoXBlock(unittest.TestCase):
     Basic unit tests for the Hastexo XBlock.
 
     """
-    def call_handler(self, handler_name, data=None, expect_json=True, method='POST'):
-        response = self.block.handle(handler_name, make_request(data, method=method))
+    def call_handler(self,
+                     handler_name,
+                     data=None,
+                     expect_json=True,
+                     method='POST'):
+        response = self.block.handle(handler_name,
+                                     make_request(data, method=method))
         if expect_json:
             self.assertEqual(response.status_code, 200)
             return json.loads(response.body)
@@ -53,7 +59,9 @@ class TestHastexoXBlock(unittest.TestCase):
         usage_id = runtime.id_generator.create_usage(def_id)
         scope_ids = ScopeIds('user', block_type, def_id, usage_id)
 
-        self.block = hastexo.HastexoXBlock(runtime, field_data, scope_ids=scope_ids)
+        self.block = hastexo.HastexoXBlock(runtime,
+                                           field_data,
+                                           scope_ids=scope_ids)
 
     def test_get_configuration(self):
         """
@@ -78,13 +86,12 @@ class TestHastexoXBlock(unittest.TestCase):
         mock_result.ready.return_value = True
         mock_result.successful.return_value = True
         mock_result.result = {"status": "CREATE_COMPLETE"}
-        mock_launch_stack_task=Mock(return_value=mock_result)
-        mock_suspend_user_stack=Mock()
+        mock_launch_stack_task = Mock(return_value=mock_result)
+        mock_suspend_user_stack = Mock()
 
         with patch.multiple(self.block,
-            launch_stack_task=mock_launch_stack_task,
-            suspend_user_stack=mock_suspend_user_stack
-        ):
+                            launch_stack_task=mock_launch_stack_task,
+                            suspend_user_stack=mock_suspend_user_stack):
             data = {
                 "initialize": True,
                 "reset": False
@@ -112,13 +119,12 @@ class TestHastexoXBlock(unittest.TestCase):
         mock_result.ready.return_value = True
         mock_result.successful.return_value = True
         mock_result.result = {"status": "RESUME_COMPLETE"}
-        mock_launch_stack_task=Mock(return_value=mock_result)
-        mock_suspend_user_stack=Mock()
+        mock_launch_stack_task = Mock(return_value=mock_result)
+        mock_suspend_user_stack = Mock()
 
         with patch.multiple(self.block,
-            launch_stack_task=mock_launch_stack_task,
-            suspend_user_stack=mock_suspend_user_stack
-        ):
+                            launch_stack_task=mock_launch_stack_task,
+                            suspend_user_stack=mock_suspend_user_stack):
             data = {
                 "initialize": True,
                 "reset": False
@@ -147,13 +153,12 @@ class TestHastexoXBlock(unittest.TestCase):
         mock_result.ready.return_value = True
         mock_result.successful.return_value = True
         mock_result.result = {"status": "RESUME_COMPLETE"}
-        mock_launch_stack_task=Mock(return_value=mock_result)
-        mock_suspend_user_stack=Mock()
+        mock_launch_stack_task = Mock(return_value=mock_result)
+        mock_suspend_user_stack = Mock()
 
         with patch.multiple(self.block,
-            launch_stack_task=mock_launch_stack_task,
-            suspend_user_stack=mock_suspend_user_stack
-        ):
+                            launch_stack_task=mock_launch_stack_task,
+                            suspend_user_stack=mock_suspend_user_stack):
             data = {
                 "initialize": True,
                 "reset": False
@@ -181,13 +186,12 @@ class TestHastexoXBlock(unittest.TestCase):
         mock_result.ready.return_value = True
         mock_result.successful.return_value = True
         mock_result.result = {"status": "CREATE_COMPLETE"}
-        mock_launch_stack_task=Mock(return_value=mock_result)
-        mock_suspend_user_stack=Mock()
+        mock_launch_stack_task = Mock(return_value=mock_result)
+        mock_suspend_user_stack = Mock()
 
         with patch.multiple(self.block,
-            launch_stack_task=mock_launch_stack_task,
-            suspend_user_stack=mock_suspend_user_stack
-        ):
+                            launch_stack_task=mock_launch_stack_task,
+                            suspend_user_stack=mock_suspend_user_stack):
             data = {
                 "initialize": True,
                 "reset": True

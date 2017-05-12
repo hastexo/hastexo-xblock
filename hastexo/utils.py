@@ -27,15 +27,20 @@ DEFAULT_SETTINGS = {
     }
 }
 
+
 def get_xblock_configuration(settings, provider):
     # Set defaults
-    launch_timeout = settings.get("launch_timeout", DEFAULT_SETTINGS["launch_timeout"])
-    suspend_timeout = settings.get("suspend_timeout", DEFAULT_SETTINGS["suspend_timeout"])
-    terminal_url = settings.get("terminal_url", DEFAULT_SETTINGS["terminal_url"])
+    launch_timeout = settings.get("launch_timeout",
+                                  DEFAULT_SETTINGS["launch_timeout"])
+    suspend_timeout = settings.get("suspend_timeout",
+                                   DEFAULT_SETTINGS["suspend_timeout"])
+    terminal_url = settings.get("terminal_url",
+                                DEFAULT_SETTINGS["terminal_url"])
     ssh_dir = settings.get("ssh_dir", DEFAULT_SETTINGS["ssh_dir"])
     ssh_upload = settings.get("ssh_upload", DEFAULT_SETTINGS["ssh_upload"])
     ssh_bucket = settings.get("ssh_bucket", DEFAULT_SETTINGS["ssh_bucket"])
-    task_timeouts = settings.get("task_timeouts", DEFAULT_SETTINGS["task_timeouts"])
+    task_timeouts = settings.get("task_timeouts",
+                                 DEFAULT_SETTINGS["task_timeouts"])
     js_timeouts = settings.get("js_timeouts", DEFAULT_SETTINGS["js_timeouts"])
 
     # Get credentials

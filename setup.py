@@ -4,6 +4,7 @@
 import os
 from setuptools import setup
 
+
 def package_scripts(root_list):
     data = []
     for root in root_list:
@@ -11,6 +12,7 @@ def package_scripts(root_list):
             for fname in files:
                 data.append(os.path.join(dirname, fname))
     return data
+
 
 def package_data(pkg, roots):
     """Generic function to find package_data.
@@ -27,10 +29,13 @@ def package_data(pkg, roots):
 
     return {pkg: data}
 
+
 setup(
     name='hastexo-xblock',
     version='0.5.1',
-    description='hastexo XBlock: Makes arbitrarily complex lab environments available on an Open edX LMS',
+    description='hastexo XBlock: '
+                'Makes arbitrarily complex lab environments '
+                'available on an Open edX LMS',
     url='https://github.com/hastexo/hastexo-xblock',
     author='hastexo',
     author_email='pypi@hastexo.com',

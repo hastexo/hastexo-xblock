@@ -14,8 +14,12 @@ Adolfo R. Brandes <adolfo.brandes@hastexo.com>
 """
 from __future__ import unicode_literals
 
-import os, sys, readline, signal
-import tempfile, io
+import os
+import sys
+import readline
+import signal
+import tempfile
+import io
 import traceback
 import logging
 import socket
@@ -25,7 +29,8 @@ import re
 
 from optparse import OptionParser, OptionError
 from hastexo.swift import SwiftWrapper
-from hastexo.utils import SETTINGS_KEY, DEFAULT_SETTINGS, get_xblock_configuration
+from hastexo.utils import SETTINGS_KEY, DEFAULT_SETTINGS
+from hastexo.utils import get_xblock_configuration
 from concurrent import futures
 
 # Python 3 compatibility
@@ -50,6 +55,7 @@ rm -f {temp} # Cleanup
 exit 0
 """
 
+
 def mkdir_p(path):
     """Pythonic version of mkdir -p"""
     try:
@@ -57,14 +63,15 @@ def mkdir_p(path):
     except OSError as exc:
         if exc.errno == errno.EEXIST:
             pass
-        else: raise
+        else:
+            raise
+
 
 def which(binary, path=None):
     """
-    Returns the full path of *binary* (string) just like the 'which' command.
-    Optionally, a *path* (colon-delimited string) may be given to use instead of
-    os.environ['PATH'].
-
+    Returns the full path of *binary* (string) just like the 'which'
+    command.  Optionally, a *path* (colon-delimited string) may be
+    given to use instead of os.environ['PATH'].
     """
     if path:
         paths = path.split(':')
@@ -80,39 +87,41 @@ def which(binary, path=None):
 
     return None
 
+
 def valid_hostname(hostname):
     """
-    Returns True if the given *hostname* is valid according to RFC rules.  Works
-    with Internationalized Domain Names (IDN) and hostnames with an
-    underscore.
+    Returns True if the given *hostname* is valid according to RFC
+    rules.  Works with Internationalized Domain Names (IDN) and
+    hostnames with an underscore.
     """
     # Convert to Punycode if an IDN
     try:
         hostname = hostname.encode('idna')
-    except UnicodeError: # Can't convert to Punycode: Bad hostname
+    except UnicodeError:  # Can't convert to Punycode: Bad hostname
         return False
 
     try:
         hostname = str(hostname, 'UTF-8')
-    except TypeError: # Python 2.6+.  Just ignore
+    except TypeError:  # Python 2.6+.  Just ignore
         pass
 
     if len(hostname) > 255:
         return False
 
-    if hostname[-1:] == ".": # Strip the tailing dot if present
+    if hostname[-1:] == ".":  # Strip the tailing dot if present
         hostname = hostname[:-1]
 
     allowed = re.compile("(?!-)[_A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
 
     return all(allowed.match(x) for x in hostname.split("."))
 
+
 def valid_ip(ipaddr):
     """
     Returns True if *ipaddr* is a valid IPv4 or IPv6 address.
-    (from http://stackoverflow.com/questions/319279/how-to-validate-ip-address-in-python)
+    (from http://stackoverflow.com/questions/319279/how-to-validate-ip-address-in-python)  # noqa: E501
     """
-    if ':' in ipaddr: # IPv6 address
+    if ':' in ipaddr:  # IPv6 address
         try:
             socket.inet_pton(socket.AF_INET6, ipaddr)
             return True
@@ -124,6 +133,7 @@ def valid_ip(ipaddr):
             return True
         except socket.error:
             return False
+
 
 def download_identity(provider, identity, identity_path):
     # Load LMS env file
@@ -144,23 +154,29 @@ def download_identity(provider, identity, identity_path):
         swift = SwiftWrapper(**configuration)
         swift.download_key(identity, identity_path)
 
-def openssh_connect(user, host, provider, identity,
-        port=22,
-        config=None,
-        env=None,
-        additional_args=None,
-        debug=False):
+
+def openssh_connect(user,
+                    host,
+                    provider,
+                    identity,
+                    port=22,
+                    config=None,
+                    env=None,
+                    additional_args=None,
+                    debug=False):
     """
-    Starts an interactive SSH session to the given host as the given user on the
-    given port, with the given identity.
+    Starts an interactive SSH session to the given host as the given
+    user on the given port, with the given identity.
 
-    If *env* (dict) is given, that will be used for the shell env when opening
-    the SSH connection.
+    If *env* (dict) is given, that will be used for the shell env when
+    opening the SSH connection.
 
-    If *additional_args* is given this value (or values if it is a list) will be
-    added to the arguments passed to the ssh command.
+    If *additional_args* is given this value (or values if it is a
+    list) will be added to the arguments passed to the ssh command.
 
-    If *debug* is ``True`` then '-vvv' will be passed to the ssh command.
+    If *debug* is ``True`` then '-vvv' will be passed to the ssh
+    command.
+
     """
     try:
         int(port)
@@ -185,7 +201,7 @@ def openssh_connect(user, host, provider, identity,
         pass
 
     # Get the user's ssh directory
-    if 'GO_USER' in os.environ: # Try to use Gate One's provided user first
+    if 'GO_USER' in os.environ:  # Try to use Gate One's provided user first
         go_user = os.environ['GO_USER']
     else:
         # Fall back to the executing user (for testing outside of Gate One)
@@ -218,7 +234,7 @@ def openssh_connect(user, host, provider, identity,
 
     args = [
         "-x",
-        "-F'%s'" % ssh_config_path, # It's OK if it doesn't exist
+        "-F'%s'" % ssh_config_path,  # It's OK if it doesn't exist
         # This ensures that the executing users identity won't be used:
         "-oIdentitiesOnly=yes",
         "-oStrictHostKeyChecking=no",
@@ -243,7 +259,7 @@ def openssh_connect(user, host, provider, identity,
         env['PATH'] = os.environ['PATH']
         command = which("ssh")
 
-    if '[' in host: # IPv6 address
+    if '[' in host:  # IPv6 address
         # Have to remove the brackets which is silly.  See bug:
         #   https://bugzilla.mindrot.org/show_bug.cgi?id=1602
         host = host.strip('[]')
@@ -277,7 +293,7 @@ def openssh_connect(user, host, provider, identity,
         # Just use a generic temp file
         temp = tempfile.NamedTemporaryFile(prefix="ssh_connect", delete=False)
         script_path = "%s" % temp.name
-        temp.close() # Will be written to below
+        temp.close()  # Will be written to below
 
     # Create our little shell script to wrap the SSH command
     cmd = ""
@@ -291,23 +307,26 @@ def openssh_connect(user, host, provider, identity,
     with io.open(script_path, 'w', encoding='utf-8') as f:
         f.write(script)
 
-    # NOTE: We wrap in a shell script so we can execute it and immediately quit.
-    # By doing this instead of keeping ssh_connect.py running we can save a lot
-    # of memory (depending on how many terminals are open).
-    os.chmod(script_path, 0o700) # 0700 for good security practices
+    # NOTE: We wrap in a shell script so we can execute it and
+    # immediately quit.  By doing this instead of keeping
+    # ssh_connect.py running we can save a lot of memory (depending on
+    # how many terminals are open)
+    os.chmod(script_path, 0o700)  # 0700 for good security practices
 
-    # Execute then immediately quit so we don't use up any more memory than we
-    # need.
+    # Execute then immediately quit so we don't use up any more memory
+    # than we need.
     # setup default execvpe args
     args = ['-c', script_path, '&&', 'rm', '-f', script_path]
 
-    # If we detect /bin/sh linked to busybox then make sure we insert the 'sh'
-    # at the beginning of the args list
+    # If we detect /bin/sh linked to busybox then make sure we insert
+    # the 'sh' at the beginning of the args list
+
     if os.path.islink('/bin/sh'):
         args.insert(0, 'sh')
 
     os.execvpe('/bin/sh', args, env)
     os._exit(0)
+
 
 def parse_url(url):
     """
@@ -343,9 +362,9 @@ def parse_url(url):
 
     try:
         from urlparse import urlparse, parse_qs, uses_query
-        if 'ssh' not in uses_query: # Only necessary in Python 2.X
+        if 'ssh' not in uses_query:  # Only necessary in Python 2.X
             uses_query.append('ssh')
-    except ImportError: # Python 3
+    except ImportError:  # Python 3
         from urllib.parse import urlparse, parse_qs
 
     parsed = urlparse(url)
@@ -354,7 +373,7 @@ def parse_url(url):
         provider = q_attrs.get('provider')[0]
         identity = q_attrs.get('identity')[0]
         debug = q_attrs.get('debug', False)
-        if debug: # Passing anything turns on debug
+        if debug:  # Passing anything turns on debug
             debug = True
 
     if parsed.port:
@@ -373,6 +392,7 @@ def parse_url(url):
         'debug': debug
     }
 
+
 def bad_chars(chars):
     """
     Returns ``False`` if the given *chars* are OK, ``True`` if there's bad
@@ -380,12 +400,14 @@ def bad_chars(chars):
 
     .. note::
 
-        This is to prevent things like "ssh://user@host && <malicious commands>"
+        This is to prevent things like
+        "ssh://user@host && <malicious commands>"
     """
     bad_chars = re.compile('.*[\$\n\!\;` |<>].*')
     if bad_chars.match(chars):
         return True
     return False
+
 
 def main():
     """
@@ -398,18 +420,20 @@ def main():
     parser.disable_interspersed_args()
 
     parser.add_option("-a", "--args",
-        dest="additional_args",
-        default=None,
-        help=("Any additional arguments that should be passed to the ssh "
-             "command.  It is recommended to wrap these in quotes."),
-        metavar="'<args>'"
+                      dest="additional_args",
+                      default=None,
+                      help=("Any additional arguments that "
+                            "should be passed to the ssh command.  "
+                            "It is recommended to wrap these in quotes."),
+                      metavar="'<args>'"
     )
     parser.add_option("--default_port",
-        dest="default_port",
-        default='22',
-        help=("The default port that will be used for outbound connections if "
-               "no port is provided.  Default: 22"),
-        metavar="'<port>'"
+                      dest="default_port",
+                      default='22',
+                      help=("The default port that will be used "
+                            "for outbound connections if "
+                            "no port is provided.  Default: 22"),
+                      metavar="'<port>'"
     )
 
     (options, args) = parser.parse_args()
@@ -424,14 +448,16 @@ def main():
             port = parsed.get('port')
             provider = parsed.get('provider')
             identity = parsed.get('identity')
-            debug=parsed.get('debug', False)
+            debug = parsed.get('debug', False)
 
             # Connect
-            openssh_connect(user, host, provider, identity,
-                port=port,
-                additional_args=options.additional_args,
-                debug=debug
-            )
+            openssh_connect(user,
+                            host,
+                            provider,
+                            identity,
+                            port=port,
+                            additional_args=options.additional_args,
+                            debug=debug)
     except Exception:
         pass
 
@@ -445,9 +471,7 @@ def main():
         print("Connecting, please wait...")
 
         # Validate it
-        if (not url or
-            bad_chars(url) or
-            not url.find('://')):
+        if (not url or bad_chars(url) or not url.find('://')):
             raise OptionError("Invalid URL")
 
         # Parse the URL
@@ -493,11 +517,13 @@ def main():
         print("\x1b]_;ssh|set;connect_string;{0}\007".format(connect_string))
 
         # Connect
-        openssh_connect(user, host, provider, identity,
-            port=port,
-            additional_args=options.additional_args,
-            debug=debug
-        )
+        openssh_connect(user,
+                        host,
+                        provider,
+                        identity,
+                        port=port,
+                        additional_args=options.additional_args,
+                        debug=debug)
 
     # Ctrl-D
     except (EOFError):
@@ -509,6 +535,7 @@ def main():
         traceback.print_exc(file=sys.stdout)
         raw_input("[Press any key to close this terminal]")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     # No zombies
