@@ -55,11 +55,12 @@ class SwiftWrapper(object):
                 if not r['success']:
                     error = r['error']
                     container = r['container']
-                    if 'action' in r and r['action'] == "create_container":
+                    if 'action' in r and r['action'] == "create_container":  # noqa: E501
                         # Failure to create container is not a problem
                         continue
-                    if isinstance(error, ClientException) and error.http_status == 413:
-                        print("File too large '{0}/{1}'".format(container, key))
+                    if isinstance(error, ClientException) and error.http_status == 413:  # noqa: E501
+                        print("File too large "
+                              "'{0}/{1}'".format(container, key))
                         continue
 
     def download_key(self, key, key_path):
@@ -77,13 +78,15 @@ class SwiftWrapper(object):
                     obj = r['object']
                     if isinstance(error, ClientException):
                         # Skipped identical is not an error
-                        if error.http_status == 304 and options["skip_identical"]:
+                        if error.http_status == 304 and options["skip_identical"]:  # noqa: E501
                             continue
                         # Ignore missing object: upload is optional
                         if error.http_status == 404:
-                            print("Object '{0}/{1}' not found".format(container, obj))
+                            print("Object '{0}/{1}' "
+                                  "not found".format(container, obj))
                             continue
-                        print("Could not download '{0}/{1}'".format(container, obj))
+                        print("Could not download "
+                              "'{0}/{1}'".format(container, obj))
 
         # Fix permissions so SSH doesn't complain
         if not error:

@@ -25,7 +25,8 @@ import re
 
 from optparse import OptionParser, OptionError
 from hastexo.swift import SwiftWrapper
-from hastexo.utils import SETTINGS_KEY, DEFAULT_SETTINGS, get_xblock_configuration
+from hastexo.utils import SETTINGS_KEY, DEFAULT_SETTINGS
+from hastexo.utils import get_xblock_configuration
 from concurrent import futures
 
 # Python 3 compatibility
@@ -64,10 +65,9 @@ def mkdir_p(path):
 
 def which(binary, path=None):
     """
-    Returns the full path of *binary* (string) just like the 'which' command.
-    Optionally, a *path* (colon-delimited string) may be given to use instead of
-    os.environ['PATH'].
-
+    Returns the full path of *binary* (string) just like the 'which'
+    command.  Optionally, a *path* (colon-delimited string) may be
+    given to use instead of os.environ['PATH'].
     """
     if path:
         paths = path.split(':')
@@ -86,9 +86,9 @@ def which(binary, path=None):
 
 def valid_hostname(hostname):
     """
-    Returns True if the given *hostname* is valid according to RFC rules.  Works
-    with Internationalized Domain Names (IDN) and hostnames with an
-    underscore.
+    Returns True if the given *hostname* is valid according to RFC
+    rules.  Works with Internationalized Domain Names (IDN) and
+    hostnames with an underscore.
     """
     # Convert to Punycode if an IDN
     try:
@@ -115,7 +115,7 @@ def valid_hostname(hostname):
 def valid_ip(ipaddr):
     """
     Returns True if *ipaddr* is a valid IPv4 or IPv6 address.
-    (from http://stackoverflow.com/questions/319279/how-to-validate-ip-address-in-python)
+    (from http://stackoverflow.com/questions/319279/how-to-validate-ip-address-in-python)  # noqa: E501
     """
     if ':' in ipaddr:  # IPv6 address
         try:
@@ -158,16 +158,18 @@ def openssh_connect(user, host, provider, identity,
         additional_args=None,
         debug=False):
     """
-    Starts an interactive SSH session to the given host as the given user on the
-    given port, with the given identity.
+    Starts an interactive SSH session to the given host as the given
+    user on the given port, with the given identity.
 
-    If *env* (dict) is given, that will be used for the shell env when opening
-    the SSH connection.
+    If *env* (dict) is given, that will be used for the shell env when
+    opening the SSH connection.
 
-    If *additional_args* is given this value (or values if it is a list) will be
-    added to the arguments passed to the ssh command.
+    If *additional_args* is given this value (or values if it is a
+    list) will be added to the arguments passed to the ssh command.
 
-    If *debug* is ``True`` then '-vvv' will be passed to the ssh command.
+    If *debug* is ``True`` then '-vvv' will be passed to the ssh
+    command.
+
     """
     try:
         int(port)
@@ -298,18 +300,20 @@ def openssh_connect(user, host, provider, identity,
     with io.open(script_path, 'w', encoding='utf-8') as f:
         f.write(script)
 
-    # NOTE: We wrap in a shell script so we can execute it and immediately quit.
-    # By doing this instead of keeping ssh_connect.py running we can save a lot
-    # of memory (depending on how many terminals are open).
+    # NOTE: We wrap in a shell script so we can execute it and
+    # immediately quit.  By doing this instead of keeping
+    # ssh_connect.py running we can save a lot of memory (depending on
+    # how many terminals are open)
     os.chmod(script_path, 0o700)  # 0700 for good security practices
 
-    # Execute then immediately quit so we don't use up any more memory than we
-    # need.
+    # Execute then immediately quit so we don't use up any more memory
+    # than we need.
     # setup default execvpe args
     args = ['-c', script_path, '&&', 'rm', '-f', script_path]
 
-    # If we detect /bin/sh linked to busybox then make sure we insert the 'sh'
-    # at the beginning of the args list
+    # If we detect /bin/sh linked to busybox then make sure we insert
+    # the 'sh' at the beginning of the args list
+
     if os.path.islink('/bin/sh'):
         args.insert(0, 'sh')
 
@@ -389,7 +393,8 @@ def bad_chars(chars):
 
     .. note::
 
-        This is to prevent things like "ssh://user@host && <malicious commands>"
+        This is to prevent things like
+        "ssh://user@host && <malicious commands>"
     """
     bad_chars = re.compile('.*[\$\n\!\;` |<>].*')
     if bad_chars.match(chars):

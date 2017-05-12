@@ -10,7 +10,8 @@ from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 from xblockutils.settings import XBlockWithSettingsMixin
 
-from .utils import UP_STATES, SETTINGS_KEY, DEFAULT_SETTINGS, get_xblock_configuration
+from .utils import UP_STATES, SETTINGS_KEY, DEFAULT_SETTINGS
+from .utils import get_xblock_configuration
 from .tasks import LaunchStackTask, SuspendStackTask, CheckStudentProgressTask
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,9 @@ loader = ResourceLoader(__name__)
 
 
 @XBlock.wants('settings')
-class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
+class HastexoXBlock(XBlock,
+                    XBlockWithSettingsMixin,
+                    StudioEditableXBlockMixin):
     """
     Provides lab environments and an SSH connection to them.
 
@@ -36,7 +39,8 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
     # Mandatory: must be set per instance.
     stack_template_path = String(
         scope=Scope.settings,
-        help="The relative path to the uploaded orchestration template.  For example, \"hot_lab.yaml\".")
+        help="The relative path to the uploaded orchestration template. "
+             "For example, \"hot_lab.yaml\".")
     stack_user_name = String(
         scope=Scope.settings,
         help="The name of the training user in the stack.")
@@ -121,7 +125,8 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
 
     def author_view(self, context=None):
         """ Studio View """
-        return Fragment(u'<em>This XBlock only renders content when viewed via the LMS.</em></p>')
+        msg = u"This XBlock only renders content when viewed via the LMS."
+        return Fragment(u'<em>%s</em></p>' % msg)
 
     def is_correct(self):
         if not (self.check_status and isinstance(self.check_status, dict)):
@@ -157,7 +162,8 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             from xmodule.contentstore.django import contentstore
             from xmodule.exceptions import NotFoundError
 
-            loc = StaticContent.compute_location(course_id, self.stack_template_path)
+            loc = StaticContent.compute_location(course_id,
+                                                 self.stack_template_path)
             asset = contentstore().find(loc)
             stack_template = asset.data
         except (ImportError, NotFoundError):
@@ -175,7 +181,10 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             context = {'error_msg': msg}
             html = loader.render_template('static/html/error.html', context)
             frag = Fragment(html)
-            frag.add_css_url(self.runtime.local_resource_url(self, 'public/css/main.css'))
+            frag.add_css_url(
+                self.runtime.local_resource_url(self,
+                                                'public/css/main.css')
+            )
             return frag
 
         # Load configuration
@@ -196,9 +205,15 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         frag = Fragment(html)
 
         # Add the public CSS and JS
-        frag.add_css_url(self.runtime.local_resource_url(self, 'public/css/main.css'))
-        frag.add_javascript_url(self.runtime.local_resource_url(self, 'public/js/plugins.js'))
-        frag.add_javascript_url(self.runtime.local_resource_url(self, 'public/js/main.js'))
+        frag.add_css_url(
+            self.runtime.local_resource_url(self, 'public/css/main.css')
+        )
+        frag.add_javascript_url(
+            self.runtime.local_resource_url(self, 'public/js/plugins.js')
+        )
+        frag.add_javascript_url(
+            self.runtime.local_resource_url(self, 'public/js/main.js')
+        )
 
         # Call the JS initialization function
         frag.initialize_js('HastexoXBlock', {
@@ -239,7 +254,9 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             # If the suspend task is pending, revoke it.
             stack_suspend_id = self.stack_get("suspend_id")
             if stack_suspend_id:
-                logger.debug('Revoking suspend task for [%s]' % (self.stack_name))
+                logger.debug(
+                    'Revoking suspend task for [%s]' % (self.stack_name)
+                )
                 from lms import CELERY_APP
                 CELERY_APP.control.revoke(stack_suspend_id)
                 self.stack_set("suspend_id", None)
@@ -247,15 +264,24 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             # (Re)schedule the suspension in the future.
             args = (self.configuration, self.stack_name)
             task = SuspendStackTask()
-            logger.debug('Scheduling suspend task for [%s] in %s seconds' % (self.stack_name, suspend_timeout))
+            logger.debug(
+                'Scheduling suspend task '
+                'for [%s] in %s seconds' % (self.stack_name, suspend_timeout)
+            )
             result = task.apply_async(args=args, countdown=suspend_timeout)
             self.stack_set("suspend_id", result.id)
             self.stack_set("suspend_timestamp", int(time.time()))
 
     def launch_stack_task(self, args):
         task = LaunchStackTask()
-        result = task.apply_async(args=args, expires=self.configuration.get('launch_timeout'))
-        logger.debug('Launch task id for stack [%s] is: [%s]' % (self.stack_name, result.id))
+        result = task.apply_async(
+            args=args,
+            expires=self.configuration.get('launch_timeout')
+        )
+        logger.debug(
+            'Launch task id for '
+            'stack [%s] is: [%s]' % (self.stack_name, result.id)
+        )
 
         return result
 
@@ -273,7 +299,8 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
                 reset
             )
 
-            logger.info('Firing async launch task for [%s]' % (self.stack_name))
+            logger.info('Firing async launch '
+                        'task for [%s]' % (self.stack_name))
             result = self.launch_stack_task(args)
 
             # Save task ID and timestamp
@@ -291,7 +318,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
                 else:
                     status = {
                         "status": "ERROR",
-                        "error_msg": "Unexpected result: %s" % repr(result.result)
+                        "error_msg": "Unexpected result: %s" % repr(result.result)  # noqa: E501
                     }
             else:
                 status = {"status": "PENDING"}
@@ -330,9 +357,11 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
         if last_status:
             last_status_string = last_status.get("status", "")
 
-        # No last stack status: this is the first time the user launches this stack.
+        # No last stack status: this is the first time
+        # the user launches this stack.
         if not last_status_string:
-            logger.info('Launching stack [%s] for the first time.' % (self.stack_name))
+            logger.info('Launching stack [%s] '
+                        'for the first time.' % (self.stack_name))
             result = _launch_stack(reset)
             status = _process_result(result)
 
@@ -353,67 +382,85 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
 
                 # Check if the pending task hasn't timed out.
                 if time_since_launch <= launch_timeout:
-                    # The pending task still has some time to finish.  Please wait.
+                    # The pending task still has some time to finish.
+                    # Please wait.
                     logger.debug('Launch pending for [%s]' % (self.stack_name))
 
                 elif initialize or reset:
                     # Timeout reached, but the user just entered the page or
                     # requested a reset.  Try launching the stack again.
                     if initialize:
-                        logger.info('Launch timeout detected on initialize.  Launching stack [%s]' % (self.stack_name))
+                        logger.info('Launch timeout detected on initialize. '
+                                    'Launching stack [%s]' % (self.stack_name))
                     else:
-                        logger.info('Launch timeout detected on reset.  Resetting stack [%s]' % (self.stack_name))
+                        logger.info('Launch timeout detected on reset. '
+                                    'Resetting stack [%s]' % (self.stack_name))
                     result = _launch_stack(reset)
                     status = _process_result(result)
 
                 else:
                     # Timeout reached.  Consider the task a failure and let the
                     # user retry manually.
-                    logger.error('Launch timeout reached for [%s] after %s seconds' % (self.stack_name, time_since_launch))
-                    status = _process_error("Timeout when launching or resuming stack.")
+                    logger.error('Launch timeout reached for [%s] '
+                                 'after %s seconds' % (self.stack_name,
+                                                       time_since_launch))
+                    status = _process_error("Timeout when launching "
+                                            "or resuming stack.")
 
             # Stack changed from PENDING to COMPLETE.
             elif current_status_string in UP_STATES:
-                if reset or (suspend_timeout and time_since_suspend >= suspend_timeout):
+                if reset or (suspend_timeout and time_since_suspend >= suspend_timeout):  # noqa: E501
                     if reset:
-                        logger.info('Resetting successfully launched stack [%s].' % (self.stack_name))
+                        logger.info('Resetting successfully launched '
+                                    'stack [%s].' % (self.stack_name))
                     else:
-                        logger.info('Stack [%s] may have suspended.  Relaunching.' % (self.stack_name))
+                        logger.info('Stack [%s] may have suspended. '
+                                    'Relaunching.' % (self.stack_name))
                     result = _launch_stack(reset)
                     status = _process_result(result)
 
                 # The stack couldn't have been suspended, yet.
                 else:
-                    logger.info('Successful launch detected for [%s], with status [%s]' % (self.stack_name, current_status_string))
+                    logger.info('Successful launch detected for [%s], '
+                                'with status [%s]' % (self.stack_name,
+                                                      current_status_string))
 
             # Detected a failed launch attempt, but the user has requested a
             # retry, just entered the page, or requested a reset, so start from
             # scratch.
             elif initialize or reset:
                 if reset:
-                    logger.info('Resetting failed stack [%s].' % (self.stack_name))
+                    logger.info('Resetting failed '
+                                'stack [%s].' % (self.stack_name))
                 else:
-                    logger.info('Retrying previously failed stack [%s].' % (self.stack_name))
+                    logger.info('Retrying previously failed '
+                                'stack [%s].' % (self.stack_name))
                 result = _launch_stack(reset)
                 status = _process_result(result)
 
-            # Detected a failed launch attempt.  Report the error and let the user
-            # retry manually.
+            # Detected a failed launch attempt.
+            # Report the error and let the user retry manually.
             else:
-                logger.error('Failed launch detected for [%s], with status [%s]' % (self.stack_name, current_status_string))
+                logger.error('Failed launch detected for [%s], '
+                             'with status [%s]' % (self.stack_name,
+                                                   current_status_string))
 
         # The stack was previously launched successfully
         elif last_status_string in UP_STATES:
-            if reset or (suspend_timeout and time_since_suspend >= suspend_timeout):
+            if reset or (suspend_timeout and time_since_suspend >= suspend_timeout):  # noqa: E501
                 if reset:
-                    logger.info('Resetting successfully launched stack [%s].' % (self.stack_name))
+                    logger.info('Resetting successfully launched '
+                                'stack [%s].' % (self.stack_name))
                 else:
-                    logger.info('Stack [%s] may have suspended.  Relaunching.' % (self.stack_name))
+                    logger.info('Stack [%s] may have suspended. '
+                                'Relaunching.' % (self.stack_name))
                 result = _launch_stack(reset)
                 status = _process_result(result)
 
             else:
-                logger.info('Successful launch detected for [%s], with status [%s]' % (self.stack_name, last_status_string))
+                logger.info('Successful launch detected for [%s], '
+                            'with status [%s]' % (self.stack_name,
+                                                  last_status_string))
                 status = last_status
 
         # Detected a failed launch attempt, but the user just entered the page,
@@ -422,14 +469,17 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             if reset:
                 logger.info('Resetting failed stack [%s].' % (self.stack_name))
             else:
-                logger.info('Retrying previously failed stack [%s].' % (self.stack_name))
+                logger.info('Retrying previously failed '
+                            'stack [%s].' % (self.stack_name))
             result = _launch_stack(reset)
             status = _process_result(result)
 
         # Detected a failed launch attempt.  Report the error and let the user
         # retry manually.
         else:
-            logger.error('Failed launch detected for [%s], with status [%s]' % (self.stack_name, last_status_string))
+            logger.error('Failed launch detected for [%s], '
+                         'with status [%s]' % (self.stack_name,
+                                               last_status_string))
             status = last_status
 
         # Restart the dead man's switch, if necessary.
@@ -462,7 +512,8 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
                 self.stack_name,
                 self.stack_user_name
             )
-            result = CheckStudentProgressTask().apply_async(args=args, expires=60)
+            result = CheckStudentProgressTask().apply_async(args=args,
+                                                            expires=60)
 
             # Save task ID
             self.check_id = result.id
@@ -487,7 +538,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
                 else:
                     status = {
                         'status': 'ERROR',
-                        'error_msg': 'Unexpected result: %s' % repr(result.result)
+                        'error_msg': 'Unexpected result: %s' % repr(result.result)  # noqa: E501
                     }
             else:
                 status = {'status': 'PENDING'}

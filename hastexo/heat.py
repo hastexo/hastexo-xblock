@@ -52,8 +52,8 @@ class HeatWrapper(object):
             }
             keystone_auth = generic.Token(**kwargs)
         else:
-            project_id = self.options['os_project_id'] or self.options['os_tenant_id']
-            project_name = self.options['os_project_name'] or self.options['os_tenant_name']
+            project_id = self.options['os_project_id'] or self.options['os_tenant_id']  # noqa: E501
+            project_name = self.options['os_project_name'] or self.options['os_tenant_name']  # noqa: E501
             kwargs = {
                 'username': self.options['os_username'],
                 'user_id': self.options['os_user_id'],

@@ -27,8 +27,13 @@ class TestHastexoXBlock(unittest.TestCase):
     Basic unit tests for the Hastexo XBlock.
 
     """
-    def call_handler(self, handler_name, data=None, expect_json=True, method='POST'):
-        response = self.block.handle(handler_name, make_request(data, method=method))
+    def call_handler(self,
+                     handler_name,
+                     data=None,
+                     expect_json=True,
+                     method='POST'):
+        response = self.block.handle(handler_name,
+                                     make_request(data, method=method))
         if expect_json:
             self.assertEqual(response.status_code, 200)
             return json.loads(response.body)
@@ -54,7 +59,9 @@ class TestHastexoXBlock(unittest.TestCase):
         usage_id = runtime.id_generator.create_usage(def_id)
         scope_ids = ScopeIds('user', block_type, def_id, usage_id)
 
-        self.block = hastexo.HastexoXBlock(runtime, field_data, scope_ids=scope_ids)
+        self.block = hastexo.HastexoXBlock(runtime,
+                                           field_data,
+                                           scope_ids=scope_ids)
 
     def test_get_configuration(self):
         """

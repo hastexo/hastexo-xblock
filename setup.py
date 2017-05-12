@@ -33,7 +33,9 @@ def package_data(pkg, roots):
 setup(
     name='hastexo-xblock',
     version='0.5.1',
-    description='hastexo XBlock: Makes arbitrarily complex lab environments available on an Open edX LMS',
+    description='hastexo XBlock: '
+                'Makes arbitrarily complex lab environments '
+                'available on an Open edX LMS',
     url='https://github.com/hastexo/hastexo-xblock',
     author='hastexo',
     author_email='pypi@hastexo.com',

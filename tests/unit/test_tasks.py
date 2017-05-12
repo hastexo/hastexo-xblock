@@ -1,7 +1,8 @@
 from unittest import TestCase
 from mock import Mock, patch
 from heatclient.exc import HTTPNotFound
-from hastexo.tasks import LaunchStackTask, SuspendStackTask, CheckStudentProgressTask
+from hastexo.tasks import LaunchStackTask, SuspendStackTask
+from hastexo.tasks import CheckStudentProgressTask
 
 
 class TestHastexoTasks(TestCase):
@@ -78,7 +79,9 @@ class TestHastexoTasks(TestCase):
         mock_heat_client.stacks.create.return_value = {
             'stack': {'id': self.stack_name}
         }
-        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE', None, self.stack_ip))
+        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
+                                               None,
+                                               self.stack_ip))
         with patch.multiple(task,
             get_heat_client=Mock(return_value=mock_heat_client),
             verify_stack=mock_verify_stack
@@ -115,7 +118,9 @@ class TestHastexoTasks(TestCase):
         mock_heat_client.stacks.create.return_value = {
             'stack': {'id': self.stack_name}
         }
-        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE', None, self.stack_ip))
+        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
+                                               None,
+                                               self.stack_ip))
         with patch.multiple(task,
             get_heat_client=Mock(return_value=mock_heat_client),
             verify_stack=mock_verify_stack
@@ -153,7 +158,9 @@ class TestHastexoTasks(TestCase):
         mock_heat_client.stacks.create.return_value = {
             'stack': {'id': self.stack_name}
         }
-        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE', None, self.stack_ip))
+        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
+                                               None,
+                                               self.stack_ip))
         with patch.multiple(task,
             get_heat_client=Mock(return_value=mock_heat_client),
             verify_stack=mock_verify_stack
@@ -187,7 +194,9 @@ class TestHastexoTasks(TestCase):
             self.stacks['RESUME_IN_PROGRESS'],
             self.stacks['RESUME_COMPLETE']
         ]
-        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE', None, self.stack_ip))
+        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
+                                               None,
+                                               self.stack_ip))
         with patch.multiple(task,
             get_heat_client=Mock(return_value=mock_heat_client),
             verify_stack=mock_verify_stack
@@ -221,7 +230,9 @@ class TestHastexoTasks(TestCase):
             self.stacks['RESUME_IN_PROGRESS'],
             self.stacks['RESUME_COMPLETE']
         ]
-        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE', None, self.stack_ip))
+        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
+                                               None,
+                                               self.stack_ip))
         with patch.multiple(task,
             get_heat_client=Mock(return_value=mock_heat_client),
             verify_stack=mock_verify_stack
@@ -472,7 +483,9 @@ class TestHastexoTasks(TestCase):
             'test fail',
             'test pass'
         ]
-        with patch.object(task, 'open_ssh_connection', Mock(return_value=mock_ssh)):
+        with patch.object(task,
+                          'open_ssh_connection',
+                          Mock(return_value=mock_ssh)):
             res = task.run(
                 self.configuration,
                 tests,
