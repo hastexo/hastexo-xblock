@@ -160,7 +160,7 @@ class HastexoXBlock(XBlock, XBlockWithSettingsMixin, StudioEditableXBlockMixin):
             loc = StaticContent.compute_location(course_id, self.stack_template_path)
             asset = contentstore().find(loc)
             stack_template = asset.data
-        except ImportError, NotFoundError:
+        except (ImportError, NotFoundError):
             pass
 
         return stack_template
