@@ -56,6 +56,8 @@ setup(
     install_requires=[
         'XBlock',
         'xblock-utils',
+        'oslo.utils==3.18.0',
+        'oslo.serialization==1.10.0',
         'python-keystoneclient==3.10.0',
         'python-heatclient==1.6.1',
         'python-swiftclient==3.1.0',
