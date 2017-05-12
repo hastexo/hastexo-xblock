@@ -353,7 +353,7 @@ class TestHastexoTasks(TestCase):
         with patch.multiple(task,
             get_heat_client=Mock(return_value=mock_heat_client)
         ):
-            res = task.run(self.configuration, self.stack_name)
+            task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_called_with(
                 stack_id=self.stack_name
             )
@@ -367,7 +367,7 @@ class TestHastexoTasks(TestCase):
         with patch.multiple(task,
             get_heat_client=Mock(return_value=mock_heat_client)
         ):
-            res = task.run(self.configuration, self.stack_name)
+            task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_called_with(
                 stack_id=self.stack_name
             )
@@ -381,7 +381,7 @@ class TestHastexoTasks(TestCase):
         with patch.multiple(task,
             get_heat_client=Mock(return_value=mock_heat_client)
         ):
-            res = task.run(self.configuration, self.stack_name)
+            task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_not_called()
 
     def test_dont_suspend_failed_stack(self):
@@ -393,7 +393,7 @@ class TestHastexoTasks(TestCase):
         with patch.multiple(task,
             get_heat_client=Mock(return_value=mock_heat_client)
         ):
-            res = task.run(self.configuration, self.stack_name)
+            task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_not_called()
 
     def test_dont_suspend_suspending_stack(self):
@@ -405,7 +405,7 @@ class TestHastexoTasks(TestCase):
         with patch.multiple(task,
             get_heat_client=Mock(return_value=mock_heat_client)
         ):
-            res = task.run(self.configuration, self.stack_name)
+            task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_not_called()
 
     def test_dont_suspend_suspended_stack(self):
@@ -417,7 +417,7 @@ class TestHastexoTasks(TestCase):
         with patch.multiple(task,
             get_heat_client=Mock(return_value=mock_heat_client)
         ):
-            res = task.run(self.configuration, self.stack_name)
+            task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_not_called()
 
     def test_wait_for_create_during_suspend(self):
@@ -432,7 +432,7 @@ class TestHastexoTasks(TestCase):
         with patch.multiple(task,
             get_heat_client=Mock(return_value=mock_heat_client)
         ):
-            res = task.run(self.configuration, self.stack_name)
+            task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_called_with(
                 stack_id=self.stack_name
             )
@@ -451,7 +451,7 @@ class TestHastexoTasks(TestCase):
             get_heat_client=Mock(return_value=mock_heat_client)
         ):
             self.configuration['task_timeouts']['retries'] = 3
-            res = task.run(self.configuration, self.stack_name)
+            task.run(self.configuration, self.stack_name)
             mock_heat_client.actions.suspend.assert_not_called()
 
     def test_check_student_progress(self):
