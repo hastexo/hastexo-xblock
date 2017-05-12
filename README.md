@@ -47,7 +47,7 @@ To deploy the hastexo XBlock:
 1. Install it via pip:
 
     ```
-    $ sudo /edx/bin/pip.edxapp install -e git+https://github.com/hastexo/hastexo-xblock.git@master#egg=hastexo-xblock
+    $ sudo /edx/bin/pip.edxapp install hastexo-xblock
     ```
 
 2. Add it to the `ADDL_INSTALLED_APPS` of your LMS environment, by editing
