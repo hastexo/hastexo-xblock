@@ -14,8 +14,12 @@ Adolfo R. Brandes <adolfo.brandes@hastexo.com>
 """
 from __future__ import unicode_literals
 
-import os, sys, readline, signal
-import tempfile, io
+import os
+import sys
+import readline
+import signal
+import tempfile
+import io
 import traceback
 import logging
 import socket
