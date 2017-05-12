@@ -10,6 +10,7 @@ import logging
 import os
 import sys
 import workbench
+from coverage import coverage
 
 if __name__ == "__main__":
     # Find the location of the XBlock SDK. Note: it must be installed in development mode.
@@ -37,4 +38,11 @@ if __name__ == "__main__":
     if not paths:
         paths = ["tests/"]
     options = [arg for arg in args if arg not in paths]
+
+    c = coverage(source=['hastexo'],
+                 omit=['*tests*', '*heat-templates*',
+                       '*src*', '*requirements'],
+                 auto_data=True)
+    c.start()
     execute_from_command_line([sys.argv[0], "test"] + paths + options)
+    c.stop()

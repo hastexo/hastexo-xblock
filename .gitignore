@@ -3,3 +3,5 @@
 .pypirc
 var/
 dist/
+.coverage
+.tox/
