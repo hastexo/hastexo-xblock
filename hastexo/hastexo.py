@@ -238,7 +238,7 @@ class HastexoXBlock(XBlock,
 
         self.stacks[self.stack_name][prop] = value
 
-    def stack_get(self, l1 = None, l2 = None):
+    def stack_get(self, l1=None, l2=None):
         retval = self.stacks.get(self.stack_name)
         if retval and l1:
             retval = retval.get(l1)
@@ -289,7 +289,7 @@ class HastexoXBlock(XBlock,
 
     @XBlock.json_handler
     def get_user_stack_status(self, data, suffix=''):
-        def _launch_stack(reset = False):
+        def _launch_stack(reset=False):
             args = (
                 self.configuration,
                 self.stack_name,
