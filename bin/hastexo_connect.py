@@ -155,12 +155,15 @@ def download_identity(provider, identity, identity_path):
         swift.download_key(identity, identity_path)
 
 
-def openssh_connect(user, host, provider, identity,
-        port=22,
-        config=None,
-        env=None,
-        additional_args=None,
-        debug=False):
+def openssh_connect(user,
+                    host,
+                    provider,
+                    identity,
+                    port=22,
+                    config=None,
+                    env=None,
+                    additional_args=None,
+                    debug=False):
     """
     Starts an interactive SSH session to the given host as the given
     user on the given port, with the given identity.
@@ -417,18 +420,20 @@ def main():
     parser.disable_interspersed_args()
 
     parser.add_option("-a", "--args",
-        dest="additional_args",
-        default=None,
-        help=("Any additional arguments that should be passed to the ssh "
-             "command.  It is recommended to wrap these in quotes."),
-        metavar="'<args>'"
+                      dest="additional_args",
+                      default=None,
+                      help=("Any additional arguments that "
+                            "should be passed to the ssh command.  "
+                            "It is recommended to wrap these in quotes."),
+                      metavar="'<args>'"
     )
     parser.add_option("--default_port",
-        dest="default_port",
-        default='22',
-        help=("The default port that will be used for outbound connections if "
-              "no port is provided.  Default: 22"),
-        metavar="'<port>'"
+                      dest="default_port",
+                      default='22',
+                      help=("The default port that will be used "
+                            "for outbound connections if "
+                            "no port is provided.  Default: 22"),
+                      metavar="'<port>'"
     )
 
     (options, args) = parser.parse_args()
@@ -446,11 +451,13 @@ def main():
             debug = parsed.get('debug', False)
 
             # Connect
-            openssh_connect(user, host, provider, identity,
-                port=port,
-                additional_args=options.additional_args,
-                debug=debug
-            )
+            openssh_connect(user,
+                            host,
+                            provider,
+                            identity,
+                            port=port,
+                            additional_args=options.additional_args,
+                            debug=debug)
     except Exception:
         pass
 
@@ -510,11 +517,13 @@ def main():
         print("\x1b]_;ssh|set;connect_string;{0}\007".format(connect_string))
 
         # Connect
-        openssh_connect(user, host, provider, identity,
-            port=port,
-            additional_args=options.additional_args,
-            debug=debug
-        )
+        openssh_connect(user,
+                        host,
+                        provider,
+                        identity,
+                        port=port,
+                        additional_args=options.additional_args,
+                        debug=debug)
 
     # Ctrl-D
     except (EOFError):

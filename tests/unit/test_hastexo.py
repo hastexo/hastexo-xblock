@@ -90,9 +90,8 @@ class TestHastexoXBlock(unittest.TestCase):
         mock_suspend_user_stack = Mock()
 
         with patch.multiple(self.block,
-            launch_stack_task=mock_launch_stack_task,
-            suspend_user_stack=mock_suspend_user_stack
-        ):
+                            launch_stack_task=mock_launch_stack_task,
+                            suspend_user_stack=mock_suspend_user_stack):
             data = {
                 "initialize": True,
                 "reset": False
@@ -124,9 +123,8 @@ class TestHastexoXBlock(unittest.TestCase):
         mock_suspend_user_stack = Mock()
 
         with patch.multiple(self.block,
-            launch_stack_task=mock_launch_stack_task,
-            suspend_user_stack=mock_suspend_user_stack
-        ):
+                            launch_stack_task=mock_launch_stack_task,
+                            suspend_user_stack=mock_suspend_user_stack):
             data = {
                 "initialize": True,
                 "reset": False
@@ -159,9 +157,8 @@ class TestHastexoXBlock(unittest.TestCase):
         mock_suspend_user_stack = Mock()
 
         with patch.multiple(self.block,
-            launch_stack_task=mock_launch_stack_task,
-            suspend_user_stack=mock_suspend_user_stack
-        ):
+                            launch_stack_task=mock_launch_stack_task,
+                            suspend_user_stack=mock_suspend_user_stack):
             data = {
                 "initialize": True,
                 "reset": False
@@ -193,9 +190,8 @@ class TestHastexoXBlock(unittest.TestCase):
         mock_suspend_user_stack = Mock()
 
         with patch.multiple(self.block,
-            launch_stack_task=mock_launch_stack_task,
-            suspend_user_stack=mock_suspend_user_stack
-        ):
+                            launch_stack_task=mock_launch_stack_task,
+                            suspend_user_stack=mock_suspend_user_stack):
             data = {
                 "initialize": True,
                 "reset": True

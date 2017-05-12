@@ -499,8 +499,8 @@ class HastexoXBlock(XBlock,
         def _launch_check():
             stack_ip = self.stack_get("status", "ip")
             logger.info('Executing tests for stack [%s], IP [%s], user [%s]:' %
-                       (self.stack_name, stack_ip,
-                        self.stack_user_name))
+                        (self.stack_name, stack_ip,
+                         self.stack_user_name))
             for test in self.tests:
                 logger.debug('Test: %s' % test)
 
