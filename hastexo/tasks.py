@@ -345,7 +345,7 @@ class LaunchStackTask(Task):
                     f.write(stack_key)
 
                 # Fix permissions so SSH doesn't complain
-                os.chmod(key_path, 0600)
+                os.chmod(key_path, 0o600)
 
                 # Upload key, if necessary
                 if configuration.get('ssh_upload'):
@@ -498,7 +498,7 @@ class CheckStudentProgressTask(Task):
             f.close()
 
             # Make it executable and run it.
-            sftp.chmod(script, 0775)
+            sftp.chmod(script, 0o775)
             stdin, stdout, stderr = ssh.exec_command(script)
             retval = stdout.channel.recv_exit_status()
             if retval == 0:

@@ -87,4 +87,4 @@ class SwiftWrapper(object):
 
         # Fix permissions so SSH doesn't complain
         if not error:
-            os.chmod(key_path, 0600)
+            os.chmod(key_path, 0o600)
