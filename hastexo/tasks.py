@@ -528,8 +528,8 @@ class SuspendStackTask(Task):
         # If the stack is broken, already suspended, or in the process
         # of, there's nothing to do here.
         if ('FAILED' in status or
-             status == 'SUSPEND_COMPLETE' or
-             status == 'SUSPEND_IN_PROGRESS'):
+            status == 'SUSPEND_COMPLETE' or
+            status == 'SUSPEND_IN_PROGRESS'):  # noqa: E129
             logger.warning("Cannot suspend stack [%s] "
                            "with status [%s]." % (stack_name, status))
             return

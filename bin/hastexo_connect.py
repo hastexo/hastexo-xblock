@@ -464,9 +464,7 @@ def main():
         print("Connecting, please wait...")
 
         # Validate it
-        if (not url or
-            bad_chars(url) or
-            not url.find('://')):
+        if (not url or bad_chars(url) or not url.find('://')):
             raise OptionError("Invalid URL")
 
         # Parse the URL
