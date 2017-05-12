@@ -427,7 +427,7 @@ def main():
         dest="default_port",
         default='22',
         help=("The default port that will be used for outbound connections if "
-               "no port is provided.  Default: 22"),
+              "no port is provided.  Default: 22"),
         metavar="'<port>'"
     )
 
