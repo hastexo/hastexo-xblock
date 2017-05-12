@@ -92,18 +92,18 @@ def valid_hostname(hostname):
     # Convert to Punycode if an IDN
     try:
         hostname = hostname.encode('idna')
-    except UnicodeError: # Can't convert to Punycode: Bad hostname
+    except UnicodeError:  # Can't convert to Punycode: Bad hostname
         return False
 
     try:
         hostname = str(hostname, 'UTF-8')
-    except TypeError: # Python 2.6+.  Just ignore
+    except TypeError:  # Python 2.6+.  Just ignore
         pass
 
     if len(hostname) > 255:
         return False
 
-    if hostname[-1:] == ".": # Strip the tailing dot if present
+    if hostname[-1:] == ".":  # Strip the tailing dot if present
         hostname = hostname[:-1]
 
     allowed = re.compile("(?!-)[_A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
@@ -116,7 +116,7 @@ def valid_ip(ipaddr):
     Returns True if *ipaddr* is a valid IPv4 or IPv6 address.
     (from http://stackoverflow.com/questions/319279/how-to-validate-ip-address-in-python)
     """
-    if ':' in ipaddr: # IPv6 address
+    if ':' in ipaddr:  # IPv6 address
         try:
             socket.inet_pton(socket.AF_INET6, ipaddr)
             return True
@@ -191,7 +191,7 @@ def openssh_connect(user, host, provider, identity,
         pass
 
     # Get the user's ssh directory
-    if 'GO_USER' in os.environ: # Try to use Gate One's provided user first
+    if 'GO_USER' in os.environ:  # Try to use Gate One's provided user first
         go_user = os.environ['GO_USER']
     else:
         # Fall back to the executing user (for testing outside of Gate One)
@@ -224,7 +224,7 @@ def openssh_connect(user, host, provider, identity,
 
     args = [
         "-x",
-        "-F'%s'" % ssh_config_path, # It's OK if it doesn't exist
+        "-F'%s'" % ssh_config_path,  # It's OK if it doesn't exist
         # This ensures that the executing users identity won't be used:
         "-oIdentitiesOnly=yes",
         "-oStrictHostKeyChecking=no",
@@ -249,7 +249,7 @@ def openssh_connect(user, host, provider, identity,
         env['PATH'] = os.environ['PATH']
         command = which("ssh")
 
-    if '[' in host: # IPv6 address
+    if '[' in host:  # IPv6 address
         # Have to remove the brackets which is silly.  See bug:
         #   https://bugzilla.mindrot.org/show_bug.cgi?id=1602
         host = host.strip('[]')
@@ -283,7 +283,7 @@ def openssh_connect(user, host, provider, identity,
         # Just use a generic temp file
         temp = tempfile.NamedTemporaryFile(prefix="ssh_connect", delete=False)
         script_path = "%s" % temp.name
-        temp.close() # Will be written to below
+        temp.close()  # Will be written to below
 
     # Create our little shell script to wrap the SSH command
     cmd = ""
@@ -300,7 +300,7 @@ def openssh_connect(user, host, provider, identity,
     # NOTE: We wrap in a shell script so we can execute it and immediately quit.
     # By doing this instead of keeping ssh_connect.py running we can save a lot
     # of memory (depending on how many terminals are open).
-    os.chmod(script_path, 0o700) # 0700 for good security practices
+    os.chmod(script_path, 0o700)  # 0700 for good security practices
 
     # Execute then immediately quit so we don't use up any more memory than we
     # need.
@@ -350,9 +350,9 @@ def parse_url(url):
 
     try:
         from urlparse import urlparse, parse_qs, uses_query
-        if 'ssh' not in uses_query: # Only necessary in Python 2.X
+        if 'ssh' not in uses_query:  # Only necessary in Python 2.X
             uses_query.append('ssh')
-    except ImportError: # Python 3
+    except ImportError:  # Python 3
         from urllib.parse import urlparse, parse_qs
 
     parsed = urlparse(url)
@@ -361,7 +361,7 @@ def parse_url(url):
         provider = q_attrs.get('provider')[0]
         identity = q_attrs.get('identity')[0]
         debug = q_attrs.get('debug', False)
-        if debug: # Passing anything turns on debug
+        if debug:  # Passing anything turns on debug
             debug = True
 
     if parsed.port:
