@@ -58,7 +58,8 @@ def mkdir_p(path):
     except OSError as exc:
         if exc.errno == errno.EEXIST:
             pass
-        else: raise
+        else:
+            raise
 
 
 def which(binary, path=None):
