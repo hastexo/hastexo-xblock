@@ -433,7 +433,7 @@ def main():
             port = parsed.get('port')
             provider = parsed.get('provider')
             identity = parsed.get('identity')
-            debug=parsed.get('debug', False)
+            debug = parsed.get('debug', False)
 
             # Connect
             openssh_connect(user, host, provider, identity,

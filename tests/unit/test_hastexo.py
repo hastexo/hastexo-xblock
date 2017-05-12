@@ -79,8 +79,8 @@ class TestHastexoXBlock(unittest.TestCase):
         mock_result.ready.return_value = True
         mock_result.successful.return_value = True
         mock_result.result = {"status": "CREATE_COMPLETE"}
-        mock_launch_stack_task=Mock(return_value=mock_result)
-        mock_suspend_user_stack=Mock()
+        mock_launch_stack_task = Mock(return_value=mock_result)
+        mock_suspend_user_stack = Mock()
 
         with patch.multiple(self.block,
             launch_stack_task=mock_launch_stack_task,
@@ -111,8 +111,8 @@ class TestHastexoXBlock(unittest.TestCase):
         mock_result.ready.return_value = True
         mock_result.successful.return_value = True
         mock_result.result = {"status": "RESUME_COMPLETE"}
-        mock_launch_stack_task=Mock(return_value=mock_result)
-        mock_suspend_user_stack=Mock()
+        mock_launch_stack_task = Mock(return_value=mock_result)
+        mock_suspend_user_stack = Mock()
 
         with patch.multiple(self.block,
             launch_stack_task=mock_launch_stack_task,
@@ -146,8 +146,8 @@ class TestHastexoXBlock(unittest.TestCase):
         mock_result.ready.return_value = True
         mock_result.successful.return_value = True
         mock_result.result = {"status": "RESUME_COMPLETE"}
-        mock_launch_stack_task=Mock(return_value=mock_result)
-        mock_suspend_user_stack=Mock()
+        mock_launch_stack_task = Mock(return_value=mock_result)
+        mock_suspend_user_stack = Mock()
 
         with patch.multiple(self.block,
             launch_stack_task=mock_launch_stack_task,
@@ -180,8 +180,8 @@ class TestHastexoXBlock(unittest.TestCase):
         mock_result.ready.return_value = True
         mock_result.successful.return_value = True
         mock_result.result = {"status": "CREATE_COMPLETE"}
-        mock_launch_stack_task=Mock(return_value=mock_result)
-        mock_suspend_user_stack=Mock()
+        mock_launch_stack_task = Mock(return_value=mock_result)
+        mock_suspend_user_stack = Mock()
 
         with patch.multiple(self.block,
             launch_stack_task=mock_launch_stack_task,
