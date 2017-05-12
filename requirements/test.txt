@@ -1,0 +1,6 @@
+-r base.txt
+-e git://github.com/edx/xblock-sdk.git@v0.1.2#egg=xblock-sdk==v0.1.2
+tox
+coverage
+django-pyfs
+mako
