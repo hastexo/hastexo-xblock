@@ -47,7 +47,7 @@ To deploy the hastexo XBlock:
 1. Install it via pip:
 
     ```
-    $ sudo /edx/bin/pip.edxapp install -e git+https://github.com/hastexo/hastexo-xblock.git@master#egg=hastexo-xblock
+    $ sudo /edx/bin/pip.edxapp install hastexo-xblock
     ```
 
 2. Add it to the `ADDL_INSTALLED_APPS` of your LMS environment, by editing
@@ -398,13 +398,13 @@ And this must be set in `/etc/gateone/conf.d/10server.conf`:
 
 ## Running tests
 
-To run the available tests:
+The testing framework is built on
+[tox](https://tox.readthedocs.io/). After installing tox, you can
+simply run `tox` from your Git checkout of this repository.
 
-```
-$ mkvirtualenv hastexo-xblock
-$ ./install_test_deps.sh
-$ ./run_tests.py
-```
+In addition, you can run `tox -r` to throw away and rebuild the
+testing virtualenv, or `tox -e flake8` to run only PEP-8 checks, as
+opposed to the full test suite.
 
 
 ## License
