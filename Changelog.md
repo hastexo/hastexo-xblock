@@ -1,3 +1,10 @@
+Version 0.5.2 (2017-05-12)
+---------------------------
+
+* [Bug fix] Freeze oslo requirements
+* [Enhancement] PEP-8 compliance and flake8 testing
+* [Enhancement] Enable automated testing via travis-ci
+
 Version 0.5.1 (2017-05-02)
 ---------------------------
 
