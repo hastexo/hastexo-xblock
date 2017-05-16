@@ -1,3 +1,8 @@
+Version 0.5.3 (2017-05-16)
+---------------------------
+
+* [Bug fix] Avoid another contextual version conflict
+
 Version 0.5.2 (2017-05-12)
 ---------------------------
 

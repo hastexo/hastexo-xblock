@@ -32,7 +32,7 @@ def package_data(pkg, roots):
 
 setup(
     name='hastexo-xblock',
-    version='0.5.2',
+    version='0.5.3',
     description='hastexo XBlock: '
                 'Makes arbitrarily complex lab environments '
                 'available on an Open edX LMS',
@@ -56,6 +56,8 @@ setup(
     install_requires=[
         'XBlock',
         'xblock-utils',
+        'osc-lib==1.2.0',
+        'cliff==2.2.0',
         'oslo.utils==3.18.0',
         'oslo.serialization==1.10.0',
         'python-keystoneclient==3.10.0',
