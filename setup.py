@@ -62,7 +62,7 @@ setup(
         'oslo.serialization==1.10.0',
         'python-keystoneclient==3.10.0',
         'python-heatclient==1.6.1',
-        'python-swiftclient==3.1.0',
+        'python-swiftclient==3.3.0',
         'paramiko==2.1.2',
     ],
     entry_points={
