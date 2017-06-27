@@ -1,3 +1,10 @@
+Version 0.5.4 (2017-06-23)
+---------------------------
+
+* [Enhancement] Bump swift client to 3.3.0
+* [Enhancement] Add XBlock 1.0.0 and Python 3.5 to the test matrix
+* [Enhancement] Add mock to test requirements
+
 Version 0.5.3 (2017-05-16)
 ---------------------------
 
