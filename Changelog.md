@@ -1,3 +1,8 @@
+Version 0.5.5 (2017-07-17)
+---------------------------
+
+* [Enhancement] Expand provider settings scope
+
 Version 0.5.4 (2017-06-23)
 ---------------------------
 

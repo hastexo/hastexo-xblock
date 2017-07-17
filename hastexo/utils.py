@@ -76,6 +76,6 @@ def get_xblock_configuration(settings, provider):
 
         if provider_settings:
             xblock_configuration = set_xblock_configuration(
-                    provider_settings, xblock_configuration)
+                provider_settings, xblock_configuration)
 
     return xblock_configuration
