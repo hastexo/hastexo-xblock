@@ -27,55 +27,55 @@ DEFAULT_SETTINGS = {
     }
 }
 
+CREDENTIALS = (
+    "os_auth_url",
+    "os_auth_token",
+    "os_username",
+    "os_password",
+    "os_user_id",
+    "os_user_domain_id",
+    "os_user_domain_name",
+    "os_project_id",
+    "os_project_name",
+    "os_project_domain_id",
+    "os_project_domain_name",
+    "os_region_name"
+)
+
+
+def set_xblock_configuration(settings, defaults={}):
+    config = {}
+    for key, val in DEFAULT_SETTINGS.iteritems():
+        config[key] = settings.get(key, defaults.get(key))
+
+    credentials = {}
+    for key in CREDENTIALS:
+        credentials[key] = settings.get(key)
+
+    config["credentials"] = credentials
+
+    return config
+
 
 def get_xblock_configuration(settings, provider):
     # Set defaults
-    launch_timeout = settings.get("launch_timeout",
-                                  DEFAULT_SETTINGS["launch_timeout"])
-    suspend_timeout = settings.get("suspend_timeout",
-                                   DEFAULT_SETTINGS["suspend_timeout"])
-    terminal_url = settings.get("terminal_url",
-                                DEFAULT_SETTINGS["terminal_url"])
-    ssh_dir = settings.get("ssh_dir", DEFAULT_SETTINGS["ssh_dir"])
-    ssh_upload = settings.get("ssh_upload", DEFAULT_SETTINGS["ssh_upload"])
-    ssh_bucket = settings.get("ssh_bucket", DEFAULT_SETTINGS["ssh_bucket"])
-    task_timeouts = settings.get("task_timeouts",
-                                 DEFAULT_SETTINGS["task_timeouts"])
-    js_timeouts = settings.get("js_timeouts", DEFAULT_SETTINGS["js_timeouts"])
+    xblock_configuration = set_xblock_configuration(settings, DEFAULT_SETTINGS)
 
-    # Get credentials
+    # Override defaults with provider settings
     providers = settings.get("providers")
     if providers:
-        credentials = providers.get(provider)
-        if not credentials:
-            credentials = providers.get("default")
-        if not credentials:
-            credentials = providers.itervalues().next()
-    else:
-        # For backward compatibility.
-        credentials = {
-            "os_auth_url": settings.get("os_auth_url"),
-            "os_auth_token": settings.get("os_auth_token"),
-            "os_username": settings.get("os_username"),
-            "os_password": settings.get("os_password"),
-            "os_user_id": settings.get("os_user_id"),
-            "os_user_domain_id": settings.get("os_user_domain_id"),
-            "os_user_domain_name": settings.get("os_user_domain_name"),
-            "os_project_id": settings.get("os_project_id"),
-            "os_project_name": settings.get("os_project_name"),
-            "os_project_domain_id": settings.get("os_project_domain_id"),
-            "os_project_domain_name": settings.get("os_project_domain_name"),
-            "os_region_name": settings.get("os_region_name")
-        }
+        provider_settings = providers.get(provider)
 
-    return {
-        "launch_timeout": launch_timeout,
-        "suspend_timeout": suspend_timeout,
-        "terminal_url": terminal_url,
-        "ssh_dir": ssh_dir,
-        "ssh_upload": ssh_upload,
-        "ssh_bucket": ssh_bucket,
-        "task_timeouts": task_timeouts,
-        "js_timeouts": js_timeouts,
-        "credentials": credentials
-    }
+        if not provider_settings:
+            # Fall back to default, if provider is not set.
+            provider_settings = providers.get("default")
+
+        if not provider_settings:
+            # Fall back to first provider, if no "default" provider exists.
+            provider_settings = providers.itervalues().next()
+
+        if provider_settings:
+            xblock_configuration = set_xblock_configuration(
+                    provider_settings, xblock_configuration)
+
+    return xblock_configuration
