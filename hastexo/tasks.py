@@ -7,10 +7,10 @@ import re
 from celery import Task
 from celery.utils.log import get_task_logger
 from heatclient.exc import HTTPNotFound
+from StringIO import StringIO
 
 from .utils import UP_STATES
 from .heat import HeatWrapper
-from .swift import SwiftWrapper
 
 logger = get_task_logger(__name__)
 
@@ -36,6 +36,7 @@ class LaunchStackTask(Task):
         error_msg = None
         stack = None
         stack_ip = None
+        stack_key = None
 
         # Get the Heat client
         heat = self.get_heat_client(configuration)
@@ -54,10 +55,11 @@ class LaunchStackTask(Task):
                         "with status [%s]" % (stack_name, status))
             (verify_status,
              error_msg,
-             stack_ip) = self.verify_stack(configuration,
-                                           stack,
-                                           stack_name,
-                                           stack_user)
+             stack_ip,
+             stack_key) = self.verify_stack(configuration,
+                                            stack,
+                                            stack_name,
+                                            stack_user)
 
         # Roll back in case of failure: if it's a failure during creation,
         # delete the stack.  If it's a failure to resume, suspend it.
@@ -88,7 +90,7 @@ class LaunchStackTask(Task):
             'error_msg': error_msg,
             'ip': stack_ip,
             'user': stack_user,
-            'key': stack_name
+            'key': stack_key
         }
 
     def get_heat_client(self, configuration):
@@ -404,17 +406,17 @@ class LaunchStackTask(Task):
                         "to become network accessible "
                         "at [%s]" % (stack_name, stack_ip))
             ping_command = "ping -c 1 -W 5 " + stack_ip + " >/dev/null 2>&1"
-            response = os.system(ping_command)
-            retry = 0
-            while response != 0 and retry < retries:
-                logger.debug("Could not ping stack [%s] at [%s]. "
-                             "Waiting %s seconds "
-                             "until next attempt." % (stack_name,
-                                                      stack_ip,
-                                                      sleep))
-                time.sleep(sleep)
+            for retry in range(retries):
                 response = os.system(ping_command)
-                retry += 1
+                if response == 0:
+                    break
+                else:
+                    logger.debug("Could not ping stack [%s] at [%s]. "
+                                 "Waiting %s seconds "
+                                 "until next attempt." % (stack_name,
+                                                          stack_ip,
+                                                          sleep))
+                    time.sleep(sleep)
 
             # Consider stack failed if it isn't network accessible.
             if response != 0:
@@ -425,45 +427,34 @@ class LaunchStackTask(Task):
                                                           retry))
                 logger.error(error_msg)
             else:
-                # Export the private key.
-                key_path = "%s/%s" % (configuration.get('ssh_dir'), stack_name)
-                with open(key_path, 'w') as f:
-                    f.write(stack_key)
-
-                # Fix permissions so SSH doesn't complain
-                os.chmod(key_path, 0o600)
-
-                # Upload key, if necessary
-                if configuration.get('ssh_upload'):
-                    # Sleep to avoid throttling.
-                    time.sleep(sleep)
-
-                    self.upload_key(stack_name, key_path, configuration)
-
-                # Build the SSH command
-                ssh_command = ("ssh -T -o StrictHostKeyChecking=no "
-                               "-i %s %s@%s exit" % (key_path,
-                                                     stack_user,
-                                                     stack_ip))
-
                 # Now wait until environment is fully provisioned.  One of the
                 # requirements for the Heat template is for it to disallow SSH
                 # access to the training user while provisioning is going on.
                 logger.info("Checking SSH connection "
                             "for stack [%s] at [%s]" % (stack_name, stack_ip))
-                response = os.system(ssh_command)
-                retry = 0
-                while response != 0 and retry < retries:
-                    logger.debug("Could not SSH into stack [%s] at [%s]. "
-                                 "Waiting %s seconds "
-                                 "until next attempt." % (stack_name,
-                                                          stack_ip,
-                                                          sleep))
-                    time.sleep(sleep)
-                    retry += 1
-                    response = os.system(ssh_command)
 
-                if response != 0:
+                ssh = paramiko.SSHClient()
+                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                pkey = paramiko.RSAKey.from_private_key(StringIO(stack_key))
+
+                connected = False
+                for retry in range(retries):
+                    try:
+                        ssh.connect(stack_ip, username=stack_user, pkey=pkey)
+                    except (paramiko.ssh_exception.AuthenticationException,
+                            paramiko.ssh_exception.SSHException) as e:
+                        logger.debug("Could not SSH into stack [%s] at [%s]. "
+                                     "Waiting %s seconds "
+                                     "until next attempt." % (stack_name,
+                                                              stack_ip,
+                                                              sleep))
+                        time.sleep(sleep)
+                    else:
+                        ssh.close()
+                        connected = True
+                        break
+
+                if not connected:
                     verify_status = 'VERIFY_FAILED'
                     error_msg = ("Can't SSH into stack [%s] at [%s].  "
                                  "Giving up after %s tries." % (stack_name,
@@ -474,13 +465,7 @@ class LaunchStackTask(Task):
                     logger.info("Stack [%s] SSH successful "
                                 "at [%s]." % (stack_name, stack_ip))
 
-        return (verify_status, error_msg, stack_ip)
-
-    def upload_key(self, key, key_path, configuration):
-        logger.info("Uploading stack key [%s] "
-                    "into [%s]." % (key, configuration.get("ssh_bucket")))
-        swift = SwiftWrapper(**configuration)
-        swift.upload_key(key, key_path)
+        return (verify_status, error_msg, stack_ip, stack_key)
 
 
 class SuspendStackTask(Task):
@@ -582,12 +567,12 @@ class CheckStudentProgressTask(Task):
     Check student progress by running a set of scripts via SSH.
 
     """
-    def run(self, configuration, tests, stack_ip, stack_name, stack_user):
+    def run(self, configuration, tests, stack_ip, stack_user, stack_key):
         # Open SSH connection to the public facing node
         ssh = self.open_ssh_connection(configuration,
-                                       stack_name,
+                                       stack_ip,
                                        stack_user,
-                                       stack_ip)
+                                       stack_key)
 
         # Run tests on the stack
         res = self.run_tests(ssh, tests)
@@ -629,23 +614,14 @@ class CheckStudentProgressTask(Task):
 
     def open_ssh_connection(self,
                             configuration,
-                            stack_name,
+                            stack_ip,
                             stack_user,
-                            stack_ip):
+                            stack_key):
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-        key_filename = "%s/%s" % (configuration.get('ssh_dir'), stack_name)
+        pkey = paramiko.RSAKey.from_private_key(StringIO(stack_key))
 
-        # Always try to download key, as it may have changed since the last
-        # download (via a stack reset, for instance).
-        if configuration.get('ssh_upload', False):
-            self.download_key(stack_name, key_filename, configuration)
-
-        ssh.connect(stack_ip, username=stack_user, key_filename=key_filename)
+        ssh.connect(stack_ip, username=stack_user, pkey=pkey)
 
         return ssh
-
-    def download_key(self, key, key_path, configuration):
-        swift = SwiftWrapper(**configuration)
-        swift.download_key(key, key_path)

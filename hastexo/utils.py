@@ -12,9 +12,6 @@ DEFAULT_SETTINGS = {
     "launch_timeout": 300,
     "suspend_timeout": 120,
     "terminal_url": "/terminal",
-    "ssh_dir": "/edx/var/edxapp/terminal_users/ANONYMOUS/.ssh",
-    "ssh_upload": False,
-    "ssh_bucket": "identities",
     "task_timeouts": {
         "sleep": 5,
         "retries": 60

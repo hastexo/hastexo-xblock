@@ -498,6 +498,7 @@ class HastexoXBlock(XBlock,
         """
         def _launch_check():
             stack_ip = self.stack_get("status", "ip")
+            stack_key = self.stack_get("status", "key")
             logger.info('Executing tests for stack [%s], IP [%s], user [%s]:' %
                         (self.stack_name, stack_ip,
                          self.stack_user_name))
@@ -508,8 +509,8 @@ class HastexoXBlock(XBlock,
                 self.configuration,
                 self.tests,
                 stack_ip,
-                self.stack_name,
-                self.stack_user_name
+                self.stack_user_name,
+                stack_key
             )
             result = CheckStudentProgressTask().apply_async(args=args,
                                                             expires=60)

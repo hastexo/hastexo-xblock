@@ -1,0 +1,4 @@
+src/main/webapp/META-INF/
+target/
+*.sw?
+*~

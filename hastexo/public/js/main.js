@@ -28,85 +28,21 @@ function HastexoXBlock(runtime, element, configuration) {
             button.on('click', get_check_status);
         }
 
-        /* edX recreates the DOM for every vertical unit when navigating to and
-         * from them.  However, after navigating away from a lab unit (but
-         * remaining on the section) GateOne will remain initialized, any
-         * terminals will remain open, and any timeouts will continue to run.
-         * Thus, one must take care not to reinitialize GateOne. */
-        if (typeof GateOne == 'undefined') {
-            var terminal_url;
-
-            /* Test if terminal URL is absolute. */
-            var is_absolute = new RegExp('^(?:[a-z]+:)?//', 'i');
-            var is_port = new RegExp('^:');
-            if (is_absolute.test(configuration.terminal_url)) {
-                terminal_url = configuration.terminal_url;
-            } else if (is_port.test(configuration.terminal_url)) {
-                terminal_url = location.protocol + '//' + location.hostname + configuration.terminal_url;
+        /* Process terminal URL. */
+        var is_absolute = new RegExp('^(?:[a-z]+:)?//', 'i');
+        var is_port = new RegExp('^:');
+        if (!is_absolute.test(configuration.terminal_url)) {
+            if (is_port.test(configuration.terminal_url)) {
+                configuration.terminal_url = location.protocol + '//' + location.hostname + configuration.terminal_url;
             } else {
-                terminal_url = location.origin + configuration.terminal_url;
-            }
-
-            /* Load GateOne dynamically. */
-            $.cachedScript(terminal_url + '/static/gateone.js').done(function() {
-                GateOne.init({
-                    url: terminal_url,
-                    embedded: true,
-                    goDiv: '#gateone',
-                    logLevel: 'WARNING'
-                });
-
-                get_user_stack_status(true);
-            });
-        } else {
-            /* If the stack status is known, the keepalive timer hasn't been
-             * stopped, and we can simply recover the existing
-             * workspace.  If it doesn't exist, we create a new one.*/
-            if (stack) {
-                if (GateOne.Terminal.terminals[1]) {
-                    /* Recover existing workspace. */
-                    GateOne.Utils.removeElement(GateOne.prefs.goDiv);
-                    var c = GateOne.Utils.getNode('#gateonecontainer');
-                    var w = GateOne.Terminal.terminals[1].where;
-                    c.appendChild(w);
-
-                    /* Scroll to the bottom of the terminal manually. */
-                    GateOne.Utils.scrollToBottom('#go_default_term1_pre');
-
-                    /* Reset keepalive timer. */
-                    if (configuration.timeouts['keepalive']) {
-                        if (keepalive_timer) clearTimeout(keepalive_timer);
-                        keepalive_timer = setTimeout(keepalive, configuration.timeouts['keepalive']);
-                    }
-
-                    /* Reset idle timer. */
-                    if (configuration.timeouts['idle']) {
-                        if (idle_timer) clearTimeout(idle_timer);
-                        idle_timer = setTimeout(idle, configuration.timeouts['idle']);
-                    }
-                } else {
-                    update_user_stack_status(stack);
-                }
-
-            /* We don't know the stack status.  Ask the server, but first close
-             * any existing terminals. */
-            } else {
-                if (GateOne.Terminal.terminals[1]) {
-                    /* Recover existing workspace. */
-                    GateOne.Utils.removeElement(GateOne.prefs.goDiv);
-                    var c = GateOne.Utils.getNode('#gateonecontainer');
-                    var w = GateOne.Terminal.terminals[1].where;
-                    c.appendChild(w);
-
-                    /* Close the old terminal. A new one will be created after the
-                     * stack reaches the appropriate state. */
-                    GateOne.Terminal.closeTerminal(1);
-                }
-
-                /* Start over. */
-                get_user_stack_status(true);
+                configuration.terminal_url = location.origin + configuration.terminal_url;
             }
         }
+
+        /* Load app dynamically. */
+        $.cachedScript(configuration.terminal_url + '/guacamole-common-js/all.min.js').done(function() {
+            get_user_stack_status(true);
+        });
     };
 
     var get_user_stack_status = function(initialize = false, reset = false) {
@@ -144,37 +80,69 @@ function HastexoXBlock(runtime, element, configuration) {
 
     var update_user_stack_status = function (stack) {
         if (stack.status == 'CREATE_COMPLETE' || stack.status == 'RESUME_COMPLETE') {
-            /* Start the terminal.  Certain GateOne tasks must be delayed
-             * manually, or risk failure during inter-dependency checking. */
-            GateOne.Base.superSandbox("GateOne.MyModule", ["GateOne.Input", "GateOne.Terminal", "GateOne.Terminal.Input"], function(window, undefined) {
-                setTimeout(function() {
-                    var c = GateOne.Utils.getNode('#container');
-                    var term_num = GateOne.Terminal.newTerminal(null, null, c);
-                    setTimeout(function() {
-                        var s = 'ssh://' + stack.user + '@' + stack.ip + ':22/?provider=' + configuration.provider + '&identity=' + stack.key + '\n';
-                        GateOne.Terminal.sendString(s);
-                        setTimeout(function() {
-                            /* Update screen dimensions. */
-                            GateOne.Terminal.sendDimensions();
+            /* Start the terminal.  */
+            var display = document.getElementById("terminal");
+            var guac = new Guacamole.Client(
+                new Guacamole.HTTPTunnel(configuration.terminal_url + "tunnel", true)
+            );
 
-                            /* Reset keepalive timer. */
-                            if (configuration.timeouts['keepalive']) {
-                                if (keepalive_timer) clearTimeout(keepalive_timer);
-                                keepalive_timer = setTimeout(keepalive, configuration.timeouts['keepalive']);
-                            }
+            display.appendChild(guac.getDisplay().getElement());
 
-                            /* Reset idle timer. */
-                            if (configuration.timeouts['idle']) {
-                                if (idle_timer) clearTimeout(idle_timer);
-                                idle_timer = setTimeout(idle, configuration.timeouts['idle']);
-                            }
+            guac.onerror = function(error) {
+                alert(error);
+            };
 
-                            /* Close the dialog. */
-                            $.dialog.close();
-                        }, 750);
-                    }, 250);
-                }, 100);
+            var data = $.param({
+                'ip': stack.ip,
+                'user': stack.user,
+                'key': stack.key
             });
+
+            guac.connect(data);
+
+            window.onunload = function() {
+                guac.disconnect();
+            };
+
+            /* Mouse handling */
+            var mouse = new Guacamole.Mouse(guac.getDisplay().getElement());
+
+            mouse.onmousedown =
+            mouse.onmouseup   =
+            mouse.onmousemove = function(mouseState) {
+                guac.sendMouseState(mouseState);
+            };
+
+            /* Keyboard handling */
+            var keyboard = new Guacamole.Keyboard(document);
+
+            keyboard.onkeydown = function (keysym) {
+                guac.sendKeyEvent(1, keysym);
+            };
+
+            keyboard.onkeyup = function (keysym) {
+                guac.sendKeyEvent(0, keysym);
+            };
+
+            // Release all keys when window loses focus
+            window.onblur = function () {
+                keyboard.reset();
+            };
+
+            /* Reset keepalive timer. */
+            if (configuration.timeouts['keepalive']) {
+                if (keepalive_timer) clearTimeout(keepalive_timer);
+                keepalive_timer = setTimeout(keepalive, configuration.timeouts['keepalive']);
+            }
+
+            /* Reset idle timer. */
+            if (configuration.timeouts['idle']) {
+                if (idle_timer) clearTimeout(idle_timer);
+                idle_timer = setTimeout(idle, configuration.timeouts['idle']);
+            }
+
+            /* Close the dialog. */
+            $.dialog.close();
         } else if (stack.status == 'PENDING') {
             if (status_timer) clearTimeout(status_timer);
             status_timer = setTimeout(get_user_stack_status, configuration.timeouts['status']);
