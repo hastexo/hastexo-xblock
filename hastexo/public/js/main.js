@@ -93,9 +93,11 @@ function HastexoXBlock(runtime, element, configuration) {
             };
 
             var data = $.param({
+                'protocol': configuration.protocol,
                 'ip': stack.ip,
                 'user': stack.user,
-                'key': stack.key
+                'key': stack.key,
+                'password': stack.password
             });
 
             guac.connect(data);

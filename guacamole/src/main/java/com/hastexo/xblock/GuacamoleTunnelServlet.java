@@ -19,14 +19,24 @@ public class GuacamoleTunnelServlet extends GuacamoleHTTPTunnelServlet {
         // guacd connection information
         String hostname = "localhost";
         int port = 4822;
+        String protocol = request.getParameter("protocol");
 
-        // SSH connection information
+        // Connection configuration
         GuacamoleConfiguration config = new GuacamoleConfiguration();
-        config.setProtocol("ssh");
-        config.setParameter("hostname", request.getParameter("ip"));
-        config.setParameter("port", "22");
-        config.setParameter("username", request.getParameter("user"));
-        config.setParameter("private-key", request.getParameter("key"));
+        if (protocol.equals("vnc")) {
+            config.setProtocol("vnc");
+            config.setParameter("hostname", request.getParameter("ip"));
+            config.setParameter("port", "5901");
+            config.setParameter("password", request.getParameter("password"));
+        } else {
+            config.setProtocol("ssh");
+            config.setParameter("hostname", request.getParameter("ip"));
+            config.setParameter("port", "22");
+            config.setParameter("username", request.getParameter("user"));
+            config.setParameter("private-key", request.getParameter("key"));
+        }
+
+        // Set screen size
         GuacamoleClientInformation info = new GuacamoleClientInformation();
         info.setOptimalScreenWidth(860);
         info.setOptimalScreenHeight(320);

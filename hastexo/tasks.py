@@ -37,6 +37,7 @@ class LaunchStackTask(Task):
         stack = None
         stack_ip = None
         stack_key = None
+        stack_password = None
 
         # Get the Heat client
         heat = self.get_heat_client(configuration)
@@ -56,7 +57,8 @@ class LaunchStackTask(Task):
             (verify_status,
              error_msg,
              stack_ip,
-             stack_key) = self.verify_stack(configuration,
+             stack_key,
+             stack_password) = self.verify_stack(configuration,
                                             stack,
                                             stack_name,
                                             stack_user)
@@ -90,7 +92,8 @@ class LaunchStackTask(Task):
             'error_msg': error_msg,
             'ip': stack_ip,
             'user': stack_user,
-            'key': stack_key
+            'key': stack_key,
+            'password': stack_password
         }
 
     def get_heat_client(self, configuration):
@@ -378,6 +381,7 @@ class LaunchStackTask(Task):
         error_msg = None
         stack_ip = None
         stack_key = None
+        stack_password = None
 
         timeouts = configuration.get('timeouts', {})
         sleep = timeouts.get('sleep', 5)
@@ -394,11 +398,14 @@ class LaunchStackTask(Task):
             elif output['output_key'] == 'private_key':
                 stack_key = output['output_value']
                 logger.debug("Found key for stack [%s]" % (stack_name))
+            elif output['output_key'] == 'password':
+                stack_password = output['output_value']
+                logger.debug("Found password for stack [%s]" % (stack_name))
 
         if stack_ip is None or stack_key is None:
             verify_status = 'VERIFY_FAILED'
             error_msg = ("Stack [%s] did not provide "
-                         "IP or private key." % stack_name)
+                         "IP and private key." % stack_name)
             logger.error(error_msg)
         else:
             # Wait until stack is network accessible, but not indefinitely.
@@ -465,7 +472,11 @@ class LaunchStackTask(Task):
                     logger.info("Stack [%s] SSH successful "
                                 "at [%s]." % (stack_name, stack_ip))
 
-        return (verify_status, error_msg, stack_ip, stack_key)
+        return (verify_status,
+                error_msg,
+                stack_ip,
+                stack_key,
+                stack_password)
 
 
 class SuspendStackTask(Task):

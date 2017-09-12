@@ -43,6 +43,11 @@ class HastexoXBlock(XBlock,
     stack_user_name = String(
         scope=Scope.settings,
         help="The name of the training user in the stack.")
+    stack_protocol = String(
+        default="ssh",
+        scope=Scope.settings,
+        help="What protocol to use for the connection. "
+             "Currently, \"ssh\" or \"vnc\".")
     provider = String(
         default="default",
         scope=Scope.settings,
@@ -87,6 +92,7 @@ class HastexoXBlock(XBlock,
         'weight',
         'stack_template_path',
         'stack_user_name',
+        'stack_protocol',
         'provider')
 
     has_author_view = True
@@ -219,6 +225,7 @@ class HastexoXBlock(XBlock,
             "terminal_url": self.configuration.get("terminal_url"),
             "timeouts": self.configuration.get("js_timeouts"),
             "has_tests": len(self.tests) > 0,
+            "protocol": self.stack_protocol,
             "provider": self.provider
         })
 
