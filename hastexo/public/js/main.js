@@ -8,6 +8,7 @@ function HastexoXBlock(runtime, element, configuration) {
     var keepalive_timer = undefined;
     var idle_timer = undefined;
     var check_timer = undefined;
+    var terminal_client = undefined;
 
     var init = function() {
         /* Reset the idle timeout on every key press. */
@@ -41,7 +42,10 @@ function HastexoXBlock(runtime, element, configuration) {
 
         /* Load app dynamically. */
         $.cachedScript(configuration.terminal_url + '/guacamole-common-js/all.min.js').done(function() {
-            get_user_stack_status(true);
+          terminal_client = new Guacamole.Client(
+            new Guacamole.HTTPTunnel(configuration.terminal_url + "tunnel", true)
+          );
+          get_user_stack_status(true);
         });
     };
 
@@ -82,13 +86,10 @@ function HastexoXBlock(runtime, element, configuration) {
         if (stack.status == 'CREATE_COMPLETE' || stack.status == 'RESUME_COMPLETE') {
             /* Start the terminal.  */
             var display = document.getElementById("terminal");
-            var guac = new Guacamole.Client(
-                new Guacamole.HTTPTunnel(configuration.terminal_url + "tunnel", true)
-            );
 
-            display.appendChild(guac.getDisplay().getElement());
+            display.appendChild(terminal_client.getDisplay().getElement());
 
-            guac.onerror = function(error) {
+            terminal_client.onerror = function(error) {
                 alert(error);
             };
 
@@ -100,30 +101,30 @@ function HastexoXBlock(runtime, element, configuration) {
                 'password': stack.password
             });
 
-            guac.connect(data);
+            terminal_client.connect(data);
 
             window.onunload = function() {
-                guac.disconnect();
+                terminal_client.disconnect();
             };
 
             /* Mouse handling */
-            var mouse = new Guacamole.Mouse(guac.getDisplay().getElement());
+            var mouse = new Guacamole.Mouse(terminal_client.getDisplay().getElement());
 
             mouse.onmousedown =
             mouse.onmouseup   =
             mouse.onmousemove = function(mouseState) {
-                guac.sendMouseState(mouseState);
+                terminal_client.sendMouseState(mouseState);
             };
 
             /* Keyboard handling */
             var keyboard = new Guacamole.Keyboard(document);
 
             keyboard.onkeydown = function (keysym) {
-                guac.sendKeyEvent(1, keysym);
+                terminal_client.sendKeyEvent(1, keysym);
             };
 
             keyboard.onkeyup = function (keysym) {
-                guac.sendKeyEvent(0, keysym);
+                terminal_client.sendKeyEvent(0, keysym);
             };
 
             // Release all keys when window loses focus
@@ -239,9 +240,8 @@ function HastexoXBlock(runtime, element, configuration) {
 
         var dialog = $('#idle');
         dialog.find('input.ok').one('click', function() {
-            /* Close the old terminal. A new one will be created after the
-             * stack reaches the appropriate state. */
-            GateOne.Terminal.closeTerminal(1);
+            /* Disconnect terminal. */
+            terminal_client.disconnect()
 
             /* Start over. */
             get_user_stack_status(true);
@@ -258,10 +258,11 @@ function HastexoXBlock(runtime, element, configuration) {
 
         dialog.find('input.reset').one('click', function() {
             $.dialog.close();
-            /* Close old terminals. */
-            for (var term in GateOne.Terminal.terminals) {
-                GateOne.Terminal.closeTerminal(term);
-            }
+
+            /* Disconnect terminal. */
+            terminal_client.disconnect()
+
+            /* Start over. */
             get_user_stack_status(true, true);
         });
 
