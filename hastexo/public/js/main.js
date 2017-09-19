@@ -30,22 +30,19 @@ function HastexoXBlock(runtime, element, configuration) {
         }
 
         /* Process terminal URL. */
-        var is_absolute = new RegExp('^(?:[a-z]+:)?//', 'i');
-        var is_port = new RegExp('^:');
-        if (!is_absolute.test(configuration.terminal_url)) {
-            if (is_port.test(configuration.terminal_url)) {
-                configuration.terminal_url = location.protocol + '//' + location.hostname + configuration.terminal_url;
-            } else {
-                configuration.terminal_url = location.origin + configuration.terminal_url;
-            }
-        }
+        var prot_map = {
+            "http:":  "ws:",
+            "https:": "wss:"
+        };
+        var terminal_http_url = location.protocol + '//' + location.hostname + configuration.terminal_url;
+        var terminal_ws_url = prot_map[location.protocol] + '//' + location.hostname + configuration.terminal_url;
 
         /* Load app dynamically. */
-        $.cachedScript(configuration.terminal_url + '/guacamole-common-js/all.min.js').done(function() {
-          terminal_client = new Guacamole.Client(
-            new Guacamole.HTTPTunnel(configuration.terminal_url + "tunnel", true)
-          );
-          get_user_stack_status(true);
+        $.cachedScript(terminal_http_url + '/guacamole-common-js/all.min.js').done(function() {
+            terminal_client = new Guacamole.Client(
+                new Guacamole.WebSocketTunnel(terminal_ws_url + "websocket-tunnel")
+            );
+            get_user_stack_status(true);
         });
     };
 
@@ -89,8 +86,18 @@ function HastexoXBlock(runtime, element, configuration) {
 
             display.appendChild(terminal_client.getDisplay().getElement());
 
-            terminal_client.onerror = function(error) {
-                alert(error);
+            terminal_client.onerror = function(guac_error) {
+                /* Unexpected status.  Display error message. */
+                var dialog = $('#launch_error');
+                dialog.find('.error_msg').html(guac_error.message);
+                dialog.find('input.ok').one('click', function() {
+                    $.dialog.close();
+                });
+                dialog.find('input.retry').one('click', function() {
+                    $.dialog.close();
+                    location.reload();
+                });
+                dialog.dialog(element);
             };
 
             var data = $.param({

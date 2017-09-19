@@ -8,15 +8,15 @@
     <body>
         <div id="display"></div>
 
-        <script type="text/javascript" src="guacamole-common-js/all.min.js"></script>
+        <script type="text/javascript" src="guacamole-common-js/all.js"></script>
 
         <script type="text/javascript"> /* <![CDATA[ */
             // Get display div from document
             var display = document.getElementById("display");
 
-            // Instantiate client, using an HTTP tunnel for communications.
+            // Instantiate client, using a WebSocket tunnel for communications.
             var guac = new Guacamole.Client(
-                new Guacamole.HTTPTunnel("tunnel")
+                new Guacamole.WebSocketTunnel("websocket-tunnel")
             );
 
             // Add client to display div
@@ -24,11 +24,11 @@
 
             // Error handler
             guac.onerror = function(error) {
-                alert(error);
+                alert(error.message);
             };
 
             // Connect
-            guac.connect();
+            guac.connect("protocol=ssh&ip=&user=&key=");
 
             // Disconnect on close
             window.onunload = function() {

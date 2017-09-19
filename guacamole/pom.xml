@@ -63,6 +63,40 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- JSR 356 WebSocket API -->
+        <dependency>
+            <groupId>javax.websocket</groupId>
+            <artifactId>javax.websocket-api</artifactId>
+            <version>1.0</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Guice - Dependency Injection -->
+        <dependency>
+            <groupId>com.google.inject</groupId>
+            <artifactId>guice</artifactId>
+            <version>3.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.inject.extensions</groupId>
+            <artifactId>guice-assistedinject</artifactId>
+            <version>3.0</version>
+        </dependency>
+
+        <!-- Guice Servlet -->
+        <dependency>
+            <groupId>com.google.inject.extensions</groupId>
+            <artifactId>guice-servlet</artifactId>
+            <version>3.0</version>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-simple</artifactId>
+          <version>1.7.7</version>
+        </dependency>
+
         <!-- Main Guacamole library -->
         <dependency>
             <groupId>org.apache.guacamole</groupId>
@@ -78,12 +112,6 @@
             <version>0.9.12-incubating</version>
             <type>zip</type>
             <scope>runtime</scope>
-        </dependency>
-
-        <dependency>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-simple</artifactId>
-          <version>1.7.7</version>
         </dependency>
 
     </dependencies>

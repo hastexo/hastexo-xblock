@@ -11,16 +11,19 @@
         <session-timeout>30</session-timeout>
     </session-config>
 
-    <!-- Tunnel Servlet -->
-    <servlet>
-        <description>Tunnel servlet.</description>
-        <servlet-name>Tunnel</servlet-name>
-        <servlet-class>com.hastexo.xblock.GuacamoleTunnelServlet</servlet-class>
-    </servlet>
-    <servlet-mapping>
-        <servlet-name>Tunnel</servlet-name>
-        <url-pattern>/tunnel</url-pattern>
-    </servlet-mapping>
+    <!-- Mappings -->
+    <filter>
+        <filter-name>guiceFilter</filter-name>
+        <filter-class>com.google.inject.servlet.GuiceFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>guiceFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+
+    <listener>
+        <listener-class>com.hastexo.xblock.HastexoServletContextListener</listener-class>
+    </listener>
 
     <!-- CORS Filter -->
     <filter>

@@ -11,7 +11,7 @@ import org.apache.guacamole.protocol.GuacamoleClientInformation;
 import org.apache.guacamole.protocol.GuacamoleConfiguration;
 import org.apache.guacamole.servlet.GuacamoleHTTPTunnelServlet;
 
-public class GuacamoleTunnelServlet extends GuacamoleHTTPTunnelServlet {
+public class HastexoHTTPTunnelServlet extends GuacamoleHTTPTunnelServlet {
 
     @Override
     protected GuacamoleTunnel doConnect(HttpServletRequest request) throws GuacamoleException {
