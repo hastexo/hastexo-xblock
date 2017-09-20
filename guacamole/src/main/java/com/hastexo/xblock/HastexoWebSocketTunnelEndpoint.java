@@ -66,6 +66,7 @@ public class HastexoWebSocketTunnelEndpoint extends GuacamoleWebSocketTunnelEndp
             guacConfig.setParameter("hostname", request.getParameter("ip"));
             guacConfig.setParameter("username", request.getParameter("user"));
             guacConfig.setParameter("private-key", request.getParameter("key"));
+            guacConfig.setParameter("color-scheme", "white-black");
             guacConfig.setParameter("font-size", "10");
         }
 
