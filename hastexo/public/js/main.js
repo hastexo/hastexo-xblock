@@ -81,6 +81,11 @@ function HastexoXBlock(runtime, element, configuration) {
 
     var update_user_stack_status = function (stack) {
         if (stack.status == 'CREATE_COMPLETE' || stack.status == 'RESUME_COMPLETE') {
+            /* Set container CSS class, if graphical. */
+            if (configuration.protocol != "ssh") {
+                $('#container').addClass('graphical');
+            }
+
             /* Start the terminal.  */
             var display = document.getElementById("terminal");
 
@@ -102,6 +107,8 @@ function HastexoXBlock(runtime, element, configuration) {
 
             var data = $.param({
                 'protocol': configuration.protocol,
+                'width': $('#terminal').width(),
+                'height': $('#terminal').height(),
                 'ip': stack.ip,
                 'user': stack.user,
                 'key': stack.key,

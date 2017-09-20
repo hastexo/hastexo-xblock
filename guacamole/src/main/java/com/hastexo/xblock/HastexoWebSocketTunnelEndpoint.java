@@ -66,12 +66,13 @@ public class HastexoWebSocketTunnelEndpoint extends GuacamoleWebSocketTunnelEndp
             guacConfig.setParameter("hostname", request.getParameter("ip"));
             guacConfig.setParameter("username", request.getParameter("user"));
             guacConfig.setParameter("private-key", request.getParameter("key"));
+            guacConfig.setParameter("font-size", "10");
         }
 
         // Set screen size
         GuacamoleClientInformation info = new GuacamoleClientInformation();
-        info.setOptimalScreenWidth(860);
-        info.setOptimalScreenHeight(320);
+        info.setOptimalScreenWidth(request.getIntegerParameter("width"));
+        info.setOptimalScreenHeight(request.getIntegerParameter("height"));
 
         // Connect to guacd
         GuacamoleSocket socket = new ConfiguredGuacamoleSocket(
