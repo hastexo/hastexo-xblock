@@ -47,7 +47,7 @@ class HastexoXBlock(XBlock,
         default="ssh",
         scope=Scope.settings,
         help="What protocol to use for the connection. "
-             "Currently, \"ssh\" or \"vnc\".")
+             "Currently, \"ssh\" or \"rdp\".")
     provider = String(
         default="default",
         scope=Scope.settings,
