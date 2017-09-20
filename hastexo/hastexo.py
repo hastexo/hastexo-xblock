@@ -64,10 +64,6 @@ class HastexoXBlock(XBlock,
         scope=Scope.user_state,
         default={},
         help="Runtime configuration")
-    stack_template = String(
-        default="",
-        scope=Scope.user_state,
-        help="The user stack orchestration template")
     stack_name = String(
         default="",
         scope=Scope.user_state,
@@ -145,13 +141,13 @@ class HastexoXBlock(XBlock,
                 return score == total
 
     def get_block_ids(self):
-        user_id = self.xmodule_runtime.anonymous_student_id
         course_id = self.xmodule_runtime.course_id
+        user_id = self.xmodule_runtime.anonymous_student_id
         course_code = course_id.course
 
-        return (user_id, course_id, course_code)
+        return (course_id, user_id, course_code)
 
-    def get_stack_template(self, course_id):
+    def get_stack_template(self):
         """
         Load the stack template directly from the course's content store.
 
@@ -161,6 +157,7 @@ class HastexoXBlock(XBlock,
         HTTP GET to the LMS, in the future.
 
         """
+        course_id, _, _ = self.get_block_ids()
         stack_template = None
         try:
             from xmodule.contentstore.content import StaticContent
@@ -197,13 +194,8 @@ class HastexoXBlock(XBlock,
 
         # Get the course id and anonymous user id, and derive the stack name
         # from them
-        user_id, course_id, course_code = self.get_block_ids()
+        _, user_id, course_code = self.get_block_ids()
         self.stack_name = "%s_%s" % (course_code, user_id)
-
-        # Load the stack template from the course's content store
-        self.stack_template = self.get_stack_template(course_id)
-        if not self.stack_template:
-            return error_frag('Stack template not found.')
 
         # Render the HTML template
         html = loader.render_template('static/html/main.html')
@@ -300,7 +292,7 @@ class HastexoXBlock(XBlock,
             args = (
                 self.configuration,
                 self.stack_name,
-                self.stack_template,
+                self.get_stack_template(),
                 self.stack_user_name,
                 reset
             )
