@@ -9,16 +9,9 @@ function HastexoXBlock(runtime, element, configuration) {
     var idle_timer = undefined;
     var check_timer = undefined;
     var terminal_client = undefined;
+    var terminal_element = undefined;
 
     var init = function() {
-        /* Reset the idle timeout on every key press. */
-        $(element).keydown(function() {
-            if (configuration.timeouts['idle']) {
-                if (idle_timer) clearTimeout(idle_timer);
-                idle_timer = setTimeout(idle, configuration.timeouts['idle']);
-            }
-        });
-
         /* Bind reset button action. */
         $(element).find('.buttons .reset').on('click', reset_dialog);
 
@@ -27,6 +20,11 @@ function HastexoXBlock(runtime, element, configuration) {
             var button = $(element).find('.buttons .check');
             button.show();
             button.on('click', get_check_status);
+        }
+
+        /* Set container CSS class, if graphical. */
+        if (configuration.protocol != "ssh") {
+            $('#container').addClass('graphical');
         }
 
         /* Process terminal URL. */
@@ -42,6 +40,11 @@ function HastexoXBlock(runtime, element, configuration) {
             terminal_client = new Guacamole.Client(
                 new Guacamole.WebSocketTunnel(terminal_ws_url + "websocket-tunnel")
             );
+            terminal_element = terminal_client.getDisplay().getElement();
+
+            /* Show the terminal.  */
+            $("#terminal").append(terminal_element);
+
             get_user_stack_status(true);
         });
     };
@@ -81,16 +84,6 @@ function HastexoXBlock(runtime, element, configuration) {
 
     var update_user_stack_status = function (stack) {
         if (stack.status == 'CREATE_COMPLETE' || stack.status == 'RESUME_COMPLETE') {
-            /* Set container CSS class, if graphical. */
-            if (configuration.protocol != "ssh") {
-                $('#container').addClass('graphical');
-            }
-
-            /* Start the terminal.  */
-            var display = document.getElementById("terminal");
-
-            display.appendChild(terminal_client.getDisplay().getElement());
-
             terminal_client.onerror = function(guac_error) {
                 /* Unexpected status.  Display error message. */
                 var dialog = $('#launch_error');
@@ -122,29 +115,49 @@ function HastexoXBlock(runtime, element, configuration) {
             };
 
             /* Mouse handling */
-            var mouse = new Guacamole.Mouse(terminal_client.getDisplay().getElement());
+            var mouse = new Guacamole.Mouse(terminal_element);
 
             mouse.onmousedown =
             mouse.onmouseup   =
             mouse.onmousemove = function(mouseState) {
+                /* Reset the idle timeout on mouse action. */
+                if (configuration.timeouts['idle']) {
+                    if (idle_timer) clearTimeout(idle_timer);
+                    idle_timer = setTimeout(idle, configuration.timeouts['idle']);
+                }
+
                 terminal_client.sendMouseState(mouseState);
             };
 
             /* Keyboard handling */
-            var keyboard = new Guacamole.Keyboard(document);
+            var keyboard = new Guacamole.Keyboard(terminal_element);
 
             keyboard.onkeydown = function (keysym) {
                 terminal_client.sendKeyEvent(1, keysym);
             };
 
             keyboard.onkeyup = function (keysym) {
+                /* Reset the idle timeout on every key press. */
+                if (configuration.timeouts['idle']) {
+                    if (idle_timer) clearTimeout(idle_timer);
+                    idle_timer = setTimeout(idle, configuration.timeouts['idle']);
+                }
+
                 terminal_client.sendKeyEvent(0, keysym);
             };
 
-            // Release all keys when window loses focus
-            window.onblur = function () {
-                keyboard.reset();
-            };
+            /* Terminal focus handling. */
+            $(terminal_element)
+                .attr('tabindex', 1)
+                .hover(function() {
+                    $(this).focus();
+                }, function() {
+                    $(this).blur();
+                })
+                .blur(function() {
+                    /* Release all keys when element loses focus. */
+                    keyboard.reset();
+                });
 
             /* Reset keepalive timer. */
             if (configuration.timeouts['keepalive']) {
