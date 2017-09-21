@@ -44,10 +44,11 @@ class HastexoXBlock(XBlock,
         scope=Scope.settings,
         help="The name of the training user in the stack.")
     stack_protocol = String(
+        values=["ssh", "rdp", "vnc"],
         default="ssh",
         scope=Scope.settings,
         help="What protocol to use for the connection. "
-             "Currently, \"ssh\" or \"rdp\".")
+             "Currently, \"ssh\", \"rdp\", or \"vnc\".")
     provider = String(
         default="default",
         scope=Scope.settings,

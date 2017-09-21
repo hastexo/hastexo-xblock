@@ -56,15 +56,16 @@ public class HastexoWebSocketTunnelEndpoint extends GuacamoleWebSocketTunnelEndp
 
         // Connection configuration
         GuacamoleConfiguration guacConfig = new GuacamoleConfiguration();
+        guacConfig.setProtocol(protocol);
+        guacConfig.setParameter("hostname", request.getParameter("ip"));
+        guacConfig.setParameter("username", request.getParameter("user"));
         if (protocol.equals("rdp")) {
-            guacConfig.setProtocol("rdp");
-            guacConfig.setParameter("hostname", request.getParameter("ip"));
-            guacConfig.setParameter("username", request.getParameter("user"));
             guacConfig.setParameter("password", request.getParameter("password"));
+        } else if (protocol.equals("vnc")) {
+            guacConfig.setParameter("port", "5901");
+            guacConfig.setParameter("password", request.getParameter("password"));
+            guacConfig.setParameter("encodings", "zrle ultra copyrect hextile zlib corre rre raw");
         } else {
-            guacConfig.setProtocol("ssh");
-            guacConfig.setParameter("hostname", request.getParameter("ip"));
-            guacConfig.setParameter("username", request.getParameter("user"));
             guacConfig.setParameter("private-key", request.getParameter("key"));
             guacConfig.setParameter("color-scheme", "white-black");
             guacConfig.setParameter("font-size", "10");
