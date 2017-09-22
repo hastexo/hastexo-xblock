@@ -45,6 +45,132 @@ function HastexoXBlock(runtime, element, configuration) {
             /* Show the terminal.  */
             $("#terminal").append(terminal_element);
 
+            /* Disconnect on tab close. */
+            window.onunload = function() {
+                terminal_client.disconnect();
+            };
+
+            /* Mouse handling */
+            var mouse = new Guacamole.Mouse(terminal_element);
+
+            mouse.onmousedown =
+            mouse.onmouseup   =
+            mouse.onmousemove = function(mouseState) {
+                terminal_client.sendMouseState(mouseState);
+
+                /* Reset the idle timeout on mouse action. */
+                if (configuration.timeouts['idle']) {
+                    if (idle_timer) clearTimeout(idle_timer);
+                    idle_timer = setTimeout(idle, configuration.timeouts['idle']);
+                }
+            };
+
+            /* Keyboard handling.  */
+            var keyboard = new Guacamole.Keyboard(terminal_element);
+            var ctrl, shift = false;
+            var paste_deferred = $.Deferred();
+
+            keyboard.onkeydown = function (keysym) {
+                var cancel_event = true;
+
+                /* Don't cancel event on paste shortcuts. */
+                if (keysym == 0xFFE1 /* shift */
+                    || keysym == 0xFFE3 /* ctrl */
+                    || keysym == 0xFF63 /* insert */
+                    || keysym == 0x0056 /* V */
+                    || keysym == 0x0076 /* v */
+                ) {
+                    cancel_event = false;
+                }
+
+                /* Remember when ctrl or shift are down. */
+                if (keysym == 0xFFE1) {
+                    shift = true;
+                } else if (keysym == 0xFFE3) {
+                    ctrl = true;
+                }
+
+                /* Delay sending final stroke until clipboard is updated. */
+                if ((ctrl && shift && keysym == 0x0056) /* ctrl-shift-V */
+                    || (ctrl && keysym == 0x0076) /* ctrl-v */
+                    || (shift && keysym == 0xFF63) /* shift-insert */
+                ) {
+                    paste_deferred.done(function() {
+                        terminal_client.sendKeyEvent(1, keysym);
+                    });
+                } else {
+                    terminal_client.sendKeyEvent(1, keysym);
+                }
+
+                return !cancel_event;
+            };
+
+            keyboard.onkeyup = function (keysym) {
+                /* Remember when ctrl or shift are released. */
+                if (keysym == 0xFFE1) {
+                    shift = false;
+                } else if (keysym == 0xFFE3) {
+                    ctrl = false;
+                }
+
+                /* Delay sending final stroke until clipboard is updated. */
+                if ((ctrl && shift && keysym == 0x0056) /* ctrl-shift-v */
+                    || (ctrl && keysym == 0x0076) /* ctrl-v */
+                    || (shift && keysym == 0xFF63) /* shift-insert */
+                ) {
+                    paste_deferred.done(function() {
+                        terminal_client.sendKeyEvent(0, keysym);
+
+                        /* Since this is the last callback in the chain, reset
+                         * the deferred object. */
+                        paste_deferred = $.Deferred();
+                    });
+                } else {
+                    terminal_client.sendKeyEvent(0, keysym);
+                }
+            };
+
+            $(terminal_element)
+                /* Set tabindex so that element can be focused.  Otherwise, no
+                 * keyboard events will be registered for it. */
+                .attr('tabindex', 1)
+                /* Focus on the element based on mouse movement.  Simply
+                 * letting the user click on it doesn't work. */
+                .hover(
+                    function() {
+                       $(this).focus();
+                    }, function() {
+                        $(this).blur();
+                    }
+                )
+                /* Release all keys when the element loses focus. */
+                .blur(function() {
+                    keyboard.reset();
+                });
+
+            /* Handle paste events when the element is in focus. */
+            $(document).on('paste', function(e) {
+                var text = e.originalEvent.clipboardData.getData('text/plain');
+                if ($(terminal_element).is(":focus")) {
+                    terminal_client.setClipboard(text);
+                    paste_deferred.resolve();
+                }
+            });
+
+            /* Error handling. */
+            terminal_client.onerror = function(guac_error) {
+                var dialog = $('#launch_error');
+                dialog.find('.error_msg').html(guac_error.message);
+                dialog.find('input.ok').one('click', function() {
+                    $.dialog.close();
+                });
+                dialog.find('input.retry').one('click', function() {
+                    $.dialog.close();
+                    location.reload();
+                });
+                dialog.dialog(element);
+            };
+
             get_user_stack_status(true);
         });
     };
@@ -84,21 +210,8 @@ function HastexoXBlock(runtime, element, configuration) {
 
     var update_user_stack_status = function (stack) {
         if (stack.status == 'CREATE_COMPLETE' || stack.status == 'RESUME_COMPLETE') {
-            terminal_client.onerror = function(guac_error) {
-                /* Unexpected status.  Display error message. */
-                var dialog = $('#launch_error');
-                dialog.find('.error_msg').html(guac_error.message);
-                dialog.find('input.ok').one('click', function() {
-                    $.dialog.close();
-                });
-                dialog.find('input.retry').one('click', function() {
-                    $.dialog.close();
-                    location.reload();
-                });
-                dialog.dialog(element);
-            };
-
-            var data = $.param({
+            /* Connect to the terminal server. */
+            terminal_client.connect($.param({
                 'protocol': configuration.protocol,
                 'width': $('#terminal').width(),
                 'height': $('#terminal').height(),
@@ -106,58 +219,7 @@ function HastexoXBlock(runtime, element, configuration) {
                 'user': stack.user,
                 'key': stack.key,
                 'password': stack.password
-            });
-
-            terminal_client.connect(data);
-
-            window.onunload = function() {
-                terminal_client.disconnect();
-            };
-
-            /* Mouse handling */
-            var mouse = new Guacamole.Mouse(terminal_element);
-
-            mouse.onmousedown =
-            mouse.onmouseup   =
-            mouse.onmousemove = function(mouseState) {
-                /* Reset the idle timeout on mouse action. */
-                if (configuration.timeouts['idle']) {
-                    if (idle_timer) clearTimeout(idle_timer);
-                    idle_timer = setTimeout(idle, configuration.timeouts['idle']);
-                }
-
-                terminal_client.sendMouseState(mouseState);
-            };
-
-            /* Keyboard handling */
-            var keyboard = new Guacamole.Keyboard(terminal_element);
-
-            keyboard.onkeydown = function (keysym) {
-                terminal_client.sendKeyEvent(1, keysym);
-            };
-
-            keyboard.onkeyup = function (keysym) {
-                /* Reset the idle timeout on every key press. */
-                if (configuration.timeouts['idle']) {
-                    if (idle_timer) clearTimeout(idle_timer);
-                    idle_timer = setTimeout(idle, configuration.timeouts['idle']);
-                }
-
-                terminal_client.sendKeyEvent(0, keysym);
-            };
-
-            /* Terminal focus handling. */
-            $(terminal_element)
-                .attr('tabindex', 1)
-                .hover(function() {
-                    $(this).focus();
-                }, function() {
-                    $(this).blur();
-                })
-                .blur(function() {
-                    /* Release all keys when element loses focus. */
-                    keyboard.reset();
-                });
+            }));
 
             /* Reset keepalive timer. */
             if (configuration.timeouts['keepalive']) {
