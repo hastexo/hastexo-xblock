@@ -449,7 +449,7 @@ class LaunchStackTask(Task):
                     try:
                         ssh.connect(stack_ip, username=stack_user, pkey=pkey)
                     except (paramiko.ssh_exception.AuthenticationException,
-                            paramiko.ssh_exception.SSHException) as e:
+                            paramiko.ssh_exception.SSHException):
                         logger.debug("Could not SSH into stack [%s] at [%s]. "
                                      "Waiting %s seconds "
                                      "until next attempt." % (stack_name,
