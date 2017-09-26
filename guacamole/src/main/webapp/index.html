@@ -3,6 +3,7 @@
     <head>
         <link rel="stylesheet" type="text/css" href="guac.css"/>
         <title>hastexo XBlock</title>
+        <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
     </head>
 
     <body>
@@ -19,8 +20,10 @@
                 new Guacamole.WebSocketTunnel("websocket-tunnel")
             );
 
+            guac_element = guac.getDisplay().getElement();
+
             // Add client to display div
-            display.appendChild(guac.getDisplay().getElement());
+            display.appendChild(guac_element);
 
             // Error handler
             guac.onerror = function(error) {
@@ -28,7 +31,7 @@
             };
 
             // Connect
-            guac.connect("protocol=rdp&width=800&height=600&ip=&user=&password=");
+            guac.connect("protocol=ssh&width=800&height=600&ip=&user=&password=");
 
             // Disconnect on close
             window.onunload = function() {
@@ -36,7 +39,7 @@
             }
 
             // Mouse
-            var mouse = new Guacamole.Mouse(guac.getDisplay().getElement());
+            var mouse = new Guacamole.Mouse(guac_element);
 
             mouse.onmousedown =
             mouse.onmouseup   =
@@ -45,15 +48,96 @@
             };
 
             // Keyboard
-            var keyboard = new Guacamole.Keyboard(document);
+            var keyboard = new Guacamole.Keyboard(guac_element);
+            var ctrl, shift = false;
+            var paste_deferred = $.Deferred();
 
             keyboard.onkeydown = function (keysym) {
-                guac.sendKeyEvent(1, keysym);
+                var cancel_event = true;
+
+                /* Don't cancel event on paste shortcuts. */
+                if (keysym == 0xFFE1 /* shift */
+                    || keysym == 0xFFE3 /* ctrl */
+                    || keysym == 0xFF63 /* insert */
+                    || keysym == 0x0056 /* V */
+                    || keysym == 0x0076 /* v */
+                ) {
+                    cancel_event = false;
+                }
+
+                /* Remember when ctrl or shift are down. */
+                if (keysym == 0xFFE1) {
+                    shift = true;
+                } else if (keysym == 0xFFE3) {
+                    ctrl = true;
+                }
+
+                /* Delay sending final stroke until clipboard is updated. */
+                if ((ctrl && shift && keysym == 0x0056) /* ctrl-shift-V */
+                    || (ctrl && keysym == 0x0076) /* ctrl-v */
+                    || (shift && keysym == 0xFF63) /* shift-insert */
+                ) {
+                    paste_deferred.done(function() {
+                        guac.sendKeyEvent(1, keysym);
+                    });
+                } else {
+                    guac.sendKeyEvent(1, keysym);
+                }
+
+                return !cancel_event;
             };
 
             keyboard.onkeyup = function (keysym) {
-                guac.sendKeyEvent(0, keysym);
+                /* Remember when ctrl or shift are released. */
+                if (keysym == 0xFFE1) {
+                    shift = false;
+                } else if (keysym == 0xFFE3) {
+                    ctrl = false;
+                }
+
+                /* Delay sending final stroke until clipboard is updated. */
+                if ((ctrl && shift && keysym == 0x0056) /* ctrl-shift-v */
+                    || (ctrl && keysym == 0x0076) /* ctrl-v */
+                    || (shift && keysym == 0xFF63) /* shift-insert */
+                ) {
+                    paste_deferred.done(function() {
+                        guac.sendKeyEvent(0, keysym);
+
+                        /* Since this is the last callback in the chain, reset
+                         * the deferred object. */
+                        paste_deferred = $.Deferred();
+                    });
+                } else {
+                    guac.sendKeyEvent(0, keysym);
+                }
             };
+
+            $(guac_element)
+                /* Set tabindex so that element can be focused.  Otherwise, no
+                 * keyboard events will be registered for it. */
+                .attr('tabindex', 1)
+                /* Focus on the element based on mouse movement.  Simply
+                 * letting the user click on it doesn't work. */
+                .hover(
+                    function() {
+                       $(this).focus();
+                    }, function() {
+                        $(this).blur();
+                    }
+                )
+                /* Release all keys when the element loses focus. */
+                .blur(function() {
+                    keyboard.reset();
+                });
+
+            /* Handle paste events when the element is in focus. */
+            $(document).on('paste', function(e) {
+                var text = e.originalEvent.clipboardData.getData('text/plain');
+                if ($(guac_element).is(":focus")) {
+                    guac.setClipboard(text);
+                    paste_deferred.resolve();
+                }
+            });
         /* ]]> */ </script>
     </body>
 </html>
