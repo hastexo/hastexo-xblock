@@ -63,9 +63,10 @@ class TestHastexoTasks(TestCase):
             }
         }
         self.stack_name = 'bogus_stack_name'
-        self.stack_template = 'bogus_stack_template'
         self.stack_user = 'bogus_stack_user'
         self.stack_ip = '127.0.0.1'
+        self.stack_key = 'bogus_stack_key'
+        self.stack_password = 'bogus_stack_password'
 
     def test_create_stack_during_launch(self):
         task = LaunchStackTask()
@@ -81,21 +82,24 @@ class TestHastexoTasks(TestCase):
         }
         mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
                                                None,
-                                               self.stack_ip))
+                                               self.stack_ip,
+                                               self.stack_key,
+                                               self.stack_password))
         with patch.multiple(task,
                             get_heat_client=Mock(return_value=mock_heat_client),  # noqa: E501
                             verify_stack=mock_verify_stack):
+            stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
                 self.stack_name,
-                self.stack_template,
+                stack_template,
                 self.stack_user,
                 False
             )
             assert res['status'] == 'CREATE_COMPLETE'
             mock_heat_client.stacks.create.assert_called_with(
                 stack_name=self.stack_name,
-                template=self.stack_template
+                template=stack_template
             )
             mock_verify_stack.assert_called_with(
                 self.configuration,
@@ -119,14 +123,17 @@ class TestHastexoTasks(TestCase):
         }
         mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
                                                None,
-                                               self.stack_ip))
+                                               self.stack_ip,
+                                               self.stack_key,
+                                               self.stack_password))
         with patch.multiple(task,
                             get_heat_client=Mock(return_value=mock_heat_client),  # noqa: E501
                             verify_stack=mock_verify_stack):
+            stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
                 self.stack_name,
-                self.stack_template,
+                stack_template,
                 self.stack_user,
                 True
             )
@@ -135,7 +142,7 @@ class TestHastexoTasks(TestCase):
             )
             mock_heat_client.stacks.create.assert_called_with(
                 stack_name=self.stack_name,
-                template=self.stack_template
+                template=stack_template
             )
             mock_verify_stack.assert_called_with(
                 self.configuration,
@@ -158,21 +165,24 @@ class TestHastexoTasks(TestCase):
         }
         mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
                                                None,
-                                               self.stack_ip))
+                                               self.stack_ip,
+                                               self.stack_key,
+                                               self.stack_password))
         with patch.multiple(task,
                             get_heat_client=Mock(return_value=mock_heat_client),  # noqa: E501
                             verify_stack=mock_verify_stack):
+            stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
                 self.stack_name,
-                self.stack_template,
+                stack_template,
                 self.stack_user,
                 True
             )
             mock_heat_client.stacks.delete.assert_not_called()
             mock_heat_client.stacks.create.assert_called_with(
                 stack_name=self.stack_name,
-                template=self.stack_template
+                template=stack_template
             )
             mock_verify_stack.assert_called_with(
                 self.configuration,
@@ -193,14 +203,17 @@ class TestHastexoTasks(TestCase):
         ]
         mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
                                                None,
-                                               self.stack_ip))
+                                               self.stack_ip,
+                                               self.stack_key,
+                                               self.stack_password))
         with patch.multiple(task,
                             get_heat_client=Mock(return_value=mock_heat_client),  # noqa: E501
                             verify_stack=mock_verify_stack):
+            stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
                 self.stack_name,
-                self.stack_template,
+                stack_template,
                 self.stack_user,
                 False
             )
@@ -228,14 +241,17 @@ class TestHastexoTasks(TestCase):
         ]
         mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
                                                None,
-                                               self.stack_ip))
+                                               self.stack_ip,
+                                               self.stack_key,
+                                               self.stack_password))
         with patch.multiple(task,
                             get_heat_client=Mock(return_value=mock_heat_client),  # noqa: E501
                             verify_stack=mock_verify_stack):
+            stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
                 self.stack_name,
-                self.stack_template,
+                stack_template,
                 self.stack_user,
                 False
             )
@@ -263,10 +279,11 @@ class TestHastexoTasks(TestCase):
         }
         with patch.multiple(task,
                             get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
+            stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
                 self.stack_name,
-                self.stack_template,
+                stack_template,
                 self.stack_user,
                 False
             )
@@ -288,10 +305,11 @@ class TestHastexoTasks(TestCase):
         with patch.multiple(task,
                             get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
             self.configuration['task_timeouts']['retries'] = 3
+            stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
                 self.stack_name,
-                self.stack_template,
+                stack_template,
                 self.stack_user,
                 False
             )
@@ -315,10 +333,11 @@ class TestHastexoTasks(TestCase):
         with patch.multiple(task,
                             get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
             self.configuration['task_timeouts']['retries'] = 3
+            stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
                 self.stack_name,
-                self.stack_template,
+                stack_template,
                 self.stack_user,
                 False
             )
@@ -338,10 +357,11 @@ class TestHastexoTasks(TestCase):
         ]
         with patch.multiple(task,
                             get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
+            stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
                 self.stack_name,
-                self.stack_template,
+                stack_template,
                 self.stack_user,
                 False
             )

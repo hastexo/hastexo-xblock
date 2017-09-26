@@ -48,7 +48,6 @@ class TestHastexoXBlock(unittest.TestCase):
         # Set on student view
         self.block.configuration = self.block.get_configuration()
         self.block.stack_name = "bogus_stack"
-        self.block.stack_template = "bogus_template"
 
     def setUp(self):
         block_type = 'hastexo'
@@ -72,9 +71,6 @@ class TestHastexoXBlock(unittest.TestCase):
         self.assertIn("launch_timeout", configuration)
         self.assertIn("suspend_timeout", configuration)
         self.assertIn("terminal_url", configuration)
-        self.assertIn("ssh_dir", configuration)
-        self.assertIn("ssh_upload", configuration)
-        self.assertIn("ssh_bucket", configuration)
         self.assertIn("js_timeouts", configuration)
         self.assertIn("credentials", configuration)
         self.assertNotIn("providers", configuration)
@@ -88,10 +84,12 @@ class TestHastexoXBlock(unittest.TestCase):
         mock_result.result = {"status": "CREATE_COMPLETE"}
         mock_launch_stack_task = Mock(return_value=mock_result)
         mock_suspend_user_stack = Mock()
+        mock_get_stack_template = Mock(return_value=('bogus_stack_template'))
 
         with patch.multiple(self.block,
                             launch_stack_task=mock_launch_stack_task,
-                            suspend_user_stack=mock_suspend_user_stack):
+                            suspend_user_stack=mock_suspend_user_stack,
+                            get_stack_template=mock_get_stack_template):
             data = {
                 "initialize": True,
                 "reset": False
@@ -121,10 +119,12 @@ class TestHastexoXBlock(unittest.TestCase):
         mock_result.result = {"status": "RESUME_COMPLETE"}
         mock_launch_stack_task = Mock(return_value=mock_result)
         mock_suspend_user_stack = Mock()
+        mock_get_stack_template = Mock(return_value=('bogus_stack_template'))
 
         with patch.multiple(self.block,
                             launch_stack_task=mock_launch_stack_task,
-                            suspend_user_stack=mock_suspend_user_stack):
+                            suspend_user_stack=mock_suspend_user_stack,
+                            get_stack_template=mock_get_stack_template):
             data = {
                 "initialize": True,
                 "reset": False
@@ -155,10 +155,12 @@ class TestHastexoXBlock(unittest.TestCase):
         mock_result.result = {"status": "RESUME_COMPLETE"}
         mock_launch_stack_task = Mock(return_value=mock_result)
         mock_suspend_user_stack = Mock()
+        mock_get_stack_template = Mock(return_value=('bogus_stack_template'))
 
         with patch.multiple(self.block,
                             launch_stack_task=mock_launch_stack_task,
-                            suspend_user_stack=mock_suspend_user_stack):
+                            suspend_user_stack=mock_suspend_user_stack,
+                            get_stack_template=mock_get_stack_template):
             data = {
                 "initialize": True,
                 "reset": False
@@ -188,10 +190,12 @@ class TestHastexoXBlock(unittest.TestCase):
         mock_result.result = {"status": "CREATE_COMPLETE"}
         mock_launch_stack_task = Mock(return_value=mock_result)
         mock_suspend_user_stack = Mock()
+        mock_get_stack_template = Mock(return_value=('bogus_stack_template'))
 
         with patch.multiple(self.block,
                             launch_stack_task=mock_launch_stack_task,
-                            suspend_user_stack=mock_suspend_user_stack):
+                            suspend_user_stack=mock_suspend_user_stack,
+                            get_stack_template=mock_get_stack_template):
             data = {
                 "initialize": True,
                 "reset": True
