@@ -7,7 +7,7 @@ import re
 from celery import Task
 from celery.utils.log import get_task_logger
 from heatclient.exc import HTTPNotFound
-from StringIO import StringIO
+from io import StringIO
 
 from .utils import UP_STATES
 from .heat import HeatWrapper
