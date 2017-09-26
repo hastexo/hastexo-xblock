@@ -8,6 +8,18 @@ The hastexo [XBlock](https://xblock.readthedocs.org/en/latest/) is an
 environments into distributed computing courses. The hastexo XBlock allows
 students to access an OpenStack environment within an edX course.
 
+> **This XBlock is currently undergoing a major rewrite.** We are
+> revamping the terminal functionality, moving away from
+> [GateOne](https://github.com/liftoff/GateOne) and rebuilding on
+> [Apache Guacamole](https://guacamole.incubator.apache.org/). Among
+> other improvements, this gives us the benefit of being able to
+> include graphical user environments (via VNC and RDP) in addition to
+> terminals (via SSH).
+>
+> As a result, this documentation is currently in a state of flux, and
+> may be outdated. If you are looking for the legacy GateOne
+> functionality, please check out the documentation in
+> [the `stable-0.5` branch](https://github.com/hastexo/hastexo-xblock/tree/stable-0.5).
 
 ## Purpose
 
