@@ -11,7 +11,7 @@
 
         <script type="text/javascript" src="guacamole-common-js/all.js"></script>
 
-        <script type="text/javascript"> /* <![CDATA[ */
+        <script type="text/javascript">
             // Get display div from document
             var display = document.getElementById("display");
 
@@ -50,12 +50,11 @@
             // Keyboard
             var keyboard = new Guacamole.Keyboard(guac_element);
             var ctrl, shift = false;
-            var paste_deferred = $.Deferred();
 
             keyboard.onkeydown = function (keysym) {
                 var cancel_event = true;
 
-                /* Don't cancel event on paste shortcuts. */
+                /* Don't cancel event on paste shortcut keys. */
                 if (keysym == 0xFFE1 /* shift */
                     || keysym == 0xFFE3 /* ctrl */
                     || keysym == 0xFF63 /* insert */
@@ -77,9 +76,9 @@
                     || (ctrl && keysym == 0x0076) /* ctrl-v */
                     || (shift && keysym == 0xFF63) /* shift-insert */
                 ) {
-                    paste_deferred.done(function() {
+                    window.setTimeout(function() {
                         guac.sendKeyEvent(1, keysym);
-                    });
+                    }, 50);
                 } else {
                     guac.sendKeyEvent(1, keysym);
                 }
@@ -95,18 +94,14 @@
                     ctrl = false;
                 }
 
-                /* Delay sending final stroke until clipboard is updated. */
+                /* Delay sending final event until clipboard is updated. */
                 if ((ctrl && shift && keysym == 0x0056) /* ctrl-shift-v */
                     || (ctrl && keysym == 0x0076) /* ctrl-v */
                     || (shift && keysym == 0xFF63) /* shift-insert */
                 ) {
-                    paste_deferred.done(function() {
+                    window.setTimeout(function() {
                         guac.sendKeyEvent(0, keysym);
-
-                        /* Since this is the last callback in the chain, reset
-                         * the deferred object. */
-                        paste_deferred = $.Deferred();
-                    });
+                    }, 50);
                 } else {
                     guac.sendKeyEvent(0, keysym);
                 }
@@ -122,7 +117,7 @@
                     function() {
                        $(this).focus();
                     }, function() {
-                        $(this).blur();
+                       $(this).blur();
                     }
                 )
                 /* Release all keys when the element loses focus. */
@@ -135,9 +130,8 @@
                 var text = e.originalEvent.clipboardData.getData('text/plain');
                 if ($(guac_element).is(":focus")) {
                     guac.setClipboard(text);
-                    paste_deferred.resolve();
                 }
             });
-        /* ]]> */ </script>
+      </script>
     </body>
 </html>

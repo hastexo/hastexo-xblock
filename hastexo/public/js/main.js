@@ -68,7 +68,6 @@ function HastexoXBlock(runtime, element, configuration) {
             /* Keyboard handling.  */
             var keyboard = new Guacamole.Keyboard(terminal_element);
             var ctrl, shift = false;
-            var paste_deferred = $.Deferred();
 
             keyboard.onkeydown = function (keysym) {
                 var cancel_event = true;
@@ -95,9 +94,9 @@ function HastexoXBlock(runtime, element, configuration) {
                     || (ctrl && keysym == 0x0076) /* ctrl-v */
                     || (shift && keysym == 0xFF63) /* shift-insert */
                 ) {
-                    paste_deferred.done(function() {
+                    window.setTimeout(function() {
                         terminal_client.sendKeyEvent(1, keysym);
-                    });
+                    }, 50);
                 } else {
                     terminal_client.sendKeyEvent(1, keysym);
                 }
@@ -118,13 +117,9 @@ function HastexoXBlock(runtime, element, configuration) {
                     || (ctrl && keysym == 0x0076) /* ctrl-v */
                     || (shift && keysym == 0xFF63) /* shift-insert */
                 ) {
-                    paste_deferred.done(function() {
+                    window.setTimeout(function() {
                         terminal_client.sendKeyEvent(0, keysym);
-
-                        /* Since this is the last callback in the chain, reset
-                         * the deferred object. */
-                        paste_deferred = $.Deferred();
-                    });
+                    }, 50);
                 } else {
                     terminal_client.sendKeyEvent(0, keysym);
                 }
@@ -140,7 +135,7 @@ function HastexoXBlock(runtime, element, configuration) {
                     function() {
                        $(this).focus();
                     }, function() {
-                        $(this).blur();
+                       $(this).blur();
                     }
                 )
                 /* Release all keys when the element loses focus. */
@@ -153,7 +148,6 @@ function HastexoXBlock(runtime, element, configuration) {
                 var text = e.originalEvent.clipboardData.getData('text/plain');
                 if ($(terminal_element).is(":focus")) {
                     terminal_client.setClipboard(text);
-                    paste_deferred.resolve();
                 }
             });
 
