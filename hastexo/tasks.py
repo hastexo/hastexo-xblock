@@ -59,9 +59,9 @@ class LaunchStackTask(Task):
              stack_ip,
              stack_key,
              stack_password) = self.verify_stack(configuration,
-                                            stack,
-                                            stack_name,
-                                            stack_user)
+                                                 stack,
+                                                 stack_name,
+                                                 stack_user)
 
         # Roll back in case of failure: if it's a failure during creation,
         # delete the stack.  If it's a failure to resume, suspend it.
