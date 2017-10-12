@@ -10,6 +10,7 @@ function HastexoXBlock(runtime, element, configuration) {
     var check_timer = undefined;
     var terminal_client = undefined;
     var terminal_element = undefined;
+    var terminal_connected = false;
 
     var init = function() {
         /* Bind reset button action. */
@@ -20,6 +21,66 @@ function HastexoXBlock(runtime, element, configuration) {
             var button = $(element).find('.buttons .check');
             button.show();
             button.on('click', get_check_status);
+        }
+
+        /* Display ports dropdown, if there are any. */
+        if (configuration.ports.length > 0) {
+            var select = $(element).find('.buttons .port');
+            $.each(configuration.ports, function(i, port) {
+                select.append($('<option>', {
+                    value: port,
+                    text: configuration.port_names[i],
+                    selected: port == configuration.port ? true : false
+                }));
+            });
+            select.show();
+            select.change(function() {
+                var port = parseInt($(this).val());
+                try {
+                    terminal_connect(stack, port);
+                } catch (e) {
+                    /* Connection error.  Display error message. */
+                    var dialog = $('#launch_error');
+                    dialog.find('.message').html('Could not connect to your lab environment:');
+                    dialog.find('.error_msg').html(e);
+                    dialog.find('input.ok').one('click', function() {
+                        $.dialog.close();
+                    });
+                    dialog.find('input.retry').one('click', function() {
+                        $.dialog.close();
+                        location.reload();
+                    });
+                    dialog.dialog(element);
+                }
+
+                if (terminal_connected) {
+                    configuration.port = port;
+
+                    /* Reset keepalive timer. */
+                    if (configuration.timeouts['keepalive']) {
+                        if (keepalive_timer) clearTimeout(keepalive_timer);
+                        keepalive_timer = setTimeout(keepalive, configuration.timeouts['keepalive']);
+                    }
+
+                    /* Reset idle timer. */
+                    if (configuration.timeouts['idle']) {
+                        if (idle_timer) clearTimeout(idle_timer);
+                        idle_timer = setTimeout(idle, configuration.timeouts['idle']);
+                    }
+
+                    $.ajax({
+                        type: 'POST',
+                        url: runtime.handlerUrl(element, 'set_port'),
+                        data: JSON.stringify({
+                            port: port
+                        }),
+                        dataType: 'json'
+                    });
+                } else {
+                    /* Reset to previous selection. */
+                    $(this).find('option[value="' + configuration.port + '"]').prop('selected', true);
+                }
+            });
         }
 
         /* Set container CSS class, if graphical. */
@@ -154,6 +215,7 @@ function HastexoXBlock(runtime, element, configuration) {
             /* Error handling. */
             terminal_client.onerror = function(guac_error) {
                 var dialog = $('#launch_error');
+                dialog.find('.message').html('Could not connect to your lab environment:');
                 dialog.find('.error_msg').html(guac_error.message);
                 dialog.find('input.ok').one('click', function() {
                     $.dialog.close();
@@ -202,29 +264,63 @@ function HastexoXBlock(runtime, element, configuration) {
         });
     };
 
-    var update_user_stack_status = function (stack) {
-        if (stack.status == 'CREATE_COMPLETE' || stack.status == 'RESUME_COMPLETE') {
-            /* Connect to the terminal server. */
+    var terminal_connect = function(stack, port = '') {
+        if (terminal_connected) {
+            terminal_client.disconnect()
+            terminal_connected = false;
+        }
+
+        try {
             terminal_client.connect($.param({
                 'protocol': configuration.protocol,
                 'width': $('#terminal').width(),
                 'height': $('#terminal').height(),
                 'ip': stack.ip,
+                'port': port,
                 'user': stack.user,
                 'key': stack.key,
                 'password': stack.password
             }));
+            terminal_connected = true;
+        } catch (e) {
+            console.warn(e);
+            terminal_connected = false;
+            throw e;
+        }
+    };
 
-            /* Reset keepalive timer. */
-            if (configuration.timeouts['keepalive']) {
-                if (keepalive_timer) clearTimeout(keepalive_timer);
-                keepalive_timer = setTimeout(keepalive, configuration.timeouts['keepalive']);
+    var update_user_stack_status = function (stack) {
+        if (stack.status == 'CREATE_COMPLETE' || stack.status == 'RESUME_COMPLETE') {
+            /* Connect to the terminal server. */
+            try {
+                terminal_connect(stack, configuration.port);
+            } catch (e) {
+                /* Connection error.  Display error message. */
+                var dialog = $('#launch_error');
+                dialog.find('.message').html('Could not connect to your lab environment:');
+                dialog.find('.error_msg').html(e);
+                dialog.find('input.ok').one('click', function() {
+                    $.dialog.close();
+                });
+                dialog.find('input.retry').one('click', function() {
+                    $.dialog.close();
+                    location.reload();
+                });
+                dialog.dialog(element);
             }
 
-            /* Reset idle timer. */
-            if (configuration.timeouts['idle']) {
-                if (idle_timer) clearTimeout(idle_timer);
-                idle_timer = setTimeout(idle, configuration.timeouts['idle']);
+            if (terminal_connected) {
+                /* Reset keepalive timer. */
+                if (configuration.timeouts['keepalive']) {
+                    if (keepalive_timer) clearTimeout(keepalive_timer);
+                    keepalive_timer = setTimeout(keepalive, configuration.timeouts['keepalive']);
+                }
+
+                /* Reset idle timer. */
+                if (configuration.timeouts['idle']) {
+                    if (idle_timer) clearTimeout(idle_timer);
+                    idle_timer = setTimeout(idle, configuration.timeouts['idle']);
+                }
             }
 
             /* Close the dialog. */
@@ -235,6 +331,7 @@ function HastexoXBlock(runtime, element, configuration) {
         } else {
             /* Unexpected status.  Display error message. */
             var dialog = $('#launch_error');
+            dialog.find('.message').html('There was a problem preparing your lab environment:');
             dialog.find('.error_msg').html(stack.error_msg);
             dialog.find('input.ok').one('click', function() {
                 $.dialog.close();

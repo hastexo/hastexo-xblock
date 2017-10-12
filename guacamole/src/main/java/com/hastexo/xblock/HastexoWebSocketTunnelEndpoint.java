@@ -50,35 +50,53 @@ public class HastexoWebSocketTunnelEndpoint extends GuacamoleWebSocketTunnelEndp
             return null;
 
         // guacd connection information
-        String hostname = "localhost";
-        int port = 4822;
+        String guacd_hostname = "localhost";
+        int    guacd_port = 4822;
+
+        // Request parameters
         String protocol = request.getParameter("protocol");
+        String ip = request.getParameter("ip");
+        String port = request.getParameter("port");
+        String user = request.getParameter("user");
+        String password = request.getParameter("password");
+        String key = request.getParameter("key");
+        int width = request.getIntegerParameter("width");
+        int height = request.getIntegerParameter("height");
 
         // Connection configuration
         GuacamoleConfiguration guacConfig = new GuacamoleConfiguration();
         guacConfig.setProtocol(protocol);
-        guacConfig.setParameter("hostname", request.getParameter("ip"));
-        guacConfig.setParameter("username", request.getParameter("user"));
+        guacConfig.setParameter("hostname", ip);
+        guacConfig.setParameter("username", user);
         if (protocol.equals("rdp")) {
-            guacConfig.setParameter("password", request.getParameter("password"));
+            if (port != null && !port.isEmpty()) {
+                guacConfig.setParameter("port", port);
+            } else {
+                guacConfig.setParameter("port", "3389");
+            }
+            guacConfig.setParameter("password", password);
         } else if (protocol.equals("vnc")) {
-            guacConfig.setParameter("port", "5901");
-            guacConfig.setParameter("password", request.getParameter("password"));
+            if (port != null && !port.isEmpty()) {
+                guacConfig.setParameter("port", port);
+            } else {
+                guacConfig.setParameter("port", "5901");
+            }
+            guacConfig.setParameter("password", password);
             guacConfig.setParameter("encodings", "zrle ultra copyrect hextile zlib corre rre raw");
         } else {
-            guacConfig.setParameter("private-key", request.getParameter("key"));
+            guacConfig.setParameter("private-key", key);
             guacConfig.setParameter("color-scheme", "white-black");
             guacConfig.setParameter("font-size", "10");
         }
 
         // Set screen size
         GuacamoleClientInformation info = new GuacamoleClientInformation();
-        info.setOptimalScreenWidth(request.getIntegerParameter("width"));
-        info.setOptimalScreenHeight(request.getIntegerParameter("height"));
+        info.setOptimalScreenWidth(width);
+        info.setOptimalScreenHeight(height);
 
         // Connect to guacd
         GuacamoleSocket socket = new ConfiguredGuacamoleSocket(
-            new InetGuacamoleSocket(hostname, port),
+            new InetGuacamoleSocket(guacd_hostname, guacd_port),
             guacConfig,
             info
         );

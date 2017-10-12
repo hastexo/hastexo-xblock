@@ -49,6 +49,14 @@ class HastexoXBlock(XBlock,
         scope=Scope.settings,
         help="What protocol to use for the connection. "
              "Currently, \"ssh\", \"rdp\", or \"vnc\".")
+    stack_ports = List(
+        default=[],
+        scope=Scope.settings,
+        help="What ports are available in the stack.")
+    stack_port_names = List(
+        default=[],
+        scope=Scope.settings,
+        help="Names of ports defined above.")
     provider = String(
         default="default",
         scope=Scope.settings,
@@ -90,6 +98,8 @@ class HastexoXBlock(XBlock,
         'stack_template_path',
         'stack_user_name',
         'stack_protocol',
+        'stack_ports',
+        'stack_port_names',
         'provider')
 
     has_author_view = True
@@ -213,12 +223,23 @@ class HastexoXBlock(XBlock,
             self.runtime.local_resource_url(self, 'public/js/main.js')
         )
 
+        # Set the port
+        port = None
+        if len(self.stack_ports) > 0:
+            port = self.stack_get("port")
+            if not port or port not in self.stack_ports:
+                port = self.stack_ports[0]
+                self.stack_set("port", port)
+
         # Call the JS initialization function
         frag.initialize_js('HastexoXBlock', {
             "terminal_url": self.configuration.get("terminal_url"),
             "timeouts": self.configuration.get("js_timeouts"),
             "has_tests": len(self.tests) > 0,
             "protocol": self.stack_protocol,
+            "ports": self.stack_ports,
+            "port_names": self.stack_port_names,
+            "port": port,
             "provider": self.provider
         })
 
@@ -560,6 +581,11 @@ class HastexoXBlock(XBlock,
             status = _process_result(result)
 
         return status
+
+    @XBlock.json_handler
+    def set_port(self, data, suffix=''):
+        # Set the preferred stack port
+        self.stack_set("port", int(data.get("port")))
 
     @staticmethod
     def workbench_scenarios():

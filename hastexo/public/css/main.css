@@ -10,6 +10,32 @@
     color: red;
 }
 
+.buttons .port {
+    display: none;
+    border: 1px solid #d2c9c9;
+    border-radius: 3px;
+    box-shadow: inset 0 1px 0 0 #fff;
+    color: #333;
+    display: inline-block;
+    font-size: inherit;
+    font-weight: bold;
+    background-color: #f1f1f1;
+    background-image: -webkit-linear-gradient(#f1f1f1,#d9d1d1);
+    background-image: linear-gradient(#f1f1f1,#d9d1d1);
+    padding: 7px 18px;
+    text-decoration: none;
+    text-shadow: 0 1px 0 #fcfbfb;
+    background-clip: padding-box;
+    font-size: 0.8125em;
+    text-transform: none;
+    letter-spacing: 0;
+    cursor: pointer;
+    -webkit-appearance: button;
+    vertical-align: top;
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+}
+
 #container {
     position: relative;
     width: 100%;
