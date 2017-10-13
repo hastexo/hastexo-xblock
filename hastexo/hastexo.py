@@ -73,6 +73,10 @@ class HastexoXBlock(XBlock,
         scope=Scope.user_state,
         default={},
         help="Runtime configuration")
+    stack_run = String(
+        default="",
+        scope=Scope.user_state,
+        help="The name of the run")
     stack_name = String(
         default="",
         scope=Scope.user_state,
@@ -153,10 +157,9 @@ class HastexoXBlock(XBlock,
 
     def get_block_ids(self):
         course_id = self.xmodule_runtime.course_id
-        user_id = self.xmodule_runtime.anonymous_student_id
-        course_code = course_id.course
+        anonymous_student_id = self.xmodule_runtime.anonymous_student_id
 
-        return (course_id, user_id, course_code)
+        return (course_id, anonymous_student_id)
 
     def get_stack_template(self):
         """
@@ -168,7 +171,7 @@ class HastexoXBlock(XBlock,
         HTTP GET to the LMS, in the future.
 
         """
-        course_id, _, _ = self.get_block_ids()
+        course_id, _ = self.get_block_ids()
         stack_template = None
         try:
             from xmodule.contentstore.content import StaticContent
@@ -205,8 +208,9 @@ class HastexoXBlock(XBlock,
 
         # Get the course id and anonymous user id, and derive the stack name
         # from them
-        _, user_id, course_code = self.get_block_ids()
-        self.stack_name = "%s_%s" % (course_code, user_id)
+        course_id, anonymous_student_id = self.get_block_ids()
+        self.stack_run = "%s_%s" % (course_id.course, course_id.run)
+        self.stack_name = "%s_%s" % (self.stack_run, anonymous_student_id)
 
         # Render the HTML template
         html = loader.render_template('static/html/main.html')
@@ -313,6 +317,7 @@ class HastexoXBlock(XBlock,
         def _launch_stack(reset=False):
             args = (
                 self.configuration,
+                self.stack_run,
                 self.stack_name,
                 self.get_stack_template(),
                 self.stack_user_name,

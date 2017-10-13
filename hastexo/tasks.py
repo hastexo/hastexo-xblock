@@ -23,6 +23,7 @@ class LaunchStackTask(Task):
     """
     def run(self,
             configuration,
+            stack_run,
             stack_name,
             stack_template,
             stack_user,
@@ -45,6 +46,7 @@ class LaunchStackTask(Task):
         # Launch the stack and wait for it to complete.
         (status, error_msg, stack) = self.launch_stack(configuration,
                                                        heat,
+                                                       stack_run,
                                                        stack_name,
                                                        stack_template,
                                                        reset)
@@ -102,6 +104,7 @@ class LaunchStackTask(Task):
     def launch_stack(self,
                      configuration,
                      heat,
+                     stack_run,
                      stack_name,
                      stack_template,
                      reset):
@@ -138,7 +141,8 @@ class LaunchStackTask(Task):
 
             logger.info("Stack [%s] doesn't exist.  Creating it." % stack_name)
             res = heat.stacks.create(stack_name=stack_name,
-                                     template=stack_template)
+                                     template=stack_template,
+                                     parameters={'run': stack_run})
             stack_id = res['stack']['id']
 
             # Sleep to avoid throttling.
@@ -179,7 +183,8 @@ class LaunchStackTask(Task):
                                "during change of state. "
                                "Re-creating it." % stack_name)
                 res = heat.stacks.create(stack_name=stack_name,
-                                         template=stack_template)
+                                         template=stack_template,
+                                         parameters={'run': stack_run})
                 stack_id = res['stack']['id']
 
                 # Sleep to avoid throttling.
@@ -250,7 +255,8 @@ class LaunchStackTask(Task):
                 logger.info("Stack [%s] deleted successfully.  "
                             "Recreating it." % stack_name)
                 res = heat.stacks.create(stack_name=stack_name,
-                                         template=stack_template)
+                                         template=stack_template,
+                                         paremeters={'run': stack_run})
                 stack_id = res['stack']['id']
 
                 # Sleep to avoid throttling.
@@ -291,7 +297,8 @@ class LaunchStackTask(Task):
                                        "during change of state. "
                                        "Re-creating it." % stack_name)
                         res = heat.stacks.create(stack_name=stack_name,
-                                                 template=stack_template)
+                                                 template=stack_template,
+                                                 paremeters={'run': stack_run})
                         stack_id = res['stack']['id']
 
                         # Sleep to avoid throttling.
