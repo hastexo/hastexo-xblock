@@ -1,11 +1,11 @@
-#!/bin/bash
+#!/bin/bash -ex
 
 GUACAMOLE_VERSION="0.9.13"
 HASTEXO_VERSION="2.0.0a"
 
 # Install requirements
 apt update
-apt install \
+apt install -y \
 	build-essential \
 	libcairo2-dev \
 	libjpeg-turbo8-dev \
@@ -38,6 +38,10 @@ ln -s /usr/local/lib/freerdp/* /usr/lib/x86_64-linux-gnu/freerdp/.
 ldconfig
 systemctl enable guacd
 cd ..
+
+# Cleanup
+rm -f guacamole-server-${GUACAMOLE_VERSION}-incubating.tar.gz
+rm -fr guacamole-server-${GUACAMOLE_VERSION}-incubating/
 
 # Build app and deploy it
 mvn package
