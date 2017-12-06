@@ -256,7 +256,7 @@ class LaunchStackTask(Task):
                             "Recreating it." % stack_name)
                 res = heat.stacks.create(stack_name=stack_name,
                                          template=stack_template,
-                                         paremeters={'run': stack_run})
+                                         parameters={'run': stack_run})
                 stack_id = res['stack']['id']
 
                 # Sleep to avoid throttling.
@@ -298,7 +298,7 @@ class LaunchStackTask(Task):
                                        "Re-creating it." % stack_name)
                         res = heat.stacks.create(stack_name=stack_name,
                                                  template=stack_template,
-                                                 paremeters={'run': stack_run})
+                                                 parameters={'run': stack_run})
                         stack_id = res['stack']['id']
 
                         # Sleep to avoid throttling.
