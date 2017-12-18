@@ -418,11 +418,11 @@ function HastexoXBlock(runtime, element, configuration) {
         clearTimeout(keepalive_timer);
         stack = null;
 
+        /* Disconnect terminal. */
+        terminal_client.disconnect()
+
         var dialog = $('#idle');
         dialog.find('input.ok').one('click', function() {
-            /* Disconnect terminal. */
-            terminal_client.disconnect()
-
             /* Start over. */
             get_user_stack_status(true);
         });
