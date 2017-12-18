@@ -67,6 +67,7 @@ class TestHastexoTasks(TestCase):
         self.stack_ip = '127.0.0.1'
         self.stack_key = 'bogus_stack_key'
         self.stack_password = 'bogus_stack_password'
+        self.run_name = 'bogus_run'
 
     def test_create_stack_during_launch(self):
         task = LaunchStackTask()
@@ -91,6 +92,7 @@ class TestHastexoTasks(TestCase):
             stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
+                self.run_name,
                 self.stack_name,
                 stack_template,
                 self.stack_user,
@@ -98,6 +100,7 @@ class TestHastexoTasks(TestCase):
             )
             assert res['status'] == 'CREATE_COMPLETE'
             mock_heat_client.stacks.create.assert_called_with(
+                parameters={'run': self.run_name},
                 stack_name=self.stack_name,
                 template=stack_template
             )
@@ -132,6 +135,7 @@ class TestHastexoTasks(TestCase):
             stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
+                self.run_name,
                 self.stack_name,
                 stack_template,
                 self.stack_user,
@@ -141,6 +145,7 @@ class TestHastexoTasks(TestCase):
                 stack_id=self.stacks['RESUME_FAILED'].id
             )
             mock_heat_client.stacks.create.assert_called_with(
+                parameters={'run': self.run_name},
                 stack_name=self.stack_name,
                 template=stack_template
             )
@@ -174,6 +179,7 @@ class TestHastexoTasks(TestCase):
             stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
+                self.run_name,
                 self.stack_name,
                 stack_template,
                 self.stack_user,
@@ -181,6 +187,7 @@ class TestHastexoTasks(TestCase):
             )
             mock_heat_client.stacks.delete.assert_not_called()
             mock_heat_client.stacks.create.assert_called_with(
+                parameters={'run': self.run_name},
                 stack_name=self.stack_name,
                 template=stack_template
             )
@@ -212,6 +219,7 @@ class TestHastexoTasks(TestCase):
             stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
+                self.run_name,
                 self.stack_name,
                 stack_template,
                 self.stack_user,
@@ -250,6 +258,7 @@ class TestHastexoTasks(TestCase):
             stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
+                self.run_name,
                 self.stack_name,
                 stack_template,
                 self.stack_user,

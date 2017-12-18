@@ -27,7 +27,7 @@ class LaunchStackTask(Task):
             stack_name,
             stack_template,
             stack_user,
-            reset):
+            reset=False):
         """
         Run the celery task.
 
@@ -107,7 +107,7 @@ class LaunchStackTask(Task):
                      stack_run,
                      stack_name,
                      stack_template,
-                     reset):
+                     reset=False):
         """
         Launch the user stack, either by creating or resuming it.  If a reset
         is requested, delete the stack and recreate it.
