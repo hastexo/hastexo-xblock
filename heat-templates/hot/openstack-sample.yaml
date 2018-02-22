@@ -419,3 +419,9 @@ outputs:
   private_key:
     description: Training private key
     value: { get_attr: [ training_key, private_key ] }
+  reboot_on_resume:
+    description: Servers to reboot upon resume
+    value:
+      - { get_resource: daisy }
+      - { get_resource: eric }
+      - { get_resource: frank }

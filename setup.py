@@ -63,7 +63,7 @@ setup(
         'keystoneauth1==2.18.0',
         'python-keystoneclient==3.10.0',
         'python-heatclient==1.6.1',
-        'python-swiftclient==3.3.0',
+        'python-novaclient==7.1.2',
         'paramiko==2.1.2',
     ],
     entry_points={

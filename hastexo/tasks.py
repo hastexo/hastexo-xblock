@@ -11,6 +11,7 @@ from io import StringIO
 
 from .utils import UP_STATES
 from .heat import HeatWrapper
+from .nova import NovaWrapper
 
 logger = get_task_logger(__name__)
 
@@ -44,12 +45,15 @@ class LaunchStackTask(Task):
         heat = self.get_heat_client(configuration)
 
         # Launch the stack and wait for it to complete.
-        (status, error_msg, stack) = self.launch_stack(configuration,
-                                                       heat,
-                                                       stack_run,
-                                                       stack_name,
-                                                       stack_template,
-                                                       reset)
+        (status,
+         error_msg,
+         stack,
+         was_resumed) = self.launch_stack(configuration,
+                                          heat,
+                                          stack_run,
+                                          stack_name,
+                                          stack_template,
+                                          reset)
 
         # If launch completed successfully, wait for provisioning, collect
         # its IP address, and save the private key.
@@ -62,6 +66,7 @@ class LaunchStackTask(Task):
              stack_key,
              stack_password) = self.verify_stack(configuration,
                                                  stack,
+                                                 was_resumed,
                                                  stack_name,
                                                  stack_user)
 
@@ -101,6 +106,9 @@ class LaunchStackTask(Task):
     def get_heat_client(self, configuration):
         return HeatWrapper(**configuration).get_client()
 
+    def get_nova_client(self, configuration):
+        return NovaWrapper(**configuration).get_client()
+
     def launch_stack(self,
                      configuration,
                      heat,
@@ -124,6 +132,7 @@ class LaunchStackTask(Task):
         logger.info("Launching stack [%s]." % stack_name)
 
         new_stack = False
+        was_resumed = False
 
         # Create the stack if it doesn't exist, resume it if it's suspended.
         try:
@@ -330,6 +339,9 @@ class LaunchStackTask(Task):
             logger.info("Resuming stack [%s]." % stack_name)
             heat.actions.resume(stack_id=stack.id)
 
+            # Store the fact the stack was resumed
+            was_resumed = True
+
             # Sleep to avoid throttling.
             time.sleep(sleep)
 
@@ -375,13 +387,15 @@ class LaunchStackTask(Task):
             logger.info("Stack [%s] launch successful, "
                         "with status [%s]." % (stack_name, status))
 
-        return (status, error_msg, stack)
+        return (status, error_msg, stack, was_resumed)
 
-    def verify_stack(self, configuration, stack, stack_name, stack_user):
+    def verify_stack(self, configuration, stack, was_resumed, stack_name,
+                     stack_user):
         """
-        Check that the stack has a public IP address, a private key, and is
-        network accessible.  Save its private key, and check that it is
-        possible to SSH into the stack using it.
+        Fetch stack outputs, check that the stack has a public IP address, a
+        private key, and is network accessible after rebooting any servers.
+        Save its private key, and check that it is possible to SSH into the
+        stack using it.
 
         """
         verify_status = 'VERIFY_COMPLETE'
@@ -389,6 +403,7 @@ class LaunchStackTask(Task):
         stack_ip = None
         stack_key = None
         stack_password = None
+        reboot_on_resume = None
 
         timeouts = configuration.get('timeouts', {})
         sleep = timeouts.get('sleep', 5)
@@ -408,6 +423,10 @@ class LaunchStackTask(Task):
             elif output['output_key'] == 'password':
                 stack_password = output['output_value']
                 logger.debug("Found password for stack [%s]" % (stack_name))
+            elif output['output_key'] == 'reboot_on_resume':
+                reboot_on_resume = output['output_value']
+                logger.debug("Found servers to reboot on resume "
+                             "for stack [%s]" % (stack_name))
 
         if stack_ip is None or stack_key is None:
             verify_status = 'VERIFY_FAILED'
@@ -415,6 +434,15 @@ class LaunchStackTask(Task):
                          "IP and private key." % stack_name)
             logger.error(error_msg)
         else:
+            if (was_resumed and
+                    reboot_on_resume is not None and
+                    type(reboot_on_resume) is list):
+                nova = self.get_nova_client(configuration)
+
+                for server in reboot_on_resume:
+                    logger.info("Hard rebooting server [%s]" % server)
+                    nova.servers.reboot(server, 'HARD')
+
             # Wait until stack is network accessible, but not indefinitely.
             logger.info("Waiting for stack [%s] "
                         "to become network accessible "
@@ -456,7 +484,8 @@ class LaunchStackTask(Task):
                     try:
                         ssh.connect(stack_ip, username=stack_user, pkey=pkey)
                     except (paramiko.ssh_exception.AuthenticationException,
-                            paramiko.ssh_exception.SSHException):
+                            paramiko.ssh_exception.SSHException,
+                            paramiko.ssh_exception.NoValidConnectionsError):
                         logger.debug("Could not SSH into stack [%s] at [%s]. "
                                      "Waiting %s seconds "
                                      "until next attempt." % (stack_name,

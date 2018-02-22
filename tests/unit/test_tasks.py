@@ -107,6 +107,7 @@ class TestHastexoTasks(TestCase):
             mock_verify_stack.assert_called_with(
                 self.configuration,
                 self.stacks['CREATE_COMPLETE'],
+                False,
                 self.stack_name,
                 self.stack_user
             )
@@ -152,6 +153,7 @@ class TestHastexoTasks(TestCase):
             mock_verify_stack.assert_called_with(
                 self.configuration,
                 self.stacks['CREATE_COMPLETE'],
+                False,
                 self.stack_name,
                 self.stack_user
             )
@@ -194,6 +196,7 @@ class TestHastexoTasks(TestCase):
             mock_verify_stack.assert_called_with(
                 self.configuration,
                 self.stacks['CREATE_COMPLETE'],
+                False,
                 self.stack_name,
                 self.stack_user
             )
@@ -232,6 +235,7 @@ class TestHastexoTasks(TestCase):
             mock_verify_stack.assert_called_with(
                 self.configuration,
                 self.stacks['RESUME_COMPLETE'],
+                True,
                 self.stack_name,
                 self.stack_user
             )
@@ -271,6 +275,7 @@ class TestHastexoTasks(TestCase):
             mock_verify_stack.assert_called_with(
                 self.configuration,
                 self.stacks['RESUME_COMPLETE'],
+                True,
                 self.stack_name,
                 self.stack_user
             )

@@ -295,6 +295,21 @@ To ensure your Heat template has the required configuration:
         value: { get_attr: [ training_key, private_key ] }
     ```
 
+    If you also provide a list of servers under an `reboot_on_resume` item, the
+    servers listed therein will be hard rebooted after a resume operation:
+
+    ```
+      reboot_on_resume:
+        description: Servers to be rebooted after resume
+        value:
+          - { get_resource: server1 }
+          - { get_resource: server2 }
+    ```
+
+    (This is meant primarily as a workaround to resurrect servers that use
+    nested KVM, as the latter does not support a managed save and subsequent
+    restart.)
+
 4. Upload the Heat template to the content store and make a note of its static
    asset file name.
 
