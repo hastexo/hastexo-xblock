@@ -69,10 +69,6 @@ class HastexoXBlock(XBlock,
         help="The list of tests to run.")
 
     # User state, per instance.
-    configuration = Dict(
-        scope=Scope.user_state,
-        default={},
-        help="Runtime configuration")
     stack_run = String(
         default="",
         scope=Scope.user_state,
@@ -204,7 +200,7 @@ class HastexoXBlock(XBlock,
             return frag
 
         # Load configuration
-        self.configuration = self.get_configuration()
+        configuration = self.get_configuration()
 
         # Get the course id and anonymous user id, and derive the stack name
         # from them
@@ -237,8 +233,8 @@ class HastexoXBlock(XBlock,
 
         # Call the JS initialization function
         frag.initialize_js('HastexoXBlock', {
-            "terminal_url": self.configuration.get("terminal_url"),
-            "timeouts": self.configuration.get("js_timeouts"),
+            "terminal_url": configuration.get("terminal_url"),
+            "timeouts": configuration.get("js_timeouts"),
             "has_tests": len(self.tests) > 0,
             "protocol": self.stack_protocol,
             "ports": self.stack_ports,
@@ -272,8 +268,8 @@ class HastexoXBlock(XBlock,
 
         return retval
 
-    def suspend_user_stack(self):
-        suspend_timeout = self.configuration.get("suspend_timeout")
+    def suspend_user_stack(self, configuration):
+        suspend_timeout = configuration.get("suspend_timeout")
         if suspend_timeout:
             # If the suspend task is pending, revoke it.
             stack_suspend_id = self.stack_get("suspend_id")
@@ -286,7 +282,7 @@ class HastexoXBlock(XBlock,
                 self.stack_set("suspend_id", None)
 
             # (Re)schedule the suspension in the future.
-            args = (self.configuration, self.stack_name)
+            args = (configuration, self.stack_name)
             task = SuspendStackTask()
             logger.debug(
                 'Scheduling suspend task '
@@ -297,10 +293,11 @@ class HastexoXBlock(XBlock,
             self.stack_set("suspend_timestamp", int(time.time()))
 
     def launch_stack_task(self, args):
+        configuration = args[0]
         task = LaunchStackTask()
         result = task.apply_async(
             args=args,
-            expires=self.configuration.get('launch_timeout')
+            expires=configuration.get('launch_timeout')
         )
         logger.debug(
             'Launch task id for '
@@ -314,9 +311,11 @@ class HastexoXBlock(XBlock,
 
     @XBlock.json_handler
     def get_user_stack_status(self, data, suffix=''):
+        configuration = self.get_configuration()
+
         def _launch_stack(reset=False):
             args = (
-                self.configuration,
+                configuration,
                 self.stack_run,
                 self.stack_name,
                 self.get_stack_template(),
@@ -366,7 +365,7 @@ class HastexoXBlock(XBlock,
 
         # Calculate the time since the suspend timer was last reset.
         now = int(time.time())
-        suspend_timeout = self.configuration.get("suspend_timeout")
+        suspend_timeout = configuration.get("suspend_timeout")
         suspend_timestamp = self.stack_get("suspend_timestamp")
         time_since_suspend = 0
         if suspend_timeout and suspend_timestamp:
@@ -403,7 +402,7 @@ class HastexoXBlock(XBlock,
                 # Calculate time since launch
                 launch_timestamp = self.stack_get("launch_timestamp")
                 time_since_launch = now - launch_timestamp
-                launch_timeout = self.configuration.get('launch_timeout')
+                launch_timeout = configuration.get('launch_timeout')
 
                 # Check if the pending task hasn't timed out.
                 if time_since_launch <= launch_timeout:
@@ -508,20 +507,24 @@ class HastexoXBlock(XBlock,
             status = last_status
 
         # Restart the dead man's switch, if necessary.
-        self.suspend_user_stack()
+        self.suspend_user_stack(configuration)
 
         return status
 
     @XBlock.json_handler
     def keepalive(self, data, suffix=''):
+        configuration = self.get_configuration()
+
         # Restart the dead man's switch, if necessary.
-        self.suspend_user_stack()
+        self.suspend_user_stack(configuration)
 
     @XBlock.json_handler
     def get_check_status(self, data, suffix=''):
         """
         Checks the current student score.
         """
+        configuration = self.get_configuration()
+
         def _launch_check():
             stack_ip = self.stack_get("status", "ip")
             stack_key = self.stack_get("status", "key")
@@ -532,7 +535,7 @@ class HastexoXBlock(XBlock,
                 logger.debug('Test: %s' % test)
 
             args = (
-                self.configuration,
+                configuration,
                 self.tests,
                 stack_ip,
                 self.stack_user_name,
