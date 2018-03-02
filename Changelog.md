@@ -1,3 +1,9 @@
+Unreleased
+-------------------------
+* [Enhancement] Enable `show_in_read_only_mode` XBlock attribute
+  to allow instuctors to use this XBlock while masquerading
+  as a specific learner.
+
 Version 7.12.0 (2024-08-06)
 -------------------------
 * [Enhancement] Add support for the Open edX Redwood release.

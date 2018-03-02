@@ -268,6 +268,7 @@ class HastexoXBlock(XBlock,
     has_children = True
     icon_class = 'problem'
     block_settings_key = SETTINGS_KEY
+    show_in_read_only_mode = True
 
     def parse_attributes(tag, node, block):
         """

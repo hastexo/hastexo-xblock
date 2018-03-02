@@ -657,6 +657,14 @@ as usual, with the child element referring to it by URL name:
 
 Child blocks will always be rendered _above_ the terminal.
 
+### Using the hastexo XBlock while masquerading as a specific learner
+
+Instructors can use the hastexo XBlock lab environments when masquerading as a specific learner by using the "View this course as:" option in the LMS staff header.
+
+The learner will not know when an instructor is using their lab, so we advise to be mindful of the changes you make while the learner is active at the same lab.
+
+This feature should be considered experimental, and is subject to future change or removal.
+
 ## Student experience
 
 When students navigate to a unit with a hastexo XBlock in it, a new Heat
