@@ -214,6 +214,12 @@ function HastexoXBlock(runtime, element, configuration) {
 
             /* Error handling. */
             terminal_client.onerror = function(guac_error) {
+                /* Reset and disconnect. */
+                if (keepalive_timer) clearTimeout(keepalive_timer);
+                if (idle_timer) clearTimeout(idle_timer);
+                stack = null;
+                terminal_client.disconnect();
+
                 var dialog = $('#launch_error');
                 var dialog_message =
                     "Could not connect to your lab environment. " +
