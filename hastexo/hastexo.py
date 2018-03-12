@@ -274,8 +274,9 @@ class HastexoXBlock(XBlock,
             # If the suspend task is pending, revoke it.
             stack_suspend_id = self.stack_get("suspend_id")
             if stack_suspend_id:
-                logger.debug(
-                    'Revoking suspend task for [%s]' % (self.stack_name)
+                logger.info(
+                    'Revoking suspend task [%s] for [%s]' % (stack_suspend_id,
+                                                             self.stack_name)
                 )
                 from lms import CELERY_APP
                 CELERY_APP.control.revoke(stack_suspend_id)
@@ -284,11 +285,13 @@ class HastexoXBlock(XBlock,
             # (Re)schedule the suspension in the future.
             args = (configuration, self.stack_name)
             task = SuspendStackTask()
-            logger.debug(
-                'Scheduling suspend task '
-                'for [%s] in %s seconds' % (self.stack_name, suspend_timeout)
-            )
             result = task.apply_async(args=args, countdown=suspend_timeout)
+            logger.info(
+                'Scheduled suspend task [%s] '
+                'for [%s] in %s seconds' % (result.id,
+                                            self.stack_name,
+                                            suspend_timeout)
+            )
             self.stack_set("suspend_id", result.id)
             self.stack_set("suspend_timestamp", int(time.time()))
 
@@ -299,7 +302,7 @@ class HastexoXBlock(XBlock,
             args=args,
             expires=configuration.get('launch_timeout')
         )
-        logger.debug(
+        logger.info(
             'Launch task id for '
             'stack [%s] is: [%s]' % (self.stack_name, result.id)
         )
@@ -408,7 +411,7 @@ class HastexoXBlock(XBlock,
                 if time_since_launch <= launch_timeout:
                     # The pending task still has some time to finish.
                     # Please wait.
-                    logger.debug('Launch pending for [%s]' % (self.stack_name))
+                    logger.info('Launch pending for [%s]' % (self.stack_name))
 
                 elif initialize or reset:
                     # Timeout reached, but the user just entered the page or
@@ -532,7 +535,7 @@ class HastexoXBlock(XBlock,
                         (self.stack_name, stack_ip,
                          self.stack_user_name))
             for test in self.tests:
-                logger.debug('Test: %s' % test)
+                logger.info('Test: %s' % test)
 
             args = (
                 configuration,
@@ -579,7 +582,7 @@ class HastexoXBlock(XBlock,
 
         # If a check task is running, return its status.
         if self.check_id:
-            logger.debug('Check progress task is running: %s' % self.check_id)
+            logger.info('Check progress task is running: %s' % self.check_id)
             result = CheckStudentProgressTask().AsyncResult(self.check_id)
             status = _process_result(result)
 
