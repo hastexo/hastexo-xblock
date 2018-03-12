@@ -215,8 +215,27 @@ function HastexoXBlock(runtime, element, configuration) {
             /* Error handling. */
             terminal_client.onerror = function(guac_error) {
                 var dialog = $('#launch_error');
-                dialog.find('.message').html('Could not connect to your lab environment:');
-                dialog.find('.error_msg').html(guac_error.message);
+                var dialog_message =
+                    "Could not connect to your lab environment. " +
+                    "The client detected an unexpected error. " +
+                    "The server's error message was:";
+                var error_message = guac_error.message;
+                /* Special-case the unhelpful "Aborted. See logs"
+                 * message, indicating that although we did have a
+                 * working connection earlier, we've now lost it (as
+                 * opposed to never being able to connect to the
+                 * upstream web socket at all). For any other message,
+                 * just pass through the error received from
+                 * upstream. */
+                if (guac_error.message.toLowerCase().startsWith('aborted')) {
+                    dialog_message = "Lost connection to your lab environment."
+                    error_message =
+                        "The remote server unexpectedly disconnected. " +
+                        "You can try closing your browser window, " +
+                        "and returning to this page in a few minutes.";
+                }
+                dialog.find('.message').html(dialog_message);
+                dialog.find('.error_msg').html(error_message);
                 dialog.find('input.ok').one('click', function() {
                     $.dialog.close();
                 });
