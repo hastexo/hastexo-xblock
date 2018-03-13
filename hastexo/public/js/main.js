@@ -59,7 +59,10 @@ function HastexoXBlock(runtime, element, configuration) {
                     /* Reset keepalive timer. */
                     if (configuration.timeouts['keepalive']) {
                         if (keepalive_timer) clearTimeout(keepalive_timer);
-                        keepalive_timer = setTimeout(keepalive, configuration.timeouts['keepalive']);
+                        keepalive_timer = setTimeout(
+                            keepalive,
+                            fuzz_timeout(configuration.timeouts['keepalive'])
+                        );
                     }
 
                     /* Reset idle timer. */
@@ -256,6 +259,15 @@ function HastexoXBlock(runtime, element, configuration) {
         });
     };
 
+    /* Returns a fuzzy timeout that varies between plus or minus 25% of the
+     * base value. */
+    var fuzz_timeout = function(timeout) {
+        var range = Math.floor(timeout * 0.25);
+        var fuzz = Math.random() * (range * 2 + 1) - range;
+
+        return timeout + fuzz;
+    };
+
     var get_user_stack_status = function(initialize = false, reset = false) {
         $('#launch_pending').dialog(element);
         $.ajax({
@@ -278,7 +290,7 @@ function HastexoXBlock(runtime, element, configuration) {
                 if (status_timer) clearTimeout(status_timer);
                 status_timer = setTimeout(
                     get_user_stack_status,
-                    configuration.timeouts['status']
+                    fuzz_timeout(configuration.timeouts['status'])
                 );
             }
         }).fail(function(request, text, error) {
@@ -338,7 +350,10 @@ function HastexoXBlock(runtime, element, configuration) {
                 /* Reset keepalive timer. */
                 if (configuration.timeouts['keepalive']) {
                     if (keepalive_timer) clearTimeout(keepalive_timer);
-                    keepalive_timer = setTimeout(keepalive, configuration.timeouts['keepalive']);
+                    keepalive_timer = setTimeout(
+                        keepalive,
+                        fuzz_timeout(configuration.timeouts['keepalive'])
+                    );
                 }
 
                 /* Reset idle timer. */
@@ -352,7 +367,10 @@ function HastexoXBlock(runtime, element, configuration) {
             $.dialog.close();
         } else if (stack.status == 'PENDING') {
             if (status_timer) clearTimeout(status_timer);
-            status_timer = setTimeout(get_user_stack_status, configuration.timeouts['status']);
+            status_timer = setTimeout(
+                get_user_stack_status,
+                fuzz_timeout(configuration.timeouts['status'])
+            );
         } else {
             /* Unexpected status.  Display error message. */
             var dialog = $('#launch_error');
@@ -378,7 +396,10 @@ function HastexoXBlock(runtime, element, configuration) {
         }).always(function() {
             if (configuration.timeouts['keepalive']) {
                 if (keepalive_timer) clearTimeout(keepalive_timer);
-                keepalive_timer = setTimeout(keepalive, configuration.timeouts['keepalive']);
+                keepalive_timer = setTimeout(
+                    keepalive,
+                    fuzz_timeout(configuration.timeouts['keepalive'])
+                );
             }
         });
     };
