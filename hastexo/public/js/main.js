@@ -286,7 +286,7 @@ function HastexoXBlock(runtime, element, configuration) {
             }
             if (changed) {
                 update_user_stack_status(stack);
-            } else if (stack.status == 'PENDING') {
+            } else if (stack.status == 'LAUNCH_PENDING') {
                 if (status_timer) clearTimeout(status_timer);
                 status_timer = setTimeout(
                     get_user_stack_status,
@@ -365,7 +365,7 @@ function HastexoXBlock(runtime, element, configuration) {
 
             /* Close the dialog. */
             $.dialog.close();
-        } else if (stack.status == 'PENDING') {
+        } else if (stack.status == 'LAUNCH_PENDING') {
             if (status_timer) clearTimeout(status_timer);
             status_timer = setTimeout(
                 get_user_stack_status,

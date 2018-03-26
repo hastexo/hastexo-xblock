@@ -1,10 +1,10 @@
 import json
-import time
-import unittest
 import hastexo
 
 from mock import Mock, patch
 from webob import Request
+from django.test import TestCase
+from django.utils import timezone
 from workbench.runtime import WorkbenchRuntime
 from xblock.fields import ScopeIds
 from xblock.runtime import KvsFieldData, DictKeyValueStore
@@ -22,7 +22,7 @@ def make_request(data, method='POST'):
     return request
 
 
-class TestHastexoXBlock(unittest.TestCase):
+class TestHastexoXBlock(TestCase):
     """
     Basic unit tests for the Hastexo XBlock.
 
@@ -79,16 +79,15 @@ class TestHastexoXBlock(unittest.TestCase):
         self.init_block()
 
         mock_result = Mock()
+        mock_result.id = 'bogus_task_id'
         mock_result.ready.return_value = True
         mock_result.successful.return_value = True
         mock_result.result = {"status": "CREATE_COMPLETE"}
         mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_suspend_user_stack = Mock()
         mock_get_stack_template = Mock(return_value=('bogus_stack_template'))
 
         with patch.multiple(self.block,
                             launch_stack_task=mock_launch_stack_task,
-                            suspend_user_stack=mock_suspend_user_stack,
                             get_stack_template=mock_get_stack_template):
             data = {
                 "initialize": True,
@@ -98,32 +97,32 @@ class TestHastexoXBlock(unittest.TestCase):
 
         self.assertEqual(result, mock_result.result)
         self.assertTrue(mock_launch_stack_task.called)
-        self.assertTrue(mock_suspend_user_stack.called)
 
     def test_get_user_stack_status_resume_after_suspend(self):
         self.init_block()
 
-        now = int(time.time())
         suspend_timeout = self.block.configuration.get("suspend_timeout")
-        suspend_timestamp = now - suspend_timeout
-        self.block.stacks = {
-            self.block.stack_name: {
-                "suspend_timestamp": suspend_timestamp,
-                "status": {"status": "CREATE_COMPLETE"}
-            }
-        }
+        timedelta = timezone.timedelta(seconds=suspend_timeout)
+        suspend_timestamp = timezone.now() - timedelta
+        course_id, student_id = self.block.get_block_ids()
+        stack, _ = hastexo.models.Stack.objects.get_or_create(
+            student_id=student_id,
+            course_id=course_id,
+            name=self.block.stack_name,
+            suspend_timestamp=suspend_timestamp,
+            status='CREATE_COMPLETE'
+        )
 
         mock_result = Mock()
+        mock_result.id = 'bogus_task_id'
         mock_result.ready.return_value = True
         mock_result.successful.return_value = True
         mock_result.result = {"status": "RESUME_COMPLETE"}
         mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_suspend_user_stack = Mock()
         mock_get_stack_template = Mock(return_value=('bogus_stack_template'))
 
         with patch.multiple(self.block,
                             launch_stack_task=mock_launch_stack_task,
-                            suspend_user_stack=mock_suspend_user_stack,
                             get_stack_template=mock_get_stack_template):
             data = {
                 "initialize": True,
@@ -133,33 +132,34 @@ class TestHastexoXBlock(unittest.TestCase):
 
         self.assertEqual(result, mock_result.result)
         self.assertTrue(mock_launch_stack_task.called)
-        self.assertTrue(mock_suspend_user_stack.called)
 
     def test_get_user_stack_status_dont_resume_before_suspend(self):
         # Initialize block
         self.init_block()
 
-        now = int(time.time())
         suspend_timeout = self.block.configuration.get("suspend_timeout")
-        suspend_timestamp = now - suspend_timeout + 1
-        self.block.stacks = {
-            self.block.stack_name: {
-                "suspend_timestamp": suspend_timestamp,
-                "status": {"status": "CREATE_COMPLETE"}
-            }
-        }
+        timedelta = timezone.timedelta(seconds=(suspend_timeout - 1))
+        suspend_timestamp = timezone.now() - timedelta
+        course_id, student_id = self.block.get_block_ids()
+        stack, _ = hastexo.models.Stack.objects.get_or_create(
+            student_id=student_id,
+            course_id=course_id,
+            name=self.block.stack_name,
+            suspend_timestamp=suspend_timestamp,
+            status='CREATE_COMPLETE'
+        )
+
         # Async result mock
         mock_result = Mock()
+        mock_result.id = 'bogus_task_id'
         mock_result.ready.return_value = True
         mock_result.successful.return_value = True
         mock_result.result = {"status": "RESUME_COMPLETE"}
         mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_suspend_user_stack = Mock()
         mock_get_stack_template = Mock(return_value=('bogus_stack_template'))
 
         with patch.multiple(self.block,
                             launch_stack_task=mock_launch_stack_task,
-                            suspend_user_stack=mock_suspend_user_stack,
                             get_stack_template=mock_get_stack_template):
             data = {
                 "initialize": True,
@@ -169,32 +169,32 @@ class TestHastexoXBlock(unittest.TestCase):
 
         self.assertNotEqual(result, mock_result.result)
         self.assertFalse(mock_launch_stack_task.called)
-        self.assertTrue(mock_suspend_user_stack.called)
 
     def test_get_user_stack_status_reset_before_suspend(self):
         self.init_block()
 
-        now = int(time.time())
         suspend_timeout = self.block.configuration.get("suspend_timeout")
-        suspend_timestamp = now - suspend_timeout + 1
-        self.block.stacks = {
-            self.block.stack_name: {
-                "suspend_timestamp": suspend_timestamp,
-                "status": {"status": "RESUME_COMPLETE"}
-            }
-        }
+        timedelta = timezone.timedelta(seconds=(suspend_timeout - 1))
+        suspend_timestamp = timezone.now() - timedelta
+        course_id, student_id = self.block.get_block_ids()
+        stack, _ = hastexo.models.Stack.objects.get_or_create(
+            student_id=student_id,
+            course_id=course_id,
+            name=self.block.stack_name,
+            suspend_timestamp=suspend_timestamp,
+            status='RESUME_COMPLETE'
+        )
 
         mock_result = Mock()
+        mock_result.id = 'bogus_task_id'
         mock_result.ready.return_value = True
         mock_result.successful.return_value = True
         mock_result.result = {"status": "CREATE_COMPLETE"}
         mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_suspend_user_stack = Mock()
         mock_get_stack_template = Mock(return_value=('bogus_stack_template'))
 
         with patch.multiple(self.block,
                             launch_stack_task=mock_launch_stack_task,
-                            suspend_user_stack=mock_suspend_user_stack,
                             get_stack_template=mock_get_stack_template):
             data = {
                 "initialize": True,
@@ -204,4 +204,3 @@ class TestHastexoXBlock(unittest.TestCase):
 
         self.assertEqual(result, mock_result.result)
         self.assertTrue(mock_launch_stack_task.called)
-        self.assertTrue(mock_suspend_user_stack.called)

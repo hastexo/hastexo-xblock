@@ -1,7 +1,7 @@
 from unittest import TestCase
 from mock import Mock, patch
 from heatclient.exc import HTTPNotFound
-from hastexo.tasks import LaunchStackTask, SuspendStackTask
+from hastexo.tasks import LaunchStackTask
 from hastexo.tasks import CheckStudentProgressTask
 
 
@@ -33,19 +33,10 @@ class TestHastexoTasks(TestCase):
         self.configuration = {
             "launch_timeout": 300,
             "suspend_timeout": 120,
-            "terminal_url": "/terminal",
-            "ssh_dir": "/edx/var/edxapp/terminal_users/ANONYMOUS/.ssh",
-            "ssh_upload": False,
-            "ssh_bucket": "identities",
+            "terminal_url": "/hastexo-xblock/",
             "task_timeouts": {
                 "sleep": 0,
                 "retries": 10
-            },
-            "js_timeouts": {
-                "status": 10000,
-                "keepalive": 15000,
-                "idle": 600000,
-                "check": 5000
             },
             "credentials": {
                 "os_auth_url": "bogus_auth_url",
@@ -380,108 +371,6 @@ class TestHastexoTasks(TestCase):
                 False
             )
             assert res['status'] == 'RESUME_FAILED'
-
-    def test_suspend_stack_for_the_first_time(self):
-        task = SuspendStackTask()
-        mock_heat_client = Mock()
-        mock_heat_client.stacks.get.side_effect = [
-            self.stacks['CREATE_COMPLETE']
-        ]
-        with patch.multiple(task,
-                            get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
-            task.run(self.configuration, self.stack_name)
-            mock_heat_client.actions.suspend.assert_called_with(
-                stack_id=self.stack_name
-            )
-
-    def test_suspend_stack_for_the_second_time(self):
-        task = SuspendStackTask()
-        mock_heat_client = Mock()
-        mock_heat_client.stacks.get.side_effect = [
-            self.stacks['RESUME_COMPLETE']
-        ]
-        with patch.multiple(task,
-                            get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
-            task.run(self.configuration, self.stack_name)
-            mock_heat_client.actions.suspend.assert_called_with(
-                stack_id=self.stack_name
-            )
-
-    def test_dont_suspend_unexistent_stack(self):
-        task = SuspendStackTask()
-        mock_heat_client = Mock()
-        mock_heat_client.stacks.get.side_effect = [
-            HTTPNotFound
-        ]
-        with patch.multiple(task,
-                            get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
-            task.run(self.configuration, self.stack_name)
-            mock_heat_client.actions.suspend.assert_not_called()
-
-    def test_dont_suspend_failed_stack(self):
-        task = SuspendStackTask()
-        mock_heat_client = Mock()
-        mock_heat_client.stacks.get.side_effect = [
-            self.stacks['RESUME_FAILED']
-        ]
-        with patch.multiple(task,
-                            get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
-            task.run(self.configuration, self.stack_name)
-            mock_heat_client.actions.suspend.assert_not_called()
-
-    def test_dont_suspend_suspending_stack(self):
-        task = SuspendStackTask()
-        mock_heat_client = Mock()
-        mock_heat_client.stacks.get.side_effect = [
-            self.stacks['SUSPEND_IN_PROGRESS']
-        ]
-        with patch.multiple(task,
-                            get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
-            task.run(self.configuration, self.stack_name)
-            mock_heat_client.actions.suspend.assert_not_called()
-
-    def test_dont_suspend_suspended_stack(self):
-        task = SuspendStackTask()
-        mock_heat_client = Mock()
-        mock_heat_client.stacks.get.side_effect = [
-            self.stacks['SUSPEND_COMPLETE']
-        ]
-        with patch.multiple(task,
-                            get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
-            task.run(self.configuration, self.stack_name)
-            mock_heat_client.actions.suspend.assert_not_called()
-
-    def test_wait_for_create_during_suspend(self):
-        task = SuspendStackTask()
-        mock_heat_client = Mock()
-        mock_heat_client.stacks.get.side_effect = [
-            self.stacks['CREATE_IN_PROGRESS'],
-            self.stacks['CREATE_IN_PROGRESS'],
-            self.stacks['CREATE_IN_PROGRESS'],
-            self.stacks['CREATE_COMPLETE']
-        ]
-        with patch.multiple(task,
-                            get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
-            task.run(self.configuration, self.stack_name)
-            mock_heat_client.actions.suspend.assert_called_with(
-                stack_id=self.stack_name
-            )
-
-    def test_dont_wait_forever_during_suspend(self):
-        task = SuspendStackTask()
-        mock_heat_client = Mock()
-        mock_heat_client.stacks.get.side_effect = [
-            self.stacks['CREATE_IN_PROGRESS'],
-            self.stacks['CREATE_IN_PROGRESS'],
-            self.stacks['CREATE_IN_PROGRESS'],
-            self.stacks['CREATE_IN_PROGRESS'],
-            self.stacks['CREATE_IN_PROGRESS']
-        ]
-        with patch.multiple(task,
-                            get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
-            self.configuration['task_timeouts']['retries'] = 3
-            task.run(self.configuration, self.stack_name)
-            mock_heat_client.actions.suspend.assert_not_called()
 
     def test_check_student_progress(self):
         task = CheckStudentProgressTask()

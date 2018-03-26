@@ -94,7 +94,7 @@ class LaunchStackTask(Task):
         if (status in UP_STATES and verify_status == 'VERIFY_COMPLETE'):
             logger.info("Stack [%s] verified successfully" % (stack.id))
 
-        return {
+        data = {
             'status': status,
             'error_msg': error_msg,
             'ip': stack_ip,
@@ -102,6 +102,7 @@ class LaunchStackTask(Task):
             'key': stack_key,
             'password': stack_password
         }
+        return data
 
     def get_heat_client(self, configuration):
         return HeatWrapper(**configuration).get_client()
@@ -513,100 +514,6 @@ class LaunchStackTask(Task):
                 stack_ip,
                 stack_key,
                 stack_password)
-
-
-class SuspendStackTask(Task):
-    """
-    Suspend a stack.
-
-    """
-    def run(self, configuration, stack_name):
-        """
-        Suspend a stack.  There is no return value, as nobody will
-        check for it.
-        """
-
-        # Get the Heat client
-        heat = self.get_heat_client(configuration)
-
-        # Suspend the stack.
-        self.suspend_stack(configuration, heat, stack_name)
-
-    def get_heat_client(self, configuration):
-        return HeatWrapper(**configuration).get_client()
-
-    def suspend_stack(self, configuration, heat, stack_name):
-        """
-        Suspend the stack.
-        """
-
-        logger.debug("Initializing stack [%s] suspension." % stack_name)
-
-        timeouts = configuration.get('task_timeouts')
-        sleep = timeouts.get('sleep', 5)
-        retries = timeouts.get('retries', 60)
-
-        # Find the stack.  If it doesn't exist, there's nothing to do here.
-        try:
-            stack = heat.stacks.get(stack_id=stack_name)
-        except HTTPNotFound:
-            logger.info("Stack [%s] doesn't exist.  "
-                        "Cannot suspend." % stack_name)
-            return
-
-        status = stack.stack_status
-        logger.debug("Got [%s] status for [%s]." % (status, stack_name))
-
-        # If the stack is broken, already suspended, or in the process
-        # of, there's nothing to do here.
-        if ('FAILED' in status or
-            status == 'SUSPEND_COMPLETE' or
-            status == 'SUSPEND_IN_PROGRESS'):  # noqa: E129
-            logger.warning("Cannot suspend stack [%s] "
-                           "with status [%s]." % (stack_name, status))
-            return
-
-        # If the stack is undergoing some other change of state, wait for it to
-        # complete.
-        retry = 0
-        while 'IN_PROGRESS' in status:
-            if retry:
-                logger.debug("Stack [%s] is [%s].  "
-                             "Waiting %s seconds to suspend." % (stack_name,
-                                                                 status,
-                                                                 sleep))
-                time.sleep(sleep)
-            try:
-                logger.debug("Getting stack info for [%s], "
-                             "with previous status [%s]." % (stack_name,
-                                                             status))
-                stack = heat.stacks.get(stack_id=stack.id)
-            except HTTPNotFound:
-                logger.error("Stack [%s], with previous status [%s], "
-                             "disappeared when trying "
-                             "to suspend." % (stack_name,
-                                              status))
-                status = 'SUSPEND_FAILED'
-            else:
-                status = stack.stack_status
-                logger.debug("Got [%s] status for [%s]." % (status,
-                                                            stack_name))
-                retry += 1
-                if retry >= retries:
-                    logger.error("Stack [%s] state change [%s] "
-                                 "took too long when trying to suspend. "
-                                 "Giving up after %s retries." % (stack_name,
-                                                                  status,
-                                                                  retry))
-                    status = 'SUSPEND_FAILED'
-
-        # At this point, the stack has been verified to be running.
-        # So suspend it.
-        if 'FAILED' not in status:
-            logger.info("Suspending stack [%s]." % (stack_name))
-            heat.actions.suspend(stack_id=stack_name)
-        else:
-            logger.error("Could not suspend stack [%s]." % (stack_name))
 
 
 class CheckStudentProgressTask(Task):

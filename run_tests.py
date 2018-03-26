@@ -12,6 +12,7 @@ import sys
 import workbench
 from coverage import coverage
 
+
 if __name__ == "__main__":
     # Find the location of the XBlock SDK.
     # Note: it must be installed in development mode.
@@ -34,6 +35,10 @@ if __name__ == "__main__":
     except OSError:
         # The var dir may already exist.
         pass
+
+    from django.conf import settings
+    settings.DEBUG = True
+    settings.INSTALLED_APPS += ("hastexo", )
 
     from django.core.management import execute_from_command_line
     args = sys.argv[1:]

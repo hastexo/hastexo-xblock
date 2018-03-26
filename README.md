@@ -76,20 +76,20 @@ To deploy the hastexo XBlock:
     ```
     "XBLOCK_SETTINGS": {
         "hastexo": {
-            "terminal_url": "/terminal",
-            "ssh_dir": "/edx/var/edxapp/terminal_users/ANONYMOUS/.ssh",
-            "ssh_upload": false,
-            "ssh_bucket": "identities",
-            "launch_timeout": 300,
+            "terminal_url": "/hastexo-xblock/",
+            "launch_timeout": 900,
             "suspend_timeout": 120,
+            "suspend_interval": 60,
+            "suspend_concurrency": 4,
+            "suspend_in_parallel": true,
             "task_timeouts": {
-                "sleep": 5,
-                "retries": 60
+                "sleep": 10,
+                "retries": 90
             },
             "js_timeouts": {
-                "status": 10000,
-                "keepalive": 15000,
-                "idle": 600000,
+                "status": 15000,
+                "keepalive": 30000,
+                "idle": 3600000,
                 "check": 5000
             },
             "providers": {
@@ -168,21 +168,18 @@ This is a brief explanation of each:
   path, or a ":"-prefixed port (such as ":28010", for use in devstacks).
   (Default: `/terminal`)
 
-* `ssh_dir`: The local path where SSH keys are stored.  (Default:
-  `/edx/var/edxapp/terminal_users/ANONYMOUS/.ssh`)
-
-* `ssh_upload`: Whether to upload keys to Swift.  Useful for multi-node stacks,
-  where the Celery workers that store SSH keys are not guaranteed to run on the
-  same node where they'll be needed. (Default: `false`)
-
-* `ssh_bucket`: The Swift container in which to store the SSH keys. (Default:
-  `identities`)
-
 * `launch_timeout`: How long to wait for a stack to be launched, in seconds.
   (Default: `300`)
 
 * `suspend_timeout`: How long to wait before suspending a stack, after the last
   keepalive was received from the browser, in seconds.  (Default: `120`)
+
+* `suspend_interval`: The period between suspend job launches. (Default: `60`)
+
+* `suspend_concurrency`: How many stacks to suspend on each job run. (Default:
+  `4`)
+
+* `suspend_in_parallel`: Whether to suspend stacks in parallel. (Default: true)
 
 * `task_timeouts`:
 
@@ -397,9 +394,6 @@ These are the recommended devstack settings for `/edx/app/edxapp/lms.env.json`
     "XBLOCK_SETTINGS": {
         "hastexo": {
             "terminal_url": ":28010"
-            "ssh_dir": "/edx/var/edxapp/terminal_users/ANONYMOUS/.ssh",
-            "ssh_upload": false,
-            "ssh_bucket": "identities",
             "launch_timeout": 0,
             "suspend_timeout": 0,
             "task_timeouts": {

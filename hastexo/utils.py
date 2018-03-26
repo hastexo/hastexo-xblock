@@ -6,20 +6,29 @@ UP_STATES = (
     'SNAPSHOT_COMPLETE'
 )
 
+LAUNCH_STATE = 'LAUNCH_PENDING'
+LAUNCH_ERROR_STATE = 'LAUNCH_ERROR'
+SUSPEND_STATE = 'SUSPEND_PENDING'
+SUSPEND_ISSUED_STATE = 'SUSPEND_ISSUED'
+SUSPEND_RETRY_STATE = 'SUSPEND_RETRY'
+DELETE_STATE = 'DELETE_COMPLETE'
+
 SETTINGS_KEY = 'hastexo'
 
 DEFAULT_SETTINGS = {
-    "launch_timeout": 300,
+    "terminal_url": "/hastexo-xblock/",
+    "launch_timeout": 900,
     "suspend_timeout": 120,
-    "terminal_url": "/terminal",
+    "suspend_interval": 60,
+    "suspend_concurrency": 4,
     "task_timeouts": {
-        "sleep": 5,
-        "retries": 60
+        "sleep": 10,
+        "retries": 90
     },
     "js_timeouts": {
-        "status": 10000,
-        "keepalive": 15000,
-        "idle": 600000,
+        "status": 15000,
+        "keepalive": 30000,
+        "idle": 3600000,
         "check": 5000
     }
 }
