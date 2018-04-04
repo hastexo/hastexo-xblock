@@ -1,3 +1,8 @@
+Version 2.1.0 (2018-04-04)
+---------------------------
+
+* [Enhancement] Separate suspender program
+
 Version 2.0.2 (2018-03-13)
 ---------------------------
 
