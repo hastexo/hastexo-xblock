@@ -8,18 +8,15 @@ The hastexo [XBlock](https://xblock.readthedocs.org/en/latest/) is an
 environments into distributed computing courses. The hastexo XBlock allows
 students to access an OpenStack environment within an edX course.
 
-> **This XBlock is currently undergoing a major rewrite.** We are
-> revamping the terminal functionality, moving away from
-> [GateOne](https://github.com/liftoff/GateOne) and rebuilding on
-> [Apache Guacamole](https://guacamole.incubator.apache.org/). Among
-> other improvements, this gives us the benefit of being able to
-> include graphical user environments (via VNC and RDP) in addition to
-> terminals (via SSH).
->
-> As a result, this documentation is currently in a state of flux, and
-> may be outdated. If you are looking for the legacy GateOne
-> functionality, please check out the documentation in
-> [the `stable-0.5` branch](https://github.com/hastexo/hastexo-xblock/tree/stable-0.5).
+It leverages [Apache Guacamole](https://guacamole.incubator.apache.org/) as a
+browser-based connection mechanism, which includes the ability to connect to
+graphical user environments (via VNC and RDP), in addition to terminals (via
+SSH).
+
+-> If you are looking for the legacy GateOne functionality, please check out
+-> the documentation in
+-> [the `stable-0.5` branch](https://github.com/hastexo/hastexo-xblock/tree/stable-0.5).
+
 
 ## Purpose
 
@@ -49,9 +46,9 @@ limited by the feature set of OpenStack Heat.
 ## Deployment
 
 The easiest way for platform administrators to deploy the hastexo XBlock and
-its dependencies to an Open edX installation is to pip install it to the edxapp
-virtualenv, and then to use the `gateone` role included in the [hastexo\_xblock
-branch](https://github.com/hastexo/edx-configuration/tree/hastexo/master/hastexo_xblock)
+its dependencies to an Open edX installation is to pip install it to the `edxapp`
+virtualenv, and then to use the `hastexo_xblock` role included in the
+[hastexo\_xblock branch](https://github.com/hastexo/edx-configuration/tree/hastexo/ginkgo/hastexo_xblock)
 of `edx/configuration`.
 
 To deploy the hastexo XBlock:
@@ -62,7 +59,16 @@ To deploy the hastexo XBlock:
     $ sudo /edx/bin/pip.edxapp install hastexo-xblock
     ```
 
-2. Add it to the `ADDL_INSTALLED_APPS` of your LMS environment, by editing
+    > Do **not** run `pip install` with `--upgrade`, however, as this will
+    > break edx-platform's own dependencies.
+
+2. Collect static assets:
+
+    ```
+    $ sudo /edx/bin/edxapp-update-assets-lms
+    ```
+
+3. Add it to the `ADDL_INSTALLED_APPS` of your LMS environment, by editing
    `/edx/app/edxapp/lms.env.json` and adding:
 
     ```
@@ -71,7 +77,15 @@ To deploy the hastexo XBlock:
     ],
     ```
 
-3. Add configuration to `XBLOCK_SETTINGS` on `/edx/app/edxapp/lms.env.json`:
+4. This xblock uses a Django model to synchronize stack information across
+   instances.  Migrate the `edxapp` database so the `hastexo_stack` table is
+   created:
+
+   ```
+   $ sudo /edx/bin/edxapp-migrate-lms
+   ```
+
+5. Add configuration to `XBLOCK_SETTINGS` on `/edx/app/edxapp/lms.env.json`:
 
     ```
     "XBLOCK_SETTINGS": {
@@ -126,24 +140,27 @@ To deploy the hastexo XBlock:
     }
     ```
 
-4. Now install gateone by cloning the `hastexo_xblock` fork of
-   edx/configuration and assigning that role to the machine:
+6. Now install the Guacamole web app and stack suspender supervisor script by
+   cloning the `hastexo_xblock` fork of edx/configuration and assigning that
+   role to the machine:
 
     ```
-    $ git clone -b hastexo/master/hastexo_xblock https://github.com/hastexo/edx-configuration.git
+    $ git clone -b hastexo/ginkgo/hastexo_xblock https://github.com/hastexo/edx-configuration.git
     $ cd edx-configuration/playbooks
-    $ ansible-playbook -c local -i "localhost," run_role.yml -e role=gateone
+    $ ansible-playbook -c local -i "localhost," run_role.yml -e role=hastexo_xblock
     ```
 
-5. Finally, restart edxapp and its workers:
+7. At this point restart edxapp, its workers, and make sure the stack suspender
+   is running:
 
     ```
     sudo /edx/bin/supervisorctl restart edxapp:
     sudo /edx/bin/supervisorctl restart edxapp_worker:
+    sudo /edx/bin/supervisorctl start suspender:
     ```
 
-6. In your course, go to the advanced settings and add the hastexo module to
-   the "Advanced Module List" like so:
+8. Finally, in your course, go to the advanced settings and add the hastexo
+   module to the "Advanced Module List" like so:
 
    ```
    [
@@ -164,12 +181,12 @@ defaults.
 
 This is a brief explanation of each:
 
-* `terminal_url`: The URL path to the GateOne server.  It can be an absolute
-  path, or a ":"-prefixed port (such as ":28010", for use in devstacks).
-  (Default: `/terminal`)
+* `terminal_url`: The URL path to the Guacamole web app.  It can be an absolute
+  path, or start with a ":"-prefixed port (such as ":8080/hastexo-xblock/", for
+  use in devstacks). (Default: `/hastexo-xblock/`)
 
 * `launch_timeout`: How long to wait for a stack to be launched, in seconds.
-  (Default: `300`)
+  (Default: `900`)
 
 * `suspend_timeout`: How long to wait before suspending a stack, after the last
   keepalive was received from the browser, in seconds.  (Default: `120`)
@@ -184,23 +201,23 @@ This is a brief explanation of each:
 * `task_timeouts`:
 
     * `sleep`: How long to wait between stack checks, such as pings and SSH
-      attempts, in seconds. (Default: `5`)
+      attempts, in seconds. (Default: `10`)
 
     * `retries`: How many times to retry stack checks, such as pings and SSH
-      attempts. (Default: `60`)
+      attempts. (Default: `90`)
 
 * `js_timeouts`:
 
     * `status`: In the browser, when launching a stack, how long to wait
       between polling attempts until it is complete, in milliseconds (Default:
-      `10000`)
+      `15000`)
 
     * `keepalive`: In the browser, after the stack is ready, how long to wait
-      between keepalives to the server, in milliseconds. (Default: `15000`)
+      between keepalives to the server, in milliseconds. (Default: `30000`)
 
     * `idle`: In the browser, how long to wait until the user is considered
       idle, when no input is registered in the terminal, in milliseconds.
-      (Default: `600000`)
+      (Default: `3600000`)
 
     * `check`: In the browser, after clicking "Check Progress", how long to
       wait between polling attempts, in milliseconds. (Default: `5000`)
@@ -224,38 +241,6 @@ This is a brief explanation of each:
     * `os_region_name`
 
 
-## GateOne settings
-
-GateOne is the web-based terminal emulator used by the hastexo XBlock.  In
-order for the XBlock to function correctly, GateOne's configuration must match
-it in a few key areas.
-
-In /etc/gateone/conf.d/10server.conf, the following must be set to the same
-values as the XBlock:
-
-* `url_prefix`: Where GateOne expects to be hosted: useful if it sits behind a
-  reverse proxy (which is the case by default here).  This must match the
-  XBlock's `terminal_url` settings.  The exception is if `terminal_url` is set
-  to a port, such as `:28010`.  In the latter case, `url_prefix` must be set to
-  `""`.  (Default: `/terminal/`)
-
-* `user_dir`: Where GateOne expects to find SSH home directories.  This value
-  must match the leading path in the XBlock's `ssh_dir` configuration.  In
-  other words, where `user_dir` is set to `/edx/app/edxapp/terminal_users`,
-  `ssh_dir` must be set to `/edx/app/edxapp/terminal_users/ANONYMOUS/.ssh`.
-  (Default: `/edx/var/edxapp/terminal_users`)
-
-And in /etc/gateone/conf.d/50terminal.conf:
-
-* `command`: GateOne allows for custom SSH commands, and the hastexo XBlock
-  makes use of this.  For the SSH connection from the browser to the Heat stack
-  to be established automatically, the provided `hastexo_connect.py` script
-  will, among other things, download the key from Swift and make it available
-  to SSH.  You must set `command` to the path where `hastexo_connect.py` is
-  installed.  By default, it is:
-  `/edx/app/edxapp/venvs/edxapp/bin/hastexo_connect.py`
-
-
 ## Creating a Heat template for your course
 
 To use the hastexo XBlock, start by creating a Heat template and uploading it
@@ -266,7 +251,18 @@ environment as needed.  A sample template is provided under
 
 To ensure your Heat template has the required configuration:
 
-1. Configure the Heat template to generate an SSH key pair dynamically and
+1. Configure the Heat template to accept a "run" parameter, which will contain
+   information about the course run where the XBlock is instanced.  This is
+   intended to give course authors a way to, for example, tie this to a
+   specific Glance image when launching VMs:
+
+    ```
+    run:
+      type: string
+      description: Stack run
+    ```
+
+2. Configure the Heat template to generate an SSH key pair dynamically and
    save the private key.  For example:
 
     ```
@@ -277,10 +273,31 @@ To ensure your Heat template has the required configuration:
         save_private_key: true
     ```
 
-2. Configure the Heat template to have an instance that is publicly accessible
+    In addition, if using RDP or VNC you must generate a random password and
+    assign it to the stack user:
+
+    ```
+    stack_password:
+      type: OS::Heat::RandomString
+      properties:
+        length: 32
+
+    cloud_config:
+      type: OS::Heat::CloudConfig
+      properties:
+        cloud_config:
+          chpasswd:
+            list:
+              str_replace:
+                template: "user:{password}"
+                params:
+                  "{password}": { get_resource: stack_password }
+    ```
+
+3. Configure the Heat template to have an instance that is publicly accessible
    via `floating_ip_address`.
 
-3. Provide the above two items as outputs, with the following names, verbatim:
+4. Provide the following outputs with these exact names:
 
     ```
     outputs:
@@ -290,6 +307,15 @@ To ensure your Heat template has the required configuration:
       private_key:
         description: Training private key
         value: { get_attr: [ training_key, private_key ] }
+    ```
+
+    If you generated a random password as described above, create an output as
+    follows:
+
+    ```
+      password:
+        description: Stack password
+        value: { get_resource: stack_password }
     ```
 
     If you also provide a list of servers under an `reboot_on_resume` item, the
@@ -307,7 +333,7 @@ To ensure your Heat template has the required configuration:
     nested KVM, as the latter does not support a managed save and subsequent
     restart.)
 
-4. Upload the Heat template to the content store and make a note of its static
+5. Upload the Heat template to the content store and make a note of its static
    asset file name.
 
 
@@ -320,10 +346,23 @@ configured with the following attributes:
 * `stack_template_path`: The static asset path to a Heat template.
 
 * `stack_user_name`: The name of the user that the Xblock will use to connect
-  to the environment via SSH, as specified in the Heat template.
+  to the environment, as specified in the Heat template.
+
+* `protocol`: One of 'ssh', 'rdp', or 'vnc'.  This defines the protocol that
+  will be used to connect to the environment.  The default is 'ssh'.
 
 * `provider`: (Optional) The name of an OpenStack provider configured in the
   platform.
+
+* `stack_ports`: (Optional) A list of port numbers the user can choose from.
+  This is intended as a means of providing a way to connect directly to
+  multiple VMs in a lab environment, via port forwarding or proxying at the VM
+  with the public IP address.
+
+* `stack_port_names`: (Optional) A list of user-friendly names that will be
+  shown as a dropdown to the user.  It must match the list of port numbers in
+  both order and number.
+
 
 For example, in XML:
 
@@ -333,7 +372,10 @@ For example, in XML:
     url_name="lab_introduction"
     stack_template_path="hot_lab.yaml"
     stack_user_name="training"
-    provider="default" />
+    protocol="rdp"
+    provider="default"
+    stack_ports="[3389, 3390]"
+    stack_port_names="['server1', 'server2']" />
 </vertical>
 ```
 
@@ -375,17 +417,16 @@ environment they were working with before, in the *same state* they left it in.
 It is possible to use this XBlock in devstack.  To do so, however, requires
 tweaking a few settings.
 
-First, due to the fact that in a devstack all Celery calls are synchronous,
-scheduled tasks are executed immediately.  This means that with default
-settings, tasks will be immediately suspended.  To fix this, suspension must be
-disabled.  In addition, since Ajax calls from the browser are also synchronous
-in devstack (i.e., the connection remains open until the task is complete),
-the Javascript timeouts don't make sense.
+First, due to the fact that in a devstack, by default all Celery calls are
+synchronous, scheduled tasks are executed immediately.  This means that with
+default settings, tasks will be immediately suspended.  To fix this, suspension
+must be disabled.  In addition, since Ajax calls from the browser are also
+synchronous in devstack (i.e., the connection remains open until the task is
+complete), the Javascript timeouts don't make sense.
 
-Finally, devstacks don't install nginx.  Therefore, GateOne is only reachable
-directly at its configured port.  This means that `terminal_url` in the XBlock
-settings must be set to that port (by default, 28010), and the `url_prefix` in
-the GateOne configuration must be reset to "".
+Also, devstacks don't install nginx.  Therefore, the Guacamole app is only
+reachable directly at its configured port.  This means that `terminal_url` in
+the XBlock settings must be set to that port (by default, 8080).
 
 These are the recommended devstack settings for `/edx/app/edxapp/lms.env.json`
 (OpenStack providers have been omitted):
@@ -393,12 +434,12 @@ These are the recommended devstack settings for `/edx/app/edxapp/lms.env.json`
     ```
     "XBLOCK_SETTINGS": {
         "hastexo": {
-            "terminal_url": ":28010"
+            "terminal_url": ":8080/hastexo-xblock/"
             "launch_timeout": 0,
             "suspend_timeout": 0,
             "task_timeouts": {
-                "sleep": 5,
-                "retries": 60
+                "sleep": 10,
+                "retries": 90
             },
             "js_timeouts": {
                 "status": 0,
@@ -410,10 +451,14 @@ These are the recommended devstack settings for `/edx/app/edxapp/lms.env.json`
     }
     ```
 
-And this must be set in `/etc/gateone/conf.d/10server.conf`:
+However, it is also possible to run this XBlock asynchronously in a devstack.  To do
+so, keep the XBlock settings at their defaults (i.e., with non-zero timeouts),
+open three terminal windows, and run each of the following concurrently:
 
     ```
-    "url_prefix": "",
+    paver devstack lms --settings=devstack_with_worker
+    ./manage.py lms celery worker --settings=devstack_with_worker -l DEBUG
+    ./manage.py lms --settings=devstack_with_worker suspender
     ```
 
 

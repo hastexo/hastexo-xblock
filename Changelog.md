@@ -1,3 +1,26 @@
+Version 2.0.2 (2018-03-13)
+---------------------------
+
+* [Bug fix] Fuzz recurring poll timeouts
+* [Bug fix] Don't send keepalives after guac error
+* [Bug fix] Marginally improve the client's handling of Guacamole server errors
+
+Version 2.0.1 (2018-03-02)
+---------------------------
+
+* [Security fix] Do not expose server-side configuration
+
+Version 2.0.0 (2018-02-28)
+---------------------------
+
+* [Enhancement] Introduce reboot on resume
+* [Bug fix] Disconnect immediately when idle
+* [Enhancement] Fix unit tests
+* [Bug fix] Fix typo in stack parameters invocation
+* [Enhancement] Provide "run" parameter to stack templates
+* [Enhancement] Multi-port support
+* [Enhancement] Guacamole rewrite
+
 Version 0.5.5 (2017-07-17)
 ---------------------------
 
