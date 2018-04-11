@@ -11,7 +11,10 @@ LAUNCH_ERROR_STATE = 'LAUNCH_ERROR'
 SUSPEND_STATE = 'SUSPEND_PENDING'
 SUSPEND_ISSUED_STATE = 'SUSPEND_ISSUED'
 SUSPEND_RETRY_STATE = 'SUSPEND_RETRY'
-DELETE_STATE = 'DELETE_COMPLETE'
+DELETED_STATE = 'DELETE_COMPLETE'
+DELETE_STATE = 'DELETE_PENDING'
+DELETE_IN_PROGRESS_STATE = 'DELETE_IN_PROGRESS'
+DELETE_FAILED_STATE = 'DELETE_FAILED'
 
 SETTINGS_KEY = 'hastexo'
 
@@ -21,6 +24,8 @@ DEFAULT_SETTINGS = {
     "suspend_timeout": 120,
     "suspend_interval": 60,
     "suspend_concurrency": 4,
+    "delete_age": 14,
+    "delete_interval": 86400,
     "task_timeouts": {
         "sleep": 10,
         "retries": 90

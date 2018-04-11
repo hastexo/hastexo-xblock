@@ -96,6 +96,8 @@ To deploy the hastexo XBlock:
             "suspend_interval": 60,
             "suspend_concurrency": 4,
             "suspend_in_parallel": true,
+            "delete_interval": 86400,
+            "delete_age": 14,
             "task_timeouts": {
                 "sleep": 10,
                 "retries": 90
@@ -140,9 +142,9 @@ To deploy the hastexo XBlock:
     }
     ```
 
-6. Now install the Guacamole web app and stack suspender supervisor script by
-   cloning the `hastexo_xblock` fork of edx/configuration and assigning that
-   role to the machine:
+6. Now install the Guacamole web app and stack supervisor scripts by cloning
+   the `hastexo_xblock` fork of edx/configuration and assigning that role to
+   the machine:
 
     ```
     $ git clone -b hastexo/ginkgo/hastexo_xblock https://github.com/hastexo/edx-configuration.git
@@ -150,13 +152,14 @@ To deploy the hastexo XBlock:
     $ ansible-playbook -c local -i "localhost," run_role.yml -e role=hastexo_xblock
     ```
 
-7. At this point restart edxapp, its workers, and make sure the stack suspender
-   is running:
+7. At this point restart edxapp, its workers, and make sure the stack jobs are
+   running:
 
     ```
     sudo /edx/bin/supervisorctl restart edxapp:
     sudo /edx/bin/supervisorctl restart edxapp_worker:
     sudo /edx/bin/supervisorctl start suspender:
+    sudo /edx/bin/supervisorctl start undertaker:
     ```
 
 8. Finally, in your course, go to the advanced settings and add the hastexo
@@ -197,6 +200,12 @@ This is a brief explanation of each:
   `4`)
 
 * `suspend_in_parallel`: Whether to suspend stacks in parallel. (Default: true)
+
+* `delete_age`: Delete stacks that haven't been resumed in this many days.  Set
+  to 0 to disable. (Default: 14)
+
+* `delete_interval`: The period between undertaker job launches. (Default:
+  `86400`)
 
 * `task_timeouts`:
 
@@ -459,6 +468,7 @@ open three terminal windows, and run each of the following concurrently:
     paver devstack lms --settings=devstack_with_worker
     ./manage.py lms celery worker --settings=devstack_with_worker -l DEBUG
     ./manage.py lms --settings=devstack_with_worker suspender
+    ./manage.py lms --settings=devstack_with_worker undertaker
     ```
 
 

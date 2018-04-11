@@ -3,10 +3,11 @@ from django.test import TestCase
 from django.utils import timezone
 from heatclient.exc import HTTPNotFound
 
-from hastexo.jobs import SuspenderJob
+from hastexo.jobs import SuspenderJob, UndertakerJob
 from hastexo.models import Stack
-from hastexo.utils import (SUSPEND_ISSUED_STATE, DELETE_STATE,
-                           SUSPEND_RETRY_STATE)
+from hastexo.utils import (SUSPEND_ISSUED_STATE, DELETE_STATE, DELETED_STATE,
+                           SUSPEND_RETRY_STATE, DELETE_IN_PROGRESS_STATE,
+                           DELETE_FAILED_STATE)
 
 
 class TestHastexoJobs(TestCase):
@@ -38,6 +39,11 @@ class TestHastexoJobs(TestCase):
             "suspend_timeout": 120,
             "suspend_concurrency": 1,
             "suspend_in_parallel": False,
+            "delete_age": 14,
+            "task_timeouts": {
+                "sleep": 0,
+                "retries": 10
+            },
             "credentials": {
                 "os_auth_url": "bogus_auth_url",
                 "os_auth_token": "",
@@ -232,7 +238,7 @@ class TestHastexoJobs(TestCase):
 
         mock_heat_client.actions.suspend.assert_not_called()
         stack = Stack.objects.get(name=self.stack_name)
-        self.assertEqual(stack.status, DELETE_STATE)
+        self.assertEqual(stack.status, DELETED_STATE)
 
     def test_retry_suspending_stack(self):
         suspend_timeout = self.configuration.get("suspend_timeout")
@@ -349,3 +355,177 @@ class TestHastexoJobs(TestCase):
         self.assertEqual(stack2.status, SUSPEND_ISSUED_STATE)
         stack3 = Stack.objects.get(name=stack3_name)
         self.assertEqual(stack3.status, state)
+
+    def test_delete_old_stacks(self):
+        delete_age = self.configuration.get("delete_age")
+        delete_delta = timezone.timedelta(days=(delete_age + 1))
+        delete_timestamp = timezone.now() - delete_delta
+        dont_delete_delta = timezone.timedelta(days=(delete_age - 1))
+        dont_delete_timestamp = timezone.now() - dont_delete_delta
+        state = 'RESUME_COMPLETE'
+        stack1_name = 'bogus_stack_1'
+        stack1 = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            name=stack1_name,
+            suspend_timestamp=delete_timestamp,
+            status=state
+        )
+        stack1.save()
+        stack2_name = 'bogus_stack_2'
+        stack2 = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            name=stack2_name,
+            suspend_timestamp=delete_timestamp,
+            status=state
+        )
+        stack2.save()
+        stack3_name = 'bogus_stack_3'
+        stack3 = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            name=stack3_name,
+            suspend_timestamp=dont_delete_timestamp,
+            status=state
+        )
+        stack3.save()
+        mock_heat_client = Mock()
+        mock_heat_client.stacks.get.side_effect = [
+            self.stacks[state],
+            self.stacks[DELETE_IN_PROGRESS_STATE],
+            HTTPNotFound,
+            self.stacks[state],
+            self.stacks[DELETE_IN_PROGRESS_STATE],
+            HTTPNotFound
+        ]
+
+        job = UndertakerJob(self.configuration, self.stdout)
+        with patch.multiple(
+                job,
+                get_heat_client=Mock(return_value=mock_heat_client)):
+            job.run()
+
+        mock_heat_client.stacks.delete.assert_has_calls([
+            call(stack_id=stack1_name),
+            call(stack_id=stack2_name)
+        ])
+        self.assertNotIn(
+            call(stack_id=stack3_name),
+            mock_heat_client.stacks.delete.mock_calls
+        )
+        stack1 = Stack.objects.get(name=stack1_name)
+        self.assertEqual(stack1.status, DELETED_STATE)
+        stack2 = Stack.objects.get(name=stack2_name)
+        self.assertEqual(stack2.status, DELETED_STATE)
+        stack3 = Stack.objects.get(name=stack3_name)
+        self.assertEqual(stack3.status, state)
+
+    def test_dont_try_to_delete_certain_stack_states(self):
+        delete_age = self.configuration.get("delete_age")
+        delete_delta = timezone.timedelta(days=(delete_age + 1))
+        delete_timestamp = timezone.now() - delete_delta
+        stack1_name = 'bogus_stack_1'
+        stack1 = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            name=stack1_name,
+            suspend_timestamp=delete_timestamp,
+            status=DELETE_STATE
+        )
+        stack1.save()
+        stack2_name = 'bogus_stack_2'
+        stack2 = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            name=stack2_name,
+            suspend_timestamp=delete_timestamp,
+            status=DELETE_IN_PROGRESS_STATE
+        )
+        stack2.save()
+        stack3_name = 'bogus_stack_3'
+        stack3 = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            name=stack3_name,
+            suspend_timestamp=delete_timestamp,
+            status=DELETED_STATE
+        )
+        stack3.save()
+        mock_heat_client = Mock()
+
+        job = UndertakerJob(self.configuration, self.stdout)
+        with patch.multiple(
+                job,
+                get_heat_client=Mock(return_value=mock_heat_client)):
+            job.run()
+
+        mock_heat_client.stacks.delete.assert_not_called()
+        stack1 = Stack.objects.get(name=stack1_name)
+        self.assertEqual(stack1.status, DELETE_STATE)
+        stack2 = Stack.objects.get(name=stack2_name)
+        self.assertEqual(stack2.status, DELETE_IN_PROGRESS_STATE)
+        stack3 = Stack.objects.get(name=stack3_name)
+        self.assertEqual(stack3.status, DELETED_STATE)
+
+    def test_dont_wait_forever_for_deletion(self):
+        delete_age = self.configuration.get("delete_age")
+        delete_delta = timezone.timedelta(days=(delete_age + 1))
+        delete_timestamp = timezone.now() - delete_delta
+        state = 'RESUME_COMPLETE'
+        stack_name = 'bogus_stack'
+        stack = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            name=stack_name,
+            suspend_timestamp=delete_timestamp,
+            status=state
+        )
+        stack.save()
+        mock_heat_client = Mock()
+        mock_heat_client.stacks.get.side_effect = [
+            self.stacks[state],
+            self.stacks[DELETE_IN_PROGRESS_STATE],
+            self.stacks[DELETE_IN_PROGRESS_STATE],
+            self.stacks[DELETE_IN_PROGRESS_STATE],
+            self.stacks[DELETE_IN_PROGRESS_STATE]
+        ]
+
+        self.configuration['task_timeouts']['retries'] = 3
+        job = UndertakerJob(self.configuration, self.stdout)
+        with patch.multiple(
+                job,
+                get_heat_client=Mock(return_value=mock_heat_client)):
+            job.run()
+
+        mock_heat_client.stacks.delete.assert_called_with(
+            stack_id=stack_name
+        )
+        stack = Stack.objects.get(name=stack_name)
+        self.assertEqual(stack.status, DELETE_FAILED_STATE)
+
+    def test_dont_delete_if_age_is_zero(self):
+        self.configuration["delete_age"] = 0
+        delete_delta = timezone.timedelta(days=15)
+        delete_timestamp = timezone.now() - delete_delta
+        state = 'RESUME_COMPLETE'
+        stack_name = 'bogus_stack'
+        stack = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            name=stack_name,
+            suspend_timestamp=delete_timestamp,
+            status=state
+        )
+        stack.save()
+        mock_heat_client = Mock()
+
+        job = UndertakerJob(self.configuration, self.stdout)
+        with patch.multiple(
+                job,
+                get_heat_client=Mock(return_value=mock_heat_client)):
+            job.run()
+
+        mock_heat_client.stacks.delete.assert_not_called()
+        stack = Stack.objects.get(name=stack_name)
+        self.assertEqual(stack.status, state)
