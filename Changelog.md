@@ -1,3 +1,12 @@
+Version 2.2.0 (2018-04-24)
+---------------------------
+
+* [Enhancement] Implement stack deleter
+* [Enhancement] Log stack model changes
+* [Enhancement] Enforce task timeouts
+* [Enhancement] Only log status changes
+* [Enhancement] Retry stack deletion
+
 Version 2.1.0 (2018-04-04)
 ---------------------------
 
