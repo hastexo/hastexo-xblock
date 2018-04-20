@@ -1,7 +1,8 @@
+import time
 import json
 import hastexo
 
-from mock import Mock, patch
+from mock import Mock, patch, DEFAULT
 from webob import Request
 from django.test import TestCase
 from django.utils import timezone
@@ -44,6 +45,7 @@ class TestHastexoXBlock(TestCase):
         self.block.stack_template_path = "bogus_template_path"
         self.block.stack_user_name = "bogus_user"
         self.block.provider = "default"
+        self.block.tests = ["bogus_test"]
 
         # Set on student view
         self.block.configuration = self.block.get_configuration()
@@ -204,3 +206,47 @@ class TestHastexoXBlock(TestCase):
 
         self.assertEqual(result, mock_result.result)
         self.assertTrue(mock_launch_stack_task.called)
+
+    def test_get_check_status(self):
+        self.init_block()
+        mock_result = Mock()
+        mock_result.id = 'bogus_task_id'
+        mock_result.ready.return_value = True
+        mock_result.successful.return_value = True
+        mock_result.result = {
+            "status": 'COMPLETE',
+            "pass": 1,
+            "total": 1
+        }
+        with patch.object(self.block, 'check_progress_task') as mock_task:
+            with patch.object(self.block.runtime, 'publish') as mock_publish:
+                mock_task.return_value = mock_result
+                result = self.call_handler("get_check_status", {})
+                self.assertEqual(result, mock_result.result)
+                self.assertTrue(mock_task.called)
+                mock_publish.assert_called_once_with(
+                    self.block,
+                    'grade',
+                    {'value': 1, 'max_value': 1}
+                )
+
+    def test_get_check_status_doesnt_go_on_forever(self):
+        self.init_block()
+        mock_result = Mock()
+        mock_result.ready.return_value = False
+        check_timeout = 1
+
+        with patch.multiple(self.block,
+                            check_progress_task=DEFAULT,
+                            check_progress_task_result=DEFAULT) as mocks:
+            with patch.dict(hastexo.utils.DEFAULT_SETTINGS,
+                            {'check_timeout': check_timeout}):
+                mocks['check_progress_task'].return_value = mock_result
+                mocks['check_progress_task_result'].return_value = mock_result
+                result = self.call_handler("get_check_status", {})
+                self.assertEqual(result['status'], 'PENDING')
+                result = self.call_handler("get_check_status", {})
+                self.assertEqual(result['status'], 'PENDING')
+                time.sleep(check_timeout)
+                result = self.call_handler("get_check_status", {})
+                self.assertEqual(result['status'], 'ERROR')

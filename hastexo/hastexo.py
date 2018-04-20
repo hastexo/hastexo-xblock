@@ -1,8 +1,9 @@
+import time
 import logging
 import textwrap
 
 from xblock.core import XBlock
-from xblock.fields import Scope, Float, String, Dict, List
+from xblock.fields import Scope, Float, String, Dict, List, Integer
 from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
@@ -84,6 +85,10 @@ class HastexoXBlock(XBlock,
         default="",
         scope=Scope.user_state,
         help="The check task id")
+    check_timestamp = Integer(
+        default="",
+        scope=Scope.user_state,
+        help="When the check task was launched")
     check_status = Dict(
         default=None,
         scope=Scope.user_state,
@@ -293,7 +298,8 @@ class HastexoXBlock(XBlock,
         task = LaunchStackTask()
         result = task.apply_async(
             args=args,
-            expires=configuration.get('launch_timeout')
+            expires=configuration.get('launch_timeout'),
+            time_limit=configuration.get('launch_timeout')
         )
         logger.info(
             'Launch task id for '
@@ -525,6 +531,20 @@ class HastexoXBlock(XBlock,
         # Reset the dead man's switch
         self.reset_suspend_timestamp()
 
+    def check_progress_task(self, args):
+        configuration = args[0]
+        task = CheckStudentProgressTask()
+        result = task.apply_async(
+            args=args,
+            expires=configuration.get('check_timeout'),
+            time_limit=configuration.get('check_timeout')
+        )
+
+        return result
+
+    def check_progress_task_result(self, check_id):
+        return CheckStudentProgressTask().AsyncResult(check_id)
+
     @XBlock.json_handler
     def get_check_status(self, data, suffix=''):
         """
@@ -547,11 +567,11 @@ class HastexoXBlock(XBlock,
                 self.stack_user_name,
                 stack.key
             )
-            result = CheckStudentProgressTask().apply_async(args=args,
-                                                            expires=60)
+            result = self.check_progress_task(args)
 
-            # Save task ID
+            # Save task ID and timestamp
             self.check_id = result.id
+            self.check_timestamp = int(time.time())
 
             return result
 
@@ -586,8 +606,23 @@ class HastexoXBlock(XBlock,
         # If a check task is running, return its status.
         if self.check_id:
             logger.info('Check progress task is running: %s' % self.check_id)
-            result = CheckStudentProgressTask().AsyncResult(self.check_id)
+            result = self.check_progress_task_result(self.check_id)
             status = _process_result(result)
+
+            if status['status'] == 'PENDING':
+                time_since_check = int(time.time()) - self.check_timestamp
+                check_timeout = configuration.get("check_timeout")
+
+                # Check if the pending task hasn't timed out.
+                if time_since_check >= check_timeout:
+                    # Timeout reached.  Consider the task a failure and let the
+                    # user retry manually.
+                    logger.error('Check timeout reached for [%s] '
+                                 'after %s seconds' % (self.stack_name,
+                                                       time_since_check))
+                    self.check_id = ""
+                    status = {'status': 'ERROR',
+                              'error_msg': "Timeout when checking progress."}
 
         # Otherwise, launch the check task.
         else:

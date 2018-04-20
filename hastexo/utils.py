@@ -24,6 +24,7 @@ DEFAULT_SETTINGS = {
     "suspend_timeout": 120,
     "suspend_interval": 60,
     "suspend_concurrency": 4,
+    "check_timeout": 120,
     "delete_age": 14,
     "delete_interval": 86400,
     "task_timeouts": {

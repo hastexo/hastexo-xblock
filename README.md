@@ -96,6 +96,7 @@ To deploy the hastexo XBlock:
             "suspend_interval": 60,
             "suspend_concurrency": 4,
             "suspend_in_parallel": true,
+            "check_timeout": 120,
             "delete_interval": 86400,
             "delete_age": 14,
             "task_timeouts": {
@@ -200,6 +201,9 @@ This is a brief explanation of each:
   `4`)
 
 * `suspend_in_parallel`: Whether to suspend stacks in parallel. (Default: true)
+
+* `check_timeout`: How long to wait before a check progress task fails.
+  (Default: `120`)
 
 * `delete_age`: Delete stacks that haven't been resumed in this many days.  Set
   to 0 to disable. (Default: 14)
