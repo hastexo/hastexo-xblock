@@ -4,7 +4,7 @@ from django.utils import timezone
 from heatclient.exc import HTTPNotFound
 
 from hastexo.jobs import SuspenderJob, UndertakerJob
-from hastexo.models import Stack
+from hastexo.models import Stack, StackLog
 from hastexo.utils import (SUSPEND_ISSUED_STATE, DELETE_STATE, DELETED_STATE,
                            SUSPEND_RETRY_STATE, DELETE_IN_PROGRESS_STATE,
                            DELETE_FAILED_STATE)
@@ -529,3 +529,32 @@ class TestHastexoJobs(TestCase):
         mock_heat_client.stacks.delete.assert_not_called()
         stack = Stack.objects.get(name=stack_name)
         self.assertEqual(stack.status, state)
+
+    def test_stack_log(self):
+        suspend_timeout = self.configuration.get("suspend_timeout")
+        timedelta = timezone.timedelta(seconds=(suspend_timeout + 1))
+        suspend_timestamp = timezone.now() - timedelta
+        state = 'CREATE_COMPLETE'
+        stack = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            suspend_timestamp=suspend_timestamp,
+            name=self.stack_name,
+            status=state
+        )
+        stack.save()
+        mock_heat_client = Mock()
+        mock_heat_client.stacks.get.side_effect = [self.stacks[state]]
+
+        job = SuspenderJob(self.configuration, self.stdout)
+        with patch.multiple(
+                job,
+                get_heat_client=Mock(return_value=mock_heat_client)):
+            job.run()
+
+        stacklog = StackLog.objects.filter(stack_id=stack.id)
+        states = [l.status for l in stacklog]
+        expected_states = [state,
+                           'SUSPEND_PENDING',
+                           'SUSPEND_ISSUED']
+        self.assertEqual(states, expected_states)
