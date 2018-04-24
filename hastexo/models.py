@@ -12,14 +12,14 @@ class StackCommon(models.Model):
     name = models.CharField(max_length=64, db_index=True)
     student_id = models.CharField(max_length=40, db_index=True)
     course_id = models.CharField(max_length=50, db_index=True)
-    provider = models.CharField(max_length=32)
-    protocol = models.CharField(max_length=32)
+    provider = models.CharField(max_length=32, blank=True)
+    protocol = models.CharField(max_length=32, blank=True)
     port = models.IntegerField(null=True)
-    status = models.CharField(max_length=32, db_index=True)
-    error_msg = models.CharField(max_length=256)
+    status = models.CharField(max_length=32, blank=True, db_index=True)
+    error_msg = models.CharField(max_length=256, blank=True)
     ip = models.GenericIPAddressField(null=True)
-    user = models.CharField(max_length=32)
-    launch_task_id = models.CharField(max_length=40)
+    user = models.CharField(max_length=32, blank=True)
+    launch_task_id = models.CharField(max_length=40, blank=True)
     launch_timestamp = models.DateTimeField(null=True, db_index=True)
     suspend_timestamp = models.DateTimeField(null=True, db_index=True)
     created_on = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -33,8 +33,8 @@ class Stack(StackCommon):
     class Meta:
         unique_together = (('student_id', 'course_id', 'name'),)
 
-    key = models.TextField()
-    password = models.CharField(max_length=128)
+    key = models.TextField(blank=True)
+    password = models.CharField(max_length=128, blank=True)
 
     def save(self, *args, **kwargs):
         super(Stack, self).save(*args, **kwargs)
