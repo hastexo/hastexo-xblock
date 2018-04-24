@@ -33,13 +33,13 @@ class LaunchStackTask(Task):
         Run the celery task.
 
         """
-        status = None
+        status = ""
         verify_status = None
-        error_msg = None
+        error_msg = ""
         stack = None
         stack_ip = None
-        stack_key = None
-        stack_password = None
+        stack_key = ""
+        stack_password = ""
 
         # Get the Heat client
         heat = self.get_heat_client(configuration)
@@ -122,8 +122,8 @@ class LaunchStackTask(Task):
         is requested, delete the stack and recreate it.
 
         """
-        status = None
-        error_msg = None
+        status = ""
+        error_msg = ""
         stack = None
 
         timeouts = configuration.get('task_timeouts', {})
@@ -400,10 +400,10 @@ class LaunchStackTask(Task):
 
         """
         verify_status = 'VERIFY_COMPLETE'
-        error_msg = None
+        error_msg = ""
         stack_ip = None
-        stack_key = None
-        stack_password = None
+        stack_key = ""
+        stack_password = ""
         reboot_on_resume = None
 
         timeouts = configuration.get('timeouts', {})
@@ -429,7 +429,7 @@ class LaunchStackTask(Task):
                 logger.debug("Found servers to reboot on resume "
                              "for stack [%s]" % (stack_name))
 
-        if stack_ip is None or stack_key is None:
+        if stack_ip is None or not stack_key:
             verify_status = 'VERIFY_FAILED'
             error_msg = ("Stack [%s] did not provide "
                          "IP and private key." % stack_name)

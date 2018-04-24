@@ -73,7 +73,7 @@ class TestHastexoTasks(TestCase):
             'stack': {'id': self.stack_name}
         }
         mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
-                                               None,
+                                               "",
                                                self.stack_ip,
                                                self.stack_key,
                                                self.stack_password))
@@ -90,6 +90,7 @@ class TestHastexoTasks(TestCase):
                 False
             )
             assert res['status'] == 'CREATE_COMPLETE'
+            assert res['error_msg'] is not None
             mock_heat_client.stacks.create.assert_called_with(
                 parameters={'run': self.run_name},
                 stack_name=self.stack_name,
