@@ -36,18 +36,25 @@ class Stack(StackCommon):
     key = models.TextField(blank=True)
     password = models.CharField(max_length=128, blank=True)
 
+    def __init__(self, *args, **kwargs):
+        super(Stack, self).__init__(*args, **kwargs)
+
+        # Save previous status
+        self.prev_status = self.status
+
     def save(self, *args, **kwargs):
         super(Stack, self).save(*args, **kwargs)
 
-        # Populate the log
-        log_fields = {'stack': self}
-        for field in StackCommon._meta.get_fields():
-            if field.name == 'created_on':
-                continue
-            log_fields[field.name] = getattr(self, field.name)
+        # Populate the log if there was a status change
+        if self.status and self.status != self.prev_status:
+            log_fields = {'stack': self}
+            for field in StackCommon._meta.get_fields():
+                if field.name == 'created_on':
+                    continue
+                log_fields[field.name] = getattr(self, field.name)
 
-        log = StackLog(**log_fields)
-        log.save()
+            log = StackLog(**log_fields)
+            log.save()
 
 
 class StackLog(StackCommon):

@@ -539,9 +539,9 @@ class TestHastexoJobs(TestCase):
             student_id=self.student_id,
             course_id=self.course_id,
             suspend_timestamp=suspend_timestamp,
-            name=self.stack_name,
-            status=state
+            name=self.stack_name
         )
+        stack.status = state
         stack.save()
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [self.stacks[state]]
