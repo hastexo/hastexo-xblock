@@ -20,7 +20,7 @@ class Command(BaseCommand):
 
         # Schedule
         scheduler = BlockingScheduler()
-        suspender = SuspenderJob(settings, self.stdout)
+        suspender = SuspenderJob(settings)
         interval = settings.get("suspend_interval", 60)
         scheduler.add_job(suspender.run, 'interval', seconds=interval)
         scheduler.start()

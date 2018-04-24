@@ -21,7 +21,7 @@ class Command(BaseCommand):
 
         # Schedule
         scheduler = BlockingScheduler()
-        job = UndertakerJob(settings, self.stdout)
+        job = UndertakerJob(settings)
         interval = settings.get("delete_interval", 86400)
         scheduler.add_job(job.run, 'interval', seconds=interval)
         scheduler.start()

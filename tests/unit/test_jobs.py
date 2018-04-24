@@ -63,7 +63,6 @@ class TestHastexoJobs(TestCase):
         self.student_id = 'bogus_student_id'
         self.course_id = 'bogus_course_id'
         self.stack_name = 'bogus_stack_name'
-        self.stdout = open("/dev/stdout", "w")
 
     def test_suspend_stack_for_the_first_time(self):
         suspend_timeout = self.configuration.get("suspend_timeout")
@@ -81,7 +80,7 @@ class TestHastexoJobs(TestCase):
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [self.stacks[state]]
 
-        job = SuspenderJob(self.configuration, self.stdout)
+        job = SuspenderJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -111,7 +110,7 @@ class TestHastexoJobs(TestCase):
             self.stacks[state]
         ]
 
-        job = SuspenderJob(self.configuration, self.stdout)
+        job = SuspenderJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -129,7 +128,7 @@ class TestHastexoJobs(TestCase):
             HTTPNotFound
         ]
 
-        job = SuspenderJob(self.configuration, self.stdout)
+        job = SuspenderJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -153,7 +152,7 @@ class TestHastexoJobs(TestCase):
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [self.stacks[state]]
 
-        job = SuspenderJob(self.configuration, self.stdout)
+        job = SuspenderJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -179,7 +178,7 @@ class TestHastexoJobs(TestCase):
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [self.stacks[state]]
 
-        job = SuspenderJob(self.configuration, self.stdout)
+        job = SuspenderJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -205,7 +204,7 @@ class TestHastexoJobs(TestCase):
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [self.stacks[state]]
 
-        job = SuspenderJob(self.configuration, self.stdout)
+        job = SuspenderJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -231,7 +230,7 @@ class TestHastexoJobs(TestCase):
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [HTTPNotFound]
 
-        job = SuspenderJob(self.configuration, self.stdout)
+        job = SuspenderJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -259,7 +258,7 @@ class TestHastexoJobs(TestCase):
             self.stacks['SUSPEND_IN_PROGRESS']
         ]
 
-        job = SuspenderJob(self.configuration, self.stdout)
+        job = SuspenderJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -287,7 +286,7 @@ class TestHastexoJobs(TestCase):
             self.stacks['RESUME_FAILED']
         ]
 
-        job = SuspenderJob(self.configuration, self.stdout)
+        job = SuspenderJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -336,7 +335,7 @@ class TestHastexoJobs(TestCase):
             self.stacks[state]
         ]
 
-        job = SuspenderJob(self.configuration, self.stdout)
+        job = SuspenderJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -401,7 +400,7 @@ class TestHastexoJobs(TestCase):
             HTTPNotFound
         ]
 
-        job = UndertakerJob(self.configuration, self.stdout)
+        job = UndertakerJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -455,7 +454,7 @@ class TestHastexoJobs(TestCase):
         stack3.save()
         mock_heat_client = Mock()
 
-        job = UndertakerJob(self.configuration, self.stdout)
+        job = UndertakerJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -492,7 +491,7 @@ class TestHastexoJobs(TestCase):
         ]
 
         self.configuration['task_timeouts']['retries'] = 3
-        job = UndertakerJob(self.configuration, self.stdout)
+        job = UndertakerJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -520,7 +519,7 @@ class TestHastexoJobs(TestCase):
         stack.save()
         mock_heat_client = Mock()
 
-        job = UndertakerJob(self.configuration, self.stdout)
+        job = UndertakerJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -552,7 +551,7 @@ class TestHastexoJobs(TestCase):
             self.stacks[DELETE_FAILED_STATE]
         ]
 
-        job = UndertakerJob(self.configuration, self.stdout)
+        job = UndertakerJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -582,7 +581,7 @@ class TestHastexoJobs(TestCase):
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [self.stacks[state]]
 
-        job = SuspenderJob(self.configuration, self.stdout)
+        job = SuspenderJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
