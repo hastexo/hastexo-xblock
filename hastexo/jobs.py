@@ -124,6 +124,10 @@ class UndertakerJob(object):
         if not age:
             return
 
+        attempts = self.settings.get("delete_attempts", 3)
+        if not attempts:
+            return
+
         timedelta = timezone.timedelta(days=age)
         cutoff = timezone.now() - timedelta
         dont_delete = [DELETE_STATE,
@@ -160,51 +164,51 @@ class UndertakerJob(object):
         timeouts = configuration.get('task_timeouts', {})
         sleep = timeouts.get('sleep', 10)
         retries = timeouts.get('retries', 90)
+        attempts = configuration.get('delete_attempts', 3)
         heat_client = self.get_heat_client(configuration)
 
-        self.stdout.write("Initializing stack [%s] deletion." % stack.name)
+        def update_stack_status():
+            try:
+                heat_stack = heat_client.stacks.get(stack_id=stack.name)
+            except HTTPNotFound:
+                stack.status = DELETED_STATE
+            else:
+                stack.status = heat_stack.stack_status
 
-        try:
-            heat_stack = heat_client.stacks.get(stack_id=stack.name)
-        except HTTPNotFound:
-            stack.status = DELETED_STATE
-            stack.save()
-        else:
-            self.stdout.write("Deleting stack [%s]." % (stack.name))
-
-            # Delete stack
-            heat_client.stacks.delete(stack_id=stack.name)
-
-            # Save status
-            stack.status = DELETE_IN_PROGRESS_STATE
             stack.save()
 
-            # Wait until delete finishes.
-            retry = 0
-            while ('FAILED' not in stack.status and
-                   stack.status != DELETED_STATE):
-                if retry:
-                    time.sleep(sleep)
+        update_stack_status()
+        retry = 0
+        attempt = 0
+        while (stack.status != DELETED_STATE and
+               retry < retries and
+               attempt <= attempts):
 
-                try:
-                    heat_stack = heat_client.stacks.get(stack_id=stack.name)
-                except HTTPNotFound:
-                    stack.status = DELETED_STATE
-                    stack.save()
-                else:
-                    stack.status = heat_stack.stack_status
-                    stack.save()
+            if retry:
+                time.sleep(sleep)
+                update_stack_status()
 
-                    retry += 1
-                    if retry >= retries:
-                        self.stdout.write(
-                            "Stack [%s], status [%s], took too long to "
-                            "delete.  Giving up after %s retries" %
-                            (stack.name, stack.status, retry)
-                        )
-                        stack.status = DELETE_FAILED_STATE
-                        stack.save()
+            retry += 1
 
             if stack.status == DELETED_STATE:
                 self.stdout.write("Stack [%s] deleted successfully." %
                                   stack.name)
+            elif retry >= retries:
+                self.stdout.write("Stack [%s] deletion failed." %
+                                  stack.name)
+                stack.status = DELETE_FAILED_STATE
+                stack.save()
+            elif stack.status != DELETE_IN_PROGRESS_STATE:
+
+                attempt += 1
+
+                if attempt > attempts:
+                    self.stdout.write("Stack [%s] deletion failed." %
+                                      stack.name)
+                    stack.status = DELETE_FAILED_STATE
+                else:
+                    self.stdout.write("Deleting stack [%s]." % (stack.name))
+                    heat_client.stacks.delete(stack_id=stack.name)
+                    stack.status = DELETE_IN_PROGRESS_STATE
+
+                stack.save()

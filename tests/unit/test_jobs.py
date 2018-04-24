@@ -40,6 +40,7 @@ class TestHastexoJobs(TestCase):
             "suspend_concurrency": 1,
             "suspend_in_parallel": False,
             "delete_age": 14,
+            "delete_attempts": 3,
             "task_timeouts": {
                 "sleep": 0,
                 "retries": 10
@@ -478,14 +479,13 @@ class TestHastexoJobs(TestCase):
             student_id=self.student_id,
             course_id=self.course_id,
             name=stack_name,
-            suspend_timestamp=delete_timestamp,
-            status=state
+            suspend_timestamp=delete_timestamp
         )
+        stack.status = state
         stack.save()
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [
             self.stacks[state],
-            self.stacks[DELETE_IN_PROGRESS_STATE],
             self.stacks[DELETE_IN_PROGRESS_STATE],
             self.stacks[DELETE_IN_PROGRESS_STATE],
             self.stacks[DELETE_IN_PROGRESS_STATE]
@@ -529,6 +529,42 @@ class TestHastexoJobs(TestCase):
         mock_heat_client.stacks.delete.assert_not_called()
         stack = Stack.objects.get(name=stack_name)
         self.assertEqual(stack.status, state)
+
+    def test_retry_deletion(self):
+        delete_age = self.configuration.get("delete_age")
+        delete_delta = timezone.timedelta(days=(delete_age + 1))
+        delete_timestamp = timezone.now() - delete_delta
+        state = 'RESUME_COMPLETE'
+        stack_name = 'bogus_stack'
+        stack = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            name=stack_name,
+            suspend_timestamp=delete_timestamp
+        )
+        stack.status = state
+        stack.save()
+        mock_heat_client = Mock()
+        mock_heat_client.stacks.get.side_effect = [
+            self.stacks[state],
+            self.stacks[DELETE_FAILED_STATE],
+            self.stacks[DELETE_FAILED_STATE],
+            self.stacks[DELETE_FAILED_STATE]
+        ]
+
+        job = UndertakerJob(self.configuration, self.stdout)
+        with patch.multiple(
+                job,
+                get_heat_client=Mock(return_value=mock_heat_client)):
+            job.run()
+
+        mock_heat_client.stacks.delete.assert_has_calls([
+            call(stack_id=stack_name),
+            call(stack_id=stack_name),
+            call(stack_id=stack_name)
+        ])
+        stack = Stack.objects.get(name=stack_name)
+        self.assertEqual(stack.status, DELETE_FAILED_STATE)
 
     def test_stack_log(self):
         suspend_timeout = self.configuration.get("suspend_timeout")

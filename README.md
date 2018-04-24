@@ -99,6 +99,7 @@ To deploy the hastexo XBlock:
             "check_timeout": 120,
             "delete_interval": 86400,
             "delete_age": 14,
+            "delete_attempts": 3,
             "task_timeouts": {
                 "sleep": 10,
                 "retries": 90
@@ -210,6 +211,9 @@ This is a brief explanation of each:
 
 * `delete_interval`: The period between undertaker job launches. (Default:
   `86400`)
+
+* `delete_attempts`: How many times to insist on deletion after a failure.
+  (Default: `3`)
 
 * `task_timeouts`:
 
