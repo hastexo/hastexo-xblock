@@ -273,7 +273,9 @@ class HastexoXBlock(XBlock,
             course_id=course_id,
             name=self.stack_name
         )
-        stack.__dict__.update(data)
+        for (field, value) in data.items():
+            if hasattr(stack, field):
+                setattr(stack, field, value)
         stack.save()
 
     @transaction.atomic()
