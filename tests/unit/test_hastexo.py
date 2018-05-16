@@ -214,7 +214,7 @@ class TestHastexoXBlock(TestCase):
         mock_result.ready.return_value = True
         mock_result.successful.return_value = True
         mock_result.result = {
-            "status": 'COMPLETE',
+            "status": 'CHECK_PROGRESS_COMPLETE',
             "pass": 1,
             "total": 1
         }
@@ -244,9 +244,9 @@ class TestHastexoXBlock(TestCase):
                 mocks['check_progress_task'].return_value = mock_result
                 mocks['check_progress_task_result'].return_value = mock_result
                 result = self.call_handler("get_check_status", {})
-                self.assertEqual(result['status'], 'PENDING')
+                self.assertEqual(result['status'], 'CHECK_PROGRESS_PENDING')
                 result = self.call_handler("get_check_status", {})
-                self.assertEqual(result['status'], 'PENDING')
+                self.assertEqual(result['status'], 'CHECK_PROGRESS_PENDING')
                 time.sleep(check_timeout)
                 result = self.call_handler("get_check_status", {})
                 self.assertEqual(result['status'], 'ERROR')

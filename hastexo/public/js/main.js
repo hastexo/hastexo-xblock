@@ -433,7 +433,7 @@ function HastexoXBlock(runtime, element, configuration) {
             }
             if (changed) {
                 var dialog;
-                if (check.status == 'COMPLETE') {
+                if (check.status == 'CHECK_PROGRESS_COMPLETE') {
                     dialog = $('#check_complete');
                     dialog.find('.check_pass').html(data.pass);
                     dialog.find('.check_total').html(data.total);
@@ -441,7 +441,7 @@ function HastexoXBlock(runtime, element, configuration) {
                         $.dialog.close();
                     });
                     dialog.dialog(element);
-                } else if (check.status == 'PENDING') {
+                } else if (check.status == 'CHECK_PROGRESS_PENDING') {
                     dialog = $('#check_pending');
                     dialog.dialog(element);
                     if (check_timer) clearTimeout(check_timer);
@@ -450,7 +450,7 @@ function HastexoXBlock(runtime, element, configuration) {
                     /* Unexpected status.  Display error message. */
                     show_error(check.error_msg);
                 }
-            } else if (check.status == 'PENDING') {
+            } else if (check.status == 'CHECK_PROGRESS_PENDING') {
                 if (check_timer) clearTimeout(check_timer);
                 check_timer = setTimeout(get_check_status, configuration.timeouts['check']);
             }

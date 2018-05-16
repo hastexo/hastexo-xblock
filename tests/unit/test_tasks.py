@@ -1,8 +1,8 @@
 from unittest import TestCase
 from mock import Mock, patch
 from heatclient.exc import HTTPNotFound
-from hastexo.tasks import LaunchStackTask
-from hastexo.tasks import CheckStudentProgressTask
+from hastexo.tasks import LaunchStackTask, CheckStudentProgressTask
+from celery.exceptions import SoftTimeLimitExceeded
 
 
 class TestHastexoTasks(TestCase):
@@ -35,8 +35,7 @@ class TestHastexoTasks(TestCase):
             "suspend_timeout": 120,
             "terminal_url": "/hastexo-xblock/",
             "task_timeouts": {
-                "sleep": 0,
-                "retries": 10
+                "sleep": 0
             },
             "credentials": {
                 "os_auth_url": "bogus_auth_url",
@@ -72,14 +71,15 @@ class TestHastexoTasks(TestCase):
         mock_heat_client.stacks.create.return_value = {
             'stack': {'id': self.stack_name}
         }
-        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
-                                               "",
-                                               self.stack_ip,
-                                               self.stack_key,
-                                               self.stack_password))
+        mock_return_value = {
+            "ip": self.stack_ip,
+            "key": self.stack_key,
+            "password": self.stack_password
+        }
+        mock_check_stack = Mock(return_value=mock_return_value)
         with patch.multiple(task,
                             get_heat_client=Mock(return_value=mock_heat_client),  # noqa: E501
-                            verify_stack=mock_verify_stack):
+                            check_stack=mock_check_stack):
             stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
@@ -89,20 +89,14 @@ class TestHastexoTasks(TestCase):
                 self.stack_user,
                 False
             )
-            assert res['status'] == 'CREATE_COMPLETE'
-            assert res['error_msg'] is not None
+            self.assertEqual(res['status'], 'CREATE_COMPLETE')
+            self.assertNotEqual(res['error_msg'], None)
             mock_heat_client.stacks.create.assert_called_with(
                 parameters={'run': self.run_name},
                 stack_name=self.stack_name,
                 template=stack_template
             )
-            mock_verify_stack.assert_called_with(
-                self.configuration,
-                self.stacks['CREATE_COMPLETE'],
-                False,
-                self.stack_name,
-                self.stack_user
-            )
+            mock_check_stack.assert_called()
 
     def test_reset_stack_during_launch(self):
         task = LaunchStackTask()
@@ -117,14 +111,15 @@ class TestHastexoTasks(TestCase):
         mock_heat_client.stacks.create.return_value = {
             'stack': {'id': self.stack_name}
         }
-        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
-                                               None,
-                                               self.stack_ip,
-                                               self.stack_key,
-                                               self.stack_password))
+        mock_return_value = {
+            "ip": self.stack_ip,
+            "key": self.stack_key,
+            "password": self.stack_password
+        }
+        mock_check_stack = Mock(return_value=mock_return_value)
         with patch.multiple(task,
                             get_heat_client=Mock(return_value=mock_heat_client),  # noqa: E501
-                            verify_stack=mock_verify_stack):
+                            check_stack=mock_check_stack):
             stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
@@ -142,14 +137,8 @@ class TestHastexoTasks(TestCase):
                 stack_name=self.stack_name,
                 template=stack_template
             )
-            mock_verify_stack.assert_called_with(
-                self.configuration,
-                self.stacks['CREATE_COMPLETE'],
-                False,
-                self.stack_name,
-                self.stack_user
-            )
-            assert res['status'] == 'CREATE_COMPLETE'
+            mock_check_stack.assert_called()
+            self.assertEqual(res['status'], 'CREATE_COMPLETE')
 
     def test_dont_reset_new_stack_during_launch(self):
         task = LaunchStackTask()
@@ -162,14 +151,15 @@ class TestHastexoTasks(TestCase):
         mock_heat_client.stacks.create.return_value = {
             'stack': {'id': self.stack_name}
         }
-        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
-                                               None,
-                                               self.stack_ip,
-                                               self.stack_key,
-                                               self.stack_password))
+        mock_return_value = {
+            "ip": self.stack_ip,
+            "key": self.stack_key,
+            "password": self.stack_password
+        }
+        mock_check_stack = Mock(return_value=mock_return_value)
         with patch.multiple(task,
                             get_heat_client=Mock(return_value=mock_heat_client),  # noqa: E501
-                            verify_stack=mock_verify_stack):
+                            check_stack=mock_check_stack):
             stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
@@ -185,14 +175,8 @@ class TestHastexoTasks(TestCase):
                 stack_name=self.stack_name,
                 template=stack_template
             )
-            mock_verify_stack.assert_called_with(
-                self.configuration,
-                self.stacks['CREATE_COMPLETE'],
-                False,
-                self.stack_name,
-                self.stack_user
-            )
-            assert res['status'] == 'CREATE_COMPLETE'
+            mock_check_stack.assert_called()
+            self.assertEqual(res['status'], 'CREATE_COMPLETE')
 
     def test_resume_suspended_stack_during_launch(self):
         task = LaunchStackTask()
@@ -203,14 +187,15 @@ class TestHastexoTasks(TestCase):
             self.stacks['RESUME_IN_PROGRESS'],
             self.stacks['RESUME_COMPLETE']
         ]
-        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
-                                               None,
-                                               self.stack_ip,
-                                               self.stack_key,
-                                               self.stack_password))
+        mock_return_value = {
+            "ip": self.stack_ip,
+            "key": self.stack_key,
+            "password": self.stack_password
+        }
+        mock_check_stack = Mock(return_value=mock_return_value)
         with patch.multiple(task,
                             get_heat_client=Mock(return_value=mock_heat_client),  # noqa: E501
-                            verify_stack=mock_verify_stack):
+                            check_stack=mock_check_stack):
             stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
@@ -220,17 +205,11 @@ class TestHastexoTasks(TestCase):
                 self.stack_user,
                 False
             )
-            assert res['status'] == 'RESUME_COMPLETE'
+            self.assertEqual(res['status'], 'RESUME_COMPLETE')
             mock_heat_client.actions.resume.assert_called_with(
                 stack_id=self.stacks['SUSPEND_COMPLETE'].id
             )
-            mock_verify_stack.assert_called_with(
-                self.configuration,
-                self.stacks['RESUME_COMPLETE'],
-                True,
-                self.stack_name,
-                self.stack_user
-            )
+            mock_check_stack.assert_called()
 
     def test_resume_suspending_stack_during_launch(self):
         task = LaunchStackTask()
@@ -243,14 +222,15 @@ class TestHastexoTasks(TestCase):
             self.stacks['RESUME_IN_PROGRESS'],
             self.stacks['RESUME_COMPLETE']
         ]
-        mock_verify_stack = Mock(return_value=('VERIFY_COMPLETE',
-                                               None,
-                                               self.stack_ip,
-                                               self.stack_key,
-                                               self.stack_password))
+        mock_return_value = {
+            "ip": self.stack_ip,
+            "key": self.stack_key,
+            "password": self.stack_password
+        }
+        mock_check_stack = Mock(return_value=mock_return_value)
         with patch.multiple(task,
                             get_heat_client=Mock(return_value=mock_heat_client),  # noqa: E501
-                            verify_stack=mock_verify_stack):
+                            check_stack=mock_check_stack):
             stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
@@ -260,17 +240,11 @@ class TestHastexoTasks(TestCase):
                 self.stack_user,
                 False
             )
-            assert res['status'] == 'RESUME_COMPLETE'
+            self.assertEqual(res['status'], 'RESUME_COMPLETE')
             mock_heat_client.actions.resume.assert_called_with(
                 stack_id=self.stacks['SUSPEND_COMPLETE'].id
             )
-            mock_verify_stack.assert_called_with(
-                self.configuration,
-                self.stacks['RESUME_COMPLETE'],
-                True,
-                self.stack_name,
-                self.stack_user
-            )
+            mock_check_stack.assert_called()
 
     def test_delete_stack_on_create_failed_during_launch(self):
         task = LaunchStackTask()
@@ -288,14 +262,15 @@ class TestHastexoTasks(TestCase):
             stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
+                self.run_name,
                 self.stack_name,
                 stack_template,
                 self.stack_user,
                 False
             )
-            assert res['status'] == 'CREATE_FAILED'
+            self.assertEqual(res['status'], 'CREATE_FAILED')
             mock_heat_client.stacks.delete.assert_called_with(
-                stack_id=self.stacks['CREATE_FAILED'].id
+                stack_id=self.stack_name
             )
 
     def test_dont_wait_forever_for_suspension_during_launch(self):
@@ -304,22 +279,20 @@ class TestHastexoTasks(TestCase):
         mock_heat_client.stacks.get.side_effect = [
             self.stacks['SUSPEND_IN_PROGRESS'],
             self.stacks['SUSPEND_IN_PROGRESS'],
-            self.stacks['SUSPEND_IN_PROGRESS'],
-            self.stacks['SUSPEND_IN_PROGRESS'],
-            self.stacks['SUSPEND_IN_PROGRESS']
+            SoftTimeLimitExceeded
         ]
         with patch.multiple(task,
                             get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
-            self.configuration['task_timeouts']['retries'] = 3
             stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
+                self.run_name,
                 self.stack_name,
                 stack_template,
                 self.stack_user,
                 False
             )
-            assert res['status'] == 'SUSPEND_FAILED'
+            self.assertEqual(res['status'], 'LAUNCH_TIMEOUT')
             mock_heat_client.stacks.delete.assert_not_called()
 
     def test_dont_wait_forever_for_creation_and_delete_during_launch(self):
@@ -329,28 +302,26 @@ class TestHastexoTasks(TestCase):
             HTTPNotFound,
             self.stacks['CREATE_IN_PROGRESS'],
             self.stacks['CREATE_IN_PROGRESS'],
-            self.stacks['CREATE_IN_PROGRESS'],
-            self.stacks['CREATE_IN_PROGRESS'],
-            self.stacks['CREATE_IN_PROGRESS']
+            SoftTimeLimitExceeded
         ]
         mock_heat_client.stacks.create.return_value = {
             'stack': {'id': self.stack_name}
         }
         with patch.multiple(task,
                             get_heat_client=Mock(return_value=mock_heat_client)):  # noqa: E501
-            self.configuration['task_timeouts']['retries'] = 3
             stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
+                self.run_name,
                 self.stack_name,
                 stack_template,
                 self.stack_user,
                 False
             )
-            assert res['status'] == 'CREATE_FAILED'
             mock_heat_client.stacks.delete.assert_called_with(
-                stack_id=self.stacks['CREATE_IN_PROGRESS'].id
+                stack_id=self.stack_name
             )
+            self.assertEqual(res['status'], 'LAUNCH_TIMEOUT')
 
     def test_exit_resume_failed_exit_status_during_launch(self):
         task = LaunchStackTask()
@@ -366,12 +337,13 @@ class TestHastexoTasks(TestCase):
             stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
+                self.run_name,
                 self.stack_name,
                 stack_template,
                 self.stack_user,
                 False
             )
-            assert res['status'] == 'RESUME_FAILED'
+            self.assertEqual(res['status'], 'RESUME_FAILED')
 
     def test_check_student_progress(self):
         task = CheckStudentProgressTask()
@@ -400,6 +372,6 @@ class TestHastexoTasks(TestCase):
                 self.stack_name,
                 self.stack_user
             )
-            assert res['status'] == 'COMPLETE'
-            assert res['pass'] == 2
-            assert res['total'] == 3
+            self.assertEqual(res['status'], 'CHECK_PROGRESS_COMPLETE')
+            self.assertEqual(res['pass'], 2)
+            self.assertEqual(res['total'], 3)

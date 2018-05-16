@@ -298,10 +298,13 @@ class HastexoXBlock(XBlock,
     def launch_stack_task(self, args):
         configuration = args[0]
         task = LaunchStackTask()
+        soft_time_limit = configuration.get('launch_timeout')
+        time_limit = soft_time_limit + 30
         result = task.apply_async(
             args=args,
-            expires=configuration.get('launch_timeout'),
-            time_limit=configuration.get('launch_timeout')
+            expires=soft_time_limit,
+            soft_time_limit=soft_time_limit,
+            time_limit=time_limit
         )
         logger.info(
             'Launch task id for '
@@ -536,10 +539,13 @@ class HastexoXBlock(XBlock,
     def check_progress_task(self, args):
         configuration = args[0]
         task = CheckStudentProgressTask()
+        soft_time_limit = configuration.get('check_timeout')
+        time_limit = soft_time_limit + 30
         result = task.apply_async(
             args=args,
-            expires=configuration.get('check_timeout'),
-            time_limit=configuration.get('check_timeout')
+            expires=soft_time_limit,
+            soft_time_limit=soft_time_limit,
+            time_limit=time_limit
         )
 
         return result
@@ -598,7 +604,7 @@ class HastexoXBlock(XBlock,
                         'error_msg': 'Unexpected result: %s' % repr(result.result)  # noqa: E501
                     }
             else:
-                status = {'status': 'PENDING'}
+                status = {'status': 'CHECK_PROGRESS_PENDING'}
 
             # Store the result
             self.check_status = status
@@ -611,7 +617,7 @@ class HastexoXBlock(XBlock,
             result = self.check_progress_task_result(self.check_id)
             status = _process_result(result)
 
-            if status['status'] == 'PENDING':
+            if status['status'] == 'CHECK_PROGRESS_PENDING':
                 time_since_check = int(time.time()) - self.check_timestamp
                 check_timeout = configuration.get("check_timeout")
 
