@@ -1,3 +1,10 @@
+Version 2.3.0 (2018-05-18)
+---------------------------
+
+* [Bug Fix] Fix the reaper's "MySQL has gone away" error
+* [Enhancement] Rename 'Undertaker' to 'Reaper'
+* [Enhancement] Use soft task timeouts
+
 Version 2.2.0 (2018-04-24)
 ---------------------------
 
