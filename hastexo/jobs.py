@@ -3,7 +3,7 @@ from __future__ import print_function
 import time
 import sys
 
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 from heatclient.exc import HTTPNotFound
 from multiprocessing.dummy import Pool as ThreadPool
@@ -148,6 +148,12 @@ class ReaperJob(AbstractJob):
         # Delete them
         for stack in stacks:
             self.delete_stack(stack)
+
+        # Since we might be idle for longer than Mariadb's `wait_timeout`
+        # (which defaults to 28800 seconds), close the connection. Otherwise,
+        # this might lead to a persistent "MySQL has gone away" error that can
+        # only be remedied by restarting the process.
+        connection.close()
 
     def get_heat_client(self, configuration):
         return HeatWrapper(**configuration).get_client()
