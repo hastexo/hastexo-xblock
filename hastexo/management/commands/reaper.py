@@ -3,7 +3,7 @@ from django.conf import settings as django_settings
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 from hastexo.utils import SETTINGS_KEY, DEFAULT_SETTINGS
-from hastexo.jobs import UndertakerJob
+from hastexo.jobs import ReaperJob
 
 
 class Command(BaseCommand):
@@ -21,7 +21,7 @@ class Command(BaseCommand):
 
         # Schedule
         scheduler = BlockingScheduler()
-        job = UndertakerJob(settings)
-        interval = settings.get("delete_interval", 86400)
+        job = ReaperJob(settings)
+        interval = settings.get("delete_interval", 3600)
         scheduler.add_job(job.run, 'interval', seconds=interval)
         scheduler.start()

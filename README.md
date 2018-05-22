@@ -161,7 +161,7 @@ To deploy the hastexo XBlock:
     sudo /edx/bin/supervisorctl restart edxapp:
     sudo /edx/bin/supervisorctl restart edxapp_worker:
     sudo /edx/bin/supervisorctl start suspender:
-    sudo /edx/bin/supervisorctl start undertaker:
+    sudo /edx/bin/supervisorctl start reaper:
     ```
 
 8. Finally, in your course, go to the advanced settings and add the hastexo
@@ -209,8 +209,8 @@ This is a brief explanation of each:
 * `delete_age`: Delete stacks that haven't been resumed in this many days.  Set
   to 0 to disable. (Default: 14)
 
-* `delete_interval`: The period between undertaker job launches. (Default:
-  `86400`)
+* `delete_interval`: The period between reaper job launches. (Default:
+  `3600`)
 
 * `delete_attempts`: How many times to insist on deletion after a failure.
   (Default: `3`)
@@ -476,7 +476,7 @@ open three terminal windows, and run each of the following concurrently:
     paver devstack lms --settings=devstack_with_worker
     ./manage.py lms celery worker --settings=devstack_with_worker -l DEBUG
     ./manage.py lms --settings=devstack_with_worker suspender
-    ./manage.py lms --settings=devstack_with_worker undertaker
+    ./manage.py lms --settings=devstack_with_worker reaper
     ```
 
 

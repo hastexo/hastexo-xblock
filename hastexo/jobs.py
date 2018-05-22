@@ -111,7 +111,7 @@ class SuspenderJob(AbstractJob):
             stack.save()
 
 
-class UndertakerJob(AbstractJob):
+class ReaperJob(AbstractJob):
     """
     Deletes old stacks.
 

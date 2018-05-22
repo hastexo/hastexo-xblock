@@ -3,7 +3,7 @@ from django.test import TestCase
 from django.utils import timezone
 from heatclient.exc import HTTPNotFound
 
-from hastexo.jobs import SuspenderJob, UndertakerJob
+from hastexo.jobs import SuspenderJob, ReaperJob
 from hastexo.models import Stack, StackLog
 from hastexo.utils import (SUSPEND_ISSUED_STATE, DELETE_STATE, DELETED_STATE,
                            SUSPEND_RETRY_STATE, DELETE_IN_PROGRESS_STATE,
@@ -400,7 +400,7 @@ class TestHastexoJobs(TestCase):
             HTTPNotFound
         ]
 
-        job = UndertakerJob(self.configuration)
+        job = ReaperJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -454,7 +454,7 @@ class TestHastexoJobs(TestCase):
         stack3.save()
         mock_heat_client = Mock()
 
-        job = UndertakerJob(self.configuration)
+        job = ReaperJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -491,7 +491,7 @@ class TestHastexoJobs(TestCase):
         ]
 
         self.configuration['task_timeouts']['retries'] = 3
-        job = UndertakerJob(self.configuration)
+        job = ReaperJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -519,7 +519,7 @@ class TestHastexoJobs(TestCase):
         stack.save()
         mock_heat_client = Mock()
 
-        job = UndertakerJob(self.configuration)
+        job = ReaperJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -551,7 +551,7 @@ class TestHastexoJobs(TestCase):
             self.stacks[DELETE_FAILED_STATE]
         ]
 
-        job = UndertakerJob(self.configuration)
+        job = ReaperJob(self.configuration)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
