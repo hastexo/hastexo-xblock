@@ -7,6 +7,7 @@ class StackCommon(models.Model):
 
     """
     class Meta:
+        app_label = 'hastexo'
         abstract = True
 
     name = models.CharField(max_length=64, db_index=True)

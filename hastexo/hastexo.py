@@ -86,7 +86,7 @@ class HastexoXBlock(XBlock,
         scope=Scope.user_state,
         help="The check task id")
     check_timestamp = Integer(
-        default="",
+        default=None,
         scope=Scope.user_state,
         help="When the check task was launched")
     check_status = Dict(

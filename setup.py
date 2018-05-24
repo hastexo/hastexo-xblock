@@ -69,7 +69,7 @@ setup(
     ],
     entry_points={
         'xblock.v1': [
-            'hastexo = hastexo:HastexoXBlock',
+            'hastexo = hastexo.hastexo:HastexoXBlock',
         ]
     },
     scripts=package_scripts(["bin"]),

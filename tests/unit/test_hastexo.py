@@ -1,6 +1,8 @@
 import time
 import json
-import hastexo
+from hastexo.hastexo import HastexoXBlock
+from hastexo.models import Stack
+from hastexo.utils import DEFAULT_SETTINGS
 
 from mock import Mock, patch, DEFAULT
 from webob import Request
@@ -60,9 +62,9 @@ class TestHastexoXBlock(TestCase):
         usage_id = runtime.id_generator.create_usage(def_id)
         scope_ids = ScopeIds('user', block_type, def_id, usage_id)
 
-        self.block = hastexo.HastexoXBlock(runtime,
-                                           field_data,
-                                           scope_ids=scope_ids)
+        self.block = HastexoXBlock(runtime,
+                                   field_data,
+                                   scope_ids=scope_ids)
 
     def test_get_configuration(self):
         """
@@ -107,7 +109,7 @@ class TestHastexoXBlock(TestCase):
         timedelta = timezone.timedelta(seconds=suspend_timeout)
         suspend_timestamp = timezone.now() - timedelta
         course_id, student_id = self.block.get_block_ids()
-        stack, _ = hastexo.models.Stack.objects.get_or_create(
+        stack, _ = Stack.objects.get_or_create(
             student_id=student_id,
             course_id=course_id,
             name=self.block.stack_name,
@@ -143,7 +145,7 @@ class TestHastexoXBlock(TestCase):
         timedelta = timezone.timedelta(seconds=(suspend_timeout - 1))
         suspend_timestamp = timezone.now() - timedelta
         course_id, student_id = self.block.get_block_ids()
-        stack, _ = hastexo.models.Stack.objects.get_or_create(
+        stack, _ = Stack.objects.get_or_create(
             student_id=student_id,
             course_id=course_id,
             name=self.block.stack_name,
@@ -179,7 +181,7 @@ class TestHastexoXBlock(TestCase):
         timedelta = timezone.timedelta(seconds=(suspend_timeout - 1))
         suspend_timestamp = timezone.now() - timedelta
         course_id, student_id = self.block.get_block_ids()
-        stack, _ = hastexo.models.Stack.objects.get_or_create(
+        stack, _ = Stack.objects.get_or_create(
             student_id=student_id,
             course_id=course_id,
             name=self.block.stack_name,
@@ -239,7 +241,7 @@ class TestHastexoXBlock(TestCase):
         with patch.multiple(self.block,
                             check_progress_task=DEFAULT,
                             check_progress_task_result=DEFAULT) as mocks:
-            with patch.dict(hastexo.utils.DEFAULT_SETTINGS,
+            with patch.dict(DEFAULT_SETTINGS,
                             {'check_timeout': check_timeout}):
                 mocks['check_progress_task'].return_value = mock_result
                 mocks['check_progress_task_result'].return_value = mock_result
