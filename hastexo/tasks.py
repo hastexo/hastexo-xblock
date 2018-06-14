@@ -15,6 +15,9 @@ from .nova import NovaWrapper
 
 logger = get_task_logger(__name__)
 
+CLEANUP_SUSPEND = 1
+CLEANUP_DELETE = 2
+
 
 class LaunchStackFailed(Exception):
     status = ""
@@ -28,9 +31,9 @@ class LaunchStackFailed(Exception):
         self.status = status
         self.error_msg = error_msg
 
-        if cleanup == 1:
+        if cleanup == CLEANUP_SUSPEND:
             self.suspend = True
-        elif cleanup == 2:
+        elif cleanup == CLEANUP_DELETE:
             self.delete = True
 
 
@@ -163,7 +166,8 @@ class LaunchStackTask(Task):
                 status = stack.stack_status
         except SoftTimeLimitExceeded:
             error_msg = "Timeout creating stack [%s]." % self.stack_name
-            raise LaunchStackFailed("LAUNCH_TIMEOUT", error_msg, 2)
+            raise LaunchStackFailed("LAUNCH_TIMEOUT", error_msg,
+                                    CLEANUP_DELETE)
 
         # If stack is suspended, resume it.
         try:
@@ -178,7 +182,8 @@ class LaunchStackTask(Task):
                 status = self.resume_stack(stack)
         except SoftTimeLimitExceeded:
             error_msg = "Timeout resuming stack [%s]." % self.stack_name
-            raise LaunchStackFailed("LAUNCH_TIMEOUT", error_msg, 1)
+            raise LaunchStackFailed("LAUNCH_TIMEOUT", error_msg,
+                                    CLEANUP_SUSPEND)
 
         # Launch completed successfully.  Wait for provisioning, collect
         # its IP address, and save the private key.
@@ -186,9 +191,9 @@ class LaunchStackTask(Task):
             check_data = self.check_stack(stack, was_resumed)
         except SoftTimeLimitExceeded:
             if was_resumed:
-                cleanup = 1
+                cleanup = CLEANUP_SUSPEND
             else:
-                cleanup = 2
+                cleanup = CLEANUP_DELETE
 
             error_msg = "Timeout verifying stack [%s]." % self.stack_name
             raise LaunchStackFailed("LAUNCH_TIMEOUT", error_msg, cleanup)
@@ -233,7 +238,7 @@ class LaunchStackTask(Task):
 
         if 'FAILED' in status:
             error_msg = "Failure creating stack [%s]" % self.stack_name
-            raise LaunchStackFailed("CREATE_FAILED", error_msg, 2)
+            raise LaunchStackFailed("CREATE_FAILED", error_msg, CLEANUP_DELETE)
 
         return stack
 
@@ -279,7 +284,8 @@ class LaunchStackTask(Task):
 
         if 'FAILED' in status:
             error_msg = "Failure resuming stack [%s]" % self.stack_name
-            raise LaunchStackFailed("RESUME_FAILED", error_msg, 1)
+            raise LaunchStackFailed("RESUME_FAILED", error_msg,
+                                    CLEANUP_SUSPEND)
 
         return status
 
@@ -319,10 +325,10 @@ class LaunchStackTask(Task):
         if stack_ip is None or not stack_key:
             if was_resumed:
                 error_status = 'RESUME_FAILED'
-                cleanup = 1
+                cleanup = CLEANUP_SUSPEND
             else:
                 error_status = 'CREATE_FAILED'
-                cleanup = 2
+                cleanup = CLEANUP_DELETE
 
             error_msg = ("Stack [%s] did not provide "
                          "IP or private key." % self.stack_name)
@@ -368,10 +374,10 @@ class LaunchStackTask(Task):
             except Exception:
                 if was_resumed:
                     error_status = 'RESUME_FAILED'
-                    cleanup = 1
+                    cleanup = CLEANUP_SUSPEND
                 else:
                     error_status = 'CREATE_FAILED'
-                    cleanup = 2
+                    cleanup = CLEANUP_DELETE
 
                 logger.error("Exception when checking SSH connection to stack "
                              "[%s]: %s" % (self.stack_name,
