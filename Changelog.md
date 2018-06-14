@@ -1,3 +1,10 @@
+Version 2.3.2 (2018-06-14)
+---------------------------
+
+* [Enhancement] Handle general SSH exceptions gracefully
+* [Enhancement] Use module constants for flags
+* [Enhancement] Indirection and unit tests for `check_stack()`
+
 Version 2.3.1 (2018-06-07)
 ---------------------------
 
