@@ -2,6 +2,7 @@ import time
 import os
 import uuid
 import paramiko
+import traceback
 
 from celery import Task
 from celery.utils.log import get_task_logger
@@ -317,7 +318,7 @@ class LaunchStackTask(Task):
 
         if stack_ip is None or not stack_key:
             if was_resumed:
-                error_status = 'SUSPEND_FAILED'
+                error_status = 'RESUME_FAILED'
                 cleanup = 1
             else:
                 error_status = 'CREATE_FAILED'
@@ -364,6 +365,20 @@ class LaunchStackTask(Task):
                     paramiko.ssh_exception.SSHException,
                     paramiko.ssh_exception.NoValidConnectionsError):
                 self.sleep()
+            except Exception:
+                if was_resumed:
+                    error_status = 'RESUME_FAILED'
+                    cleanup = 1
+                else:
+                    error_status = 'CREATE_FAILED'
+                    cleanup = 2
+
+                logger.error("Exception when checking SSH connection to stack "
+                             "[%s]: %s" % (self.stack_name,
+                                           traceback.format_exc()))
+                error_msg = ("Could not connect to your lab environment "
+                             "[%s]." % self.stack_name)
+                raise LaunchStackFailed(error_status, error_msg, cleanup)
             else:
                 ssh.close()
                 connected = True
