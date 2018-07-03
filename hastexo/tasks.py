@@ -289,6 +289,49 @@ class LaunchStackTask(Task):
 
         return status
 
+    def wait_for_ping(self, stack_ip):
+        ping_command = "ping -c 1 -W %d %s >/dev/null 2>&1" % (
+            self.sleep_seconds, stack_ip)
+        while os.system(ping_command) != 0:
+            self.sleep()
+
+    def setup_ssh(self, stack_key):
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        pkey = paramiko.RSAKey.from_private_key(StringIO(stack_key))
+
+        return (ssh, pkey)
+
+    def wait_for_ssh(self, stack_key, stack_ip, was_resumed):
+        ssh, pkey = self.setup_ssh(stack_key)
+        connected = False
+        while not connected:
+            try:
+                ssh.connect(stack_ip, username=self.stack_user, pkey=pkey)
+            except (paramiko.ssh_exception.AuthenticationException,
+                    paramiko.ssh_exception.SSHException,
+                    paramiko.ssh_exception.NoValidConnectionsError):
+                self.sleep()
+            except SoftTimeLimitExceeded:
+                raise
+            except Exception:
+                if was_resumed:
+                    error_status = 'RESUME_FAILED'
+                    cleanup = CLEANUP_SUSPEND
+                else:
+                    error_status = 'CREATE_FAILED'
+                    cleanup = CLEANUP_DELETE
+
+                logger.error("Exception when checking SSH connection to stack "
+                             "[%s]: %s" % (self.stack_name,
+                                           traceback.format_exc()))
+                error_msg = ("Could not connect to your lab environment "
+                             "[%s]." % self.stack_name)
+                raise LaunchStackFailed(error_status, error_msg, cleanup)
+            else:
+                ssh.close()
+                connected = True
+
     def check_stack(self, stack, was_resumed):
         """
         Fetch stack outputs, check that the stack has a public IP address, a
@@ -305,7 +348,7 @@ class LaunchStackTask(Task):
         logger.debug("Verifying stack [%s] " % self.stack_name)
 
         # Fetch stack outputs
-        for output in stack.to_dict().get('outputs', []):
+        for output in getattr(stack, 'outputs', []):
             if output['output_key'] == 'public_ip':
                 stack_ip = output['output_value']
                 logger.debug("Found IP [%s] for stack [%s]" % (
@@ -348,46 +391,14 @@ class LaunchStackTask(Task):
         logger.info("Waiting for stack [%s] "
                     "to become network accessible "
                     "at [%s]" % (self.stack_name, stack_ip))
-
-        ping_command = "ping -c 1 -W %d %s >/dev/null 2>&1" % (
-            self.sleep_seconds, stack_ip)
-        while os.system(ping_command) != 0:
-            self.sleep()
+        self.wait_for_ping(stack_ip)
 
         # Now wait until environment is fully provisioned.  One of the
         # requirements for the Heat template is for it to disallow SSH
         # access to the training user while provisioning is going on.
         logger.info("Checking SSH connection "
                     "for stack [%s] at [%s]" % (self.stack_name, stack_ip))
-
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        pkey = paramiko.RSAKey.from_private_key(StringIO(stack_key))
-        connected = False
-        while not connected:
-            try:
-                ssh.connect(stack_ip, username=self.stack_user, pkey=pkey)
-            except (paramiko.ssh_exception.AuthenticationException,
-                    paramiko.ssh_exception.SSHException,
-                    paramiko.ssh_exception.NoValidConnectionsError):
-                self.sleep()
-            except Exception:
-                if was_resumed:
-                    error_status = 'RESUME_FAILED'
-                    cleanup = CLEANUP_SUSPEND
-                else:
-                    error_status = 'CREATE_FAILED'
-                    cleanup = CLEANUP_DELETE
-
-                logger.error("Exception when checking SSH connection to stack "
-                             "[%s]: %s" % (self.stack_name,
-                                           traceback.format_exc()))
-                error_msg = ("Could not connect to your lab environment "
-                             "[%s]." % self.stack_name)
-                raise LaunchStackFailed(error_status, error_msg, cleanup)
-            else:
-                ssh.close()
-                connected = True
+        self.wait_for_ssh(stack_key, stack_ip, was_resumed)
 
         check_data = {
             "ip": stack_ip,

@@ -7,6 +7,15 @@ from celery.exceptions import SoftTimeLimitExceeded
 
 class TestHastexoTasks(TestCase):
     def setUp(self):
+        self.stack_name = 'bogus_stack_name'
+        self.stack_user = 'bogus_stack_user'
+        self.stack_ip = '127.0.0.1'
+        self.stack_key = 'bogus_stack_key'
+        self.stack_password = 'bogus_stack_password'
+        self.run_name = 'bogus_run'
+
+        # Create a set of mock stacks to be returned by the heat client mock.
+        self.stacks = {}
         self.stack_states = {
             'CREATE_IN_PROGRESS',
             'CREATE_FAILED',
@@ -21,12 +30,20 @@ class TestHastexoTasks(TestCase):
             'DELETE_FAILED',
             'DELETE_COMPLETE'}
 
-        # Create a set of mock stacks to be returned by the heat client mock.
-        self.stacks = {}
         for state in self.stack_states:
             stack = Mock()
             stack.stack_status = state
             stack.id = "%s_ID" % state
+            stack.outputs = [
+                {"output_key": "public_ip",
+                 "output_value": self.stack_ip},
+                {"output_key": "private_key",
+                 "output_value": self.stack_key},
+                {"output_key": "password",
+                 "output_value": self.stack_password},
+                {"output_key": "reboot_on_resume",
+                 "output_value": None}
+            ]
             self.stacks[state] = stack
 
         # Mock settings
@@ -52,12 +69,6 @@ class TestHastexoTasks(TestCase):
                 "os_region_name": "bogus_region_name"
             }
         }
-        self.stack_name = 'bogus_stack_name'
-        self.stack_user = 'bogus_stack_user'
-        self.stack_ip = '127.0.0.1'
-        self.stack_key = 'bogus_stack_key'
-        self.stack_password = 'bogus_stack_password'
-        self.run_name = 'bogus_run'
 
     def test_create_stack_during_launch(self):
         task = LaunchStackTask()
@@ -71,15 +82,13 @@ class TestHastexoTasks(TestCase):
         mock_heat_client.stacks.create.return_value = {
             'stack': {'id': self.stack_name}
         }
-        mock_return_value = {
-            "ip": self.stack_ip,
-            "key": self.stack_key,
-            "password": self.stack_password
-        }
-        mock_check_stack = Mock(return_value=mock_return_value)
+        mock_wait_for_ping = Mock()
+        mock_ssh = Mock()
+        setup_ssh_retval = (mock_ssh, "bogus_pkey")
         with patch.multiple(task,
                             get_heat_client=Mock(return_value=mock_heat_client),  # noqa: E501
-                            check_stack=mock_check_stack):
+                            wait_for_ping=mock_wait_for_ping,
+                            setup_ssh=Mock(return_value=setup_ssh_retval)):
             stack_template = 'bogus_stack_template'
             res = task.run(
                 self.configuration,
@@ -96,7 +105,8 @@ class TestHastexoTasks(TestCase):
                 stack_name=self.stack_name,
                 template=stack_template
             )
-            mock_check_stack.assert_called()
+            mock_wait_for_ping.assert_called()
+            mock_ssh.connect.assert_called()
 
     def test_reset_stack_during_launch(self):
         task = LaunchStackTask()
@@ -272,6 +282,52 @@ class TestHastexoTasks(TestCase):
             mock_heat_client.stacks.delete.assert_called_with(
                 stack_id=self.stack_name
             )
+
+    def test_ssh_bombs_out(self):
+        task = LaunchStackTask()
+        mock_heat_client = Mock()
+        mock_heat_client.stacks.get.return_value = self.stacks['CREATE_COMPLETE']  # noqa: E501
+        mock_wait_for_ping = Mock()
+        mock_ssh = Mock()
+        mock_ssh.connect.side_effect = Exception()
+        setup_ssh_retval = (mock_ssh, "bogus_pkey")
+        with patch.multiple(task,
+                            get_heat_client=Mock(return_value=mock_heat_client),  # noqa: E501
+                            wait_for_ping=mock_wait_for_ping,
+                            setup_ssh=Mock(return_value=setup_ssh_retval)):
+            stack_template = 'bogus_stack_template'
+            res = task.run(
+                self.configuration,
+                self.run_name,
+                self.stack_name,
+                stack_template,
+                self.stack_user,
+                False
+            )
+            self.assertEqual(res['status'], 'CREATE_FAILED')
+
+    def test_dont_wait_forever_for_ssh(self):
+        task = LaunchStackTask()
+        mock_heat_client = Mock()
+        mock_heat_client.stacks.get.return_value = self.stacks['CREATE_COMPLETE']  # noqa: E501
+        mock_wait_for_ping = Mock()
+        mock_ssh = Mock()
+        mock_ssh.connect.side_effect = SoftTimeLimitExceeded
+        setup_ssh_retval = (mock_ssh, "bogus_pkey")
+        with patch.multiple(task,
+                            get_heat_client=Mock(return_value=mock_heat_client),  # noqa: E501
+                            wait_for_ping=mock_wait_for_ping,
+                            setup_ssh=Mock(return_value=setup_ssh_retval)):
+            stack_template = 'bogus_stack_template'
+            res = task.run(
+                self.configuration,
+                self.run_name,
+                self.stack_name,
+                stack_template,
+                self.stack_user,
+                False
+            )
+            self.assertEqual(res['status'], 'LAUNCH_TIMEOUT')
 
     def test_dont_wait_forever_for_suspension_during_launch(self):
         task = LaunchStackTask()
