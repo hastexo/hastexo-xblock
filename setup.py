@@ -64,7 +64,7 @@ setup(
         'python-keystoneclient==3.10.0',
         'python-heatclient==1.6.1',
         'python-novaclient==7.1.2',
-        'paramiko==2.1.2',
+        'paramiko==2.1.5',
         'apscheduler==3.5.1',
     ],
     entry_points={
