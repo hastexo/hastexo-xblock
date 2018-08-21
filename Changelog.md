@@ -1,3 +1,8 @@
+Version 2.4.0 (2018-08-21)
+---------------------------
+
+* [Enhancement] Hawthorn compatibility updates
+
 Version 2.3.3 (2018-08-01)
 ---------------------------
 
