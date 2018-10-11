@@ -46,11 +46,15 @@ class TestHastexoXBlock(TestCase):
         # Block settings
         self.block.stack_template_path = "bogus_template_path"
         self.block.stack_user_name = "bogus_user"
-        self.block.provider = "default"
+        self.block.provider = ""
+        self.block.providers = [
+            {"name": "provider1", "capacity": 1, "environment": "env1.yaml"},
+            {"name": "provider2", "capacity": 2, "environment": "env2.yaml"},
+            {"name": "provider3", "capacity": 0, "environment": "env3.yaml"}
+        ]
         self.block.tests = ["bogus_test"]
 
         # Set on student view
-        self.block.configuration = self.block.get_configuration()
         self.block.stack_name = "bogus_stack"
 
     def setUp(self):
@@ -66,19 +70,6 @@ class TestHastexoXBlock(TestCase):
                                    field_data,
                                    scope_ids=scope_ids)
 
-    def test_get_configuration(self):
-        """
-        Test the get_configuration() method.
-
-        """
-        configuration = self.block.get_configuration()
-        self.assertIn("launch_timeout", configuration)
-        self.assertIn("suspend_timeout", configuration)
-        self.assertIn("terminal_url", configuration)
-        self.assertIn("js_timeouts", configuration)
-        self.assertIn("credentials", configuration)
-        self.assertNotIn("providers", configuration)
-
     def test_get_user_stack_status_first_time(self):
         self.init_block()
 
@@ -88,11 +79,12 @@ class TestHastexoXBlock(TestCase):
         mock_result.successful.return_value = True
         mock_result.result = {"status": "CREATE_COMPLETE"}
         mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_get_stack_template = Mock(return_value=('bogus_stack_template'))
+        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
 
-        with patch.multiple(self.block,
-                            launch_stack_task=mock_launch_stack_task,
-                            get_stack_template=mock_get_stack_template):
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task,
+                read_from_contentstore=mock_read_from_contentstore):
             data = {
                 "initialize": True,
                 "reset": False
@@ -102,10 +94,123 @@ class TestHastexoXBlock(TestCase):
         self.assertEqual(result, mock_result.result)
         self.assertTrue(mock_launch_stack_task.called)
 
+    def test_get_user_stack_status_with_deprecated_provider(self):
+        self.init_block()
+        self.block.provider = "deprecated"
+        self.block.providers = []
+
+        mock_result = Mock()
+        mock_result.id = 'bogus_task_id'
+        mock_result.ready.return_value = True
+        mock_result.successful.return_value = True
+        mock_result.result = {"status": "CREATE_COMPLETE"}
+        mock_launch_stack_task = Mock(return_value=mock_result)
+        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task,
+                read_from_contentstore=mock_read_from_contentstore):
+            data = {
+                "initialize": True,
+                "reset": False
+            }
+            result = self.call_handler("get_user_stack_status", data)
+
+        self.assertEqual(result, mock_result.result)
+        self.assertTrue(mock_launch_stack_task.called)
+
+    def test_get_user_stack_status_with_default_provider(self):
+        self.init_block()
+        self.block.provider = ""
+        self.block.providers = []
+        providers = {"default": {}}
+
+        mock_result = Mock()
+        mock_result.id = 'bogus_task_id'
+        mock_result.ready.return_value = True
+        mock_result.successful.return_value = True
+        mock_result.result = {"status": "CREATE_COMPLETE"}
+        mock_launch_stack_task = Mock(return_value=mock_result)
+        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task,
+                read_from_contentstore=mock_read_from_contentstore):
+            with patch.dict(DEFAULT_SETTINGS,
+                            {'providers': providers}):
+                data = {
+                    "initialize": True,
+                    "reset": False
+                }
+                result = self.call_handler("get_user_stack_status", data)
+
+        self.assertEqual(result, mock_result.result)
+        self.assertTrue(mock_launch_stack_task.called)
+
+    def test_get_user_stack_status_without_default_provider(self):
+        self.init_block()
+        self.block.provider = ""
+        self.block.providers = []
+        providers = {"provider": {}}
+
+        mock_result = Mock()
+        mock_result.id = 'bogus_task_id'
+        mock_result.ready.return_value = True
+        mock_result.successful.return_value = True
+        mock_result.result = {"status": "CREATE_COMPLETE"}
+        mock_launch_stack_task = Mock(return_value=mock_result)
+        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task,
+                read_from_contentstore=mock_read_from_contentstore):
+            with patch.dict(DEFAULT_SETTINGS,
+                            {'providers': providers}):
+                data = {
+                    "initialize": True,
+                    "reset": False
+                }
+                result = self.call_handler("get_user_stack_status", data)
+
+        self.assertEqual(result, mock_result.result)
+        self.assertTrue(mock_launch_stack_task.called)
+
+    def test_get_user_stack_status_with_no_providers(self):
+        self.init_block()
+        self.block.provider = ""
+        self.block.providers = []
+        providers = {}
+
+        mock_result = Mock()
+        mock_result.id = 'bogus_task_id'
+        mock_result.ready.return_value = True
+        mock_result.successful.return_value = True
+        mock_result.result = {"status": "CREATE_COMPLETE"}
+        mock_launch_stack_task = Mock(return_value=mock_result)
+        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task,
+                read_from_contentstore=mock_read_from_contentstore):
+            with patch.dict(DEFAULT_SETTINGS,
+                            {'providers': providers}):
+                data = {
+                    "initialize": True,
+                    "reset": False
+                }
+                result = self.call_handler("get_user_stack_status", data)
+
+        self.assertEqual(result, mock_result.result)
+        self.assertTrue(mock_launch_stack_task.called)
+
     def test_get_user_stack_status_resume_after_suspend(self):
         self.init_block()
 
-        suspend_timeout = self.block.configuration.get("suspend_timeout")
+        suspend_timeout = DEFAULT_SETTINGS.get("suspend_timeout")
         timedelta = timezone.timedelta(seconds=suspend_timeout)
         suspend_timestamp = timezone.now() - timedelta
         course_id, student_id = self.block.get_block_ids()
@@ -123,11 +228,12 @@ class TestHastexoXBlock(TestCase):
         mock_result.successful.return_value = True
         mock_result.result = {"status": "RESUME_COMPLETE"}
         mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_get_stack_template = Mock(return_value=('bogus_stack_template'))
+        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
 
-        with patch.multiple(self.block,
-                            launch_stack_task=mock_launch_stack_task,
-                            get_stack_template=mock_get_stack_template):
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task,
+                read_from_contentstore=mock_read_from_contentstore):
             data = {
                 "initialize": True,
                 "reset": False
@@ -141,7 +247,7 @@ class TestHastexoXBlock(TestCase):
         # Initialize block
         self.init_block()
 
-        suspend_timeout = self.block.configuration.get("suspend_timeout")
+        suspend_timeout = DEFAULT_SETTINGS.get("suspend_timeout")
         timedelta = timezone.timedelta(seconds=(suspend_timeout - 1))
         suspend_timestamp = timezone.now() - timedelta
         course_id, student_id = self.block.get_block_ids()
@@ -160,11 +266,12 @@ class TestHastexoXBlock(TestCase):
         mock_result.successful.return_value = True
         mock_result.result = {"status": "RESUME_COMPLETE"}
         mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_get_stack_template = Mock(return_value=('bogus_stack_template'))
+        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
 
-        with patch.multiple(self.block,
-                            launch_stack_task=mock_launch_stack_task,
-                            get_stack_template=mock_get_stack_template):
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task,
+                read_from_contentstore=mock_read_from_contentstore):
             data = {
                 "initialize": True,
                 "reset": False
@@ -177,7 +284,7 @@ class TestHastexoXBlock(TestCase):
     def test_get_user_stack_status_reset_before_suspend(self):
         self.init_block()
 
-        suspend_timeout = self.block.configuration.get("suspend_timeout")
+        suspend_timeout = DEFAULT_SETTINGS.get("suspend_timeout")
         timedelta = timezone.timedelta(seconds=(suspend_timeout - 1))
         suspend_timestamp = timezone.now() - timedelta
         course_id, student_id = self.block.get_block_ids()
@@ -195,11 +302,12 @@ class TestHastexoXBlock(TestCase):
         mock_result.successful.return_value = True
         mock_result.result = {"status": "CREATE_COMPLETE"}
         mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_get_stack_template = Mock(return_value=('bogus_stack_template'))
+        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
 
-        with patch.multiple(self.block,
-                            launch_stack_task=mock_launch_stack_task,
-                            get_stack_template=mock_get_stack_template):
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task,
+                read_from_contentstore=mock_read_from_contentstore):
             data = {
                 "initialize": True,
                 "reset": True

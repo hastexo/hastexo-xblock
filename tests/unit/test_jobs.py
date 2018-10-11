@@ -34,8 +34,23 @@ class TestHastexoJobs(TestCase):
             stack.id = "%s_ID" % state
             self.stacks[state] = stack
 
+        mock_credentials = {
+            "os_auth_url": "bogus_auth_url",
+            "os_auth_token": "",
+            "os_username": "bogus_username",
+            "os_password": "bogus_password",
+            "os_user_id": "",
+            "os_user_domain_id": "",
+            "os_user_domain_name": "",
+            "os_project_id": "bogus_project_id",
+            "os_project_name": "",
+            "os_project_domain_id": "",
+            "os_project_domain_name": "",
+            "os_region_name": "bogus_region_name"
+        }
+
         # Mock settings
-        self.configuration = {
+        self.settings = {
             "suspend_timeout": 120,
             "suspend_concurrency": 1,
             "suspend_in_parallel": False,
@@ -45,19 +60,10 @@ class TestHastexoJobs(TestCase):
                 "sleep": 0,
                 "retries": 10
             },
-            "credentials": {
-                "os_auth_url": "bogus_auth_url",
-                "os_auth_token": "",
-                "os_username": "bogus_username",
-                "os_password": "bogus_password",
-                "os_user_id": "",
-                "os_user_domain_id": "",
-                "os_user_domain_name": "",
-                "os_project_id": "bogus_project_id",
-                "os_project_name": "",
-                "os_project_domain_id": "",
-                "os_project_domain_name": "",
-                "os_region_name": "bogus_region_name"
+            "providers": {
+                "provider1": mock_credentials,
+                "provider2": mock_credentials,
+                "provider3": mock_credentials
             }
         }
         self.student_id = 'bogus_student_id'
@@ -65,7 +71,7 @@ class TestHastexoJobs(TestCase):
         self.stack_name = 'bogus_stack_name'
 
     def test_suspend_stack_for_the_first_time(self):
-        suspend_timeout = self.configuration.get("suspend_timeout")
+        suspend_timeout = self.settings.get("suspend_timeout")
         timedelta = timezone.timedelta(seconds=(suspend_timeout + 1))
         suspend_timestamp = timezone.now() - timedelta
         state = 'RESUME_COMPLETE'
@@ -80,7 +86,7 @@ class TestHastexoJobs(TestCase):
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [self.stacks[state]]
 
-        job = SuspenderJob(self.configuration)
+        job = SuspenderJob(self.settings)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -93,7 +99,7 @@ class TestHastexoJobs(TestCase):
         self.assertEqual(stack.status, SUSPEND_ISSUED_STATE)
 
     def test_suspend_stack_for_the_second_time(self):
-        suspend_timeout = self.configuration.get("suspend_timeout")
+        suspend_timeout = self.settings.get("suspend_timeout")
         timedelta = timezone.timedelta(seconds=(suspend_timeout + 1))
         suspend_timestamp = timezone.now() - timedelta
         state = 'RESUME_COMPLETE'
@@ -110,7 +116,7 @@ class TestHastexoJobs(TestCase):
             self.stacks[state]
         ]
 
-        job = SuspenderJob(self.configuration)
+        job = SuspenderJob(self.settings)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -128,7 +134,7 @@ class TestHastexoJobs(TestCase):
             HTTPNotFound
         ]
 
-        job = SuspenderJob(self.configuration)
+        job = SuspenderJob(self.settings)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -137,7 +143,7 @@ class TestHastexoJobs(TestCase):
         mock_heat_client.actions.suspend.assert_not_called()
 
     def test_dont_suspend_live_stack(self):
-        suspend_timeout = self.configuration.get("suspend_timeout")
+        suspend_timeout = self.settings.get("suspend_timeout")
         timedelta = timezone.timedelta(seconds=(suspend_timeout - 1))
         suspend_timestamp = timezone.now() - timedelta
         state = 'CREATE_COMPLETE'
@@ -152,7 +158,7 @@ class TestHastexoJobs(TestCase):
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [self.stacks[state]]
 
-        job = SuspenderJob(self.configuration)
+        job = SuspenderJob(self.settings)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -163,7 +169,7 @@ class TestHastexoJobs(TestCase):
         self.assertEqual(stack.status, state)
 
     def test_dont_suspend_failed_stack(self):
-        suspend_timeout = self.configuration.get("suspend_timeout")
+        suspend_timeout = self.settings.get("suspend_timeout")
         timedelta = timezone.timedelta(seconds=(suspend_timeout + 1))
         suspend_timestamp = timezone.now() - timedelta
         state = 'RESUME_FAILED'
@@ -178,7 +184,7 @@ class TestHastexoJobs(TestCase):
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [self.stacks[state]]
 
-        job = SuspenderJob(self.configuration)
+        job = SuspenderJob(self.settings)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -189,7 +195,7 @@ class TestHastexoJobs(TestCase):
         self.assertEqual(stack.status, state)
 
     def test_dont_suspend_suspended_stack(self):
-        suspend_timeout = self.configuration.get("suspend_timeout")
+        suspend_timeout = self.settings.get("suspend_timeout")
         timedelta = timezone.timedelta(seconds=(suspend_timeout + 1))
         suspend_timestamp = timezone.now() - timedelta
         state = 'SUSPEND_COMPLETE'
@@ -204,7 +210,7 @@ class TestHastexoJobs(TestCase):
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [self.stacks[state]]
 
-        job = SuspenderJob(self.configuration)
+        job = SuspenderJob(self.settings)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -215,7 +221,7 @@ class TestHastexoJobs(TestCase):
         self.assertEqual(stack.status, state)
 
     def test_dont_suspend_deleted_stack(self):
-        suspend_timeout = self.configuration.get("suspend_timeout")
+        suspend_timeout = self.settings.get("suspend_timeout")
         timedelta = timezone.timedelta(seconds=(suspend_timeout + 1))
         suspend_timestamp = timezone.now() - timedelta
         state = 'RESUME_COMPLETE'
@@ -230,7 +236,7 @@ class TestHastexoJobs(TestCase):
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [HTTPNotFound]
 
-        job = SuspenderJob(self.configuration)
+        job = SuspenderJob(self.settings)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -241,7 +247,7 @@ class TestHastexoJobs(TestCase):
         self.assertEqual(stack.status, DELETED_STATE)
 
     def test_retry_suspending_stack(self):
-        suspend_timeout = self.configuration.get("suspend_timeout")
+        suspend_timeout = self.settings.get("suspend_timeout")
         timedelta = timezone.timedelta(seconds=(suspend_timeout + 1))
         suspend_timestamp = timezone.now() - timedelta
         state = 'RESUME_COMPLETE'
@@ -258,7 +264,7 @@ class TestHastexoJobs(TestCase):
             self.stacks['SUSPEND_IN_PROGRESS']
         ]
 
-        job = SuspenderJob(self.configuration)
+        job = SuspenderJob(self.settings)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -269,7 +275,7 @@ class TestHastexoJobs(TestCase):
         self.assertEqual(stack.status, SUSPEND_RETRY_STATE)
 
     def test_dont_retry_failed_stack(self):
-        suspend_timeout = self.configuration.get("suspend_timeout")
+        suspend_timeout = self.settings.get("suspend_timeout")
         timedelta = timezone.timedelta(seconds=(suspend_timeout + 1))
         suspend_timestamp = timezone.now() - timedelta
         state = 'RESUME_COMPLETE'
@@ -286,7 +292,7 @@ class TestHastexoJobs(TestCase):
             self.stacks['RESUME_FAILED']
         ]
 
-        job = SuspenderJob(self.configuration)
+        job = SuspenderJob(self.settings)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -297,8 +303,8 @@ class TestHastexoJobs(TestCase):
         self.assertNotEqual(stack.status, SUSPEND_RETRY_STATE)
 
     def test_suspend_concurrency(self):
-        self.configuration["suspend_concurrency"] = 2
-        suspend_timeout = self.configuration.get("suspend_timeout")
+        self.settings["suspend_concurrency"] = 2
+        suspend_timeout = self.settings.get("suspend_timeout")
         timedelta = timezone.timedelta(seconds=(suspend_timeout + 1))
         suspend_timestamp = timezone.now() - timedelta
         state = 'CREATE_COMPLETE'
@@ -335,7 +341,7 @@ class TestHastexoJobs(TestCase):
             self.stacks[state]
         ]
 
-        job = SuspenderJob(self.configuration)
+        job = SuspenderJob(self.settings)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -357,7 +363,7 @@ class TestHastexoJobs(TestCase):
         self.assertEqual(stack3.status, state)
 
     def test_delete_old_stacks(self):
-        delete_age = self.configuration.get("delete_age")
+        delete_age = self.settings.get("delete_age")
         delete_delta = timezone.timedelta(days=(delete_age + 1))
         delete_timestamp = timezone.now() - delete_delta
         dont_delete_delta = timezone.timedelta(days=(delete_age - 1))
@@ -400,7 +406,7 @@ class TestHastexoJobs(TestCase):
             HTTPNotFound
         ]
 
-        job = ReaperJob(self.configuration)
+        job = ReaperJob(self.settings)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -422,7 +428,7 @@ class TestHastexoJobs(TestCase):
         self.assertEqual(stack3.status, state)
 
     def test_dont_try_to_delete_certain_stack_states(self):
-        delete_age = self.configuration.get("delete_age")
+        delete_age = self.settings.get("delete_age")
         delete_delta = timezone.timedelta(days=(delete_age + 1))
         delete_timestamp = timezone.now() - delete_delta
         stack1_name = 'bogus_stack_1'
@@ -454,7 +460,7 @@ class TestHastexoJobs(TestCase):
         stack3.save()
         mock_heat_client = Mock()
 
-        job = ReaperJob(self.configuration)
+        job = ReaperJob(self.settings)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -469,7 +475,7 @@ class TestHastexoJobs(TestCase):
         self.assertEqual(stack3.status, DELETED_STATE)
 
     def test_dont_wait_forever_for_deletion(self):
-        delete_age = self.configuration.get("delete_age")
+        delete_age = self.settings.get("delete_age")
         delete_delta = timezone.timedelta(days=(delete_age + 1))
         delete_timestamp = timezone.now() - delete_delta
         state = 'RESUME_COMPLETE'
@@ -490,8 +496,8 @@ class TestHastexoJobs(TestCase):
             self.stacks[DELETE_IN_PROGRESS_STATE]
         ]
 
-        self.configuration['task_timeouts']['retries'] = 3
-        job = ReaperJob(self.configuration)
+        self.settings['task_timeouts']['retries'] = 3
+        job = ReaperJob(self.settings)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -504,7 +510,7 @@ class TestHastexoJobs(TestCase):
         self.assertEqual(stack.status, DELETE_FAILED_STATE)
 
     def test_dont_delete_if_age_is_zero(self):
-        self.configuration["delete_age"] = 0
+        self.settings["delete_age"] = 0
         delete_delta = timezone.timedelta(days=15)
         delete_timestamp = timezone.now() - delete_delta
         state = 'RESUME_COMPLETE'
@@ -519,7 +525,7 @@ class TestHastexoJobs(TestCase):
         stack.save()
         mock_heat_client = Mock()
 
-        job = ReaperJob(self.configuration)
+        job = ReaperJob(self.settings)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -530,7 +536,7 @@ class TestHastexoJobs(TestCase):
         self.assertEqual(stack.status, state)
 
     def test_retry_deletion(self):
-        delete_age = self.configuration.get("delete_age")
+        delete_age = self.settings.get("delete_age")
         delete_delta = timezone.timedelta(days=(delete_age + 1))
         delete_timestamp = timezone.now() - delete_delta
         state = 'RESUME_COMPLETE'
@@ -551,7 +557,7 @@ class TestHastexoJobs(TestCase):
             self.stacks[DELETE_FAILED_STATE]
         ]
 
-        job = ReaperJob(self.configuration)
+        job = ReaperJob(self.settings)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):
@@ -566,7 +572,7 @@ class TestHastexoJobs(TestCase):
         self.assertEqual(stack.status, DELETE_FAILED_STATE)
 
     def test_stack_log(self):
-        suspend_timeout = self.configuration.get("suspend_timeout")
+        suspend_timeout = self.settings.get("suspend_timeout")
         timedelta = timezone.timedelta(seconds=(suspend_timeout + 1))
         suspend_timestamp = timezone.now() - timedelta
         state = 'CREATE_COMPLETE'
@@ -581,7 +587,7 @@ class TestHastexoJobs(TestCase):
         mock_heat_client = Mock()
         mock_heat_client.stacks.get.side_effect = [self.stacks[state]]
 
-        job = SuspenderJob(self.configuration)
+        job = SuspenderJob(self.settings)
         with patch.multiple(
                 job,
                 get_heat_client=Mock(return_value=mock_heat_client)):

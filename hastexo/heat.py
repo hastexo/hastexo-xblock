@@ -27,13 +27,12 @@ class HeatWrapper(object):
 
     options = {}
 
-    def __init__(self, **configuration):
+    def __init__(self, **options):
         self.service_type = 'orchestration'
         self.endpoint_type = 'publicURL'
         self.api_version = '1'
 
         # Set OpenStack options
-        options = configuration.get("credentials")
         for os_option in self.os_options:
             self.options[os_option] = options.get(os_option)
 

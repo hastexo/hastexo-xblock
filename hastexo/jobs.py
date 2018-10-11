@@ -13,7 +13,7 @@ from .models import Stack
 from .utils import (UP_STATES, LAUNCH_STATE, SUSPEND_STATE,
                     SUSPEND_ISSUED_STATE, SUSPEND_RETRY_STATE, DELETED_STATE,
                     DELETE_IN_PROGRESS_STATE, DELETE_FAILED_STATE,
-                    DELETE_STATE, get_xblock_configuration)
+                    DELETE_STATE, get_credentials)
 
 
 class AbstractJob(object):
@@ -70,16 +70,16 @@ class SuspenderJob(AbstractJob):
             for stack in stacks:
                 self.suspend_stack(stack)
 
-    def get_heat_client(self, configuration):
-        return HeatWrapper(**configuration).get_client()
+    def get_heat_client(self, credentials):
+        return HeatWrapper(**credentials).get_client()
 
     def suspend_stack(self, stack):
         """
         Suspend the stack.
 
         """
-        configuration = get_xblock_configuration(self.settings, stack.provider)
-        heat_client = self.get_heat_client(configuration)
+        credentials = get_credentials(self.settings, stack.provider)
+        heat_client = self.get_heat_client(credentials)
 
         try:
             heat_stack = heat_client.stacks.get(stack_id=stack.name)
@@ -155,20 +155,20 @@ class ReaperJob(AbstractJob):
         # only be remedied by restarting the process.
         connection.close()
 
-    def get_heat_client(self, configuration):
-        return HeatWrapper(**configuration).get_client()
+    def get_heat_client(self, credentials):
+        return HeatWrapper(**credentials).get_client()
 
     def delete_stack(self, stack):
         """
         Delete the stack.
 
         """
-        configuration = get_xblock_configuration(self.settings, stack.provider)
-        timeouts = configuration.get('task_timeouts', {})
+        timeouts = self.settings.get('task_timeouts', {})
         sleep = timeouts.get('sleep', 10)
         retries = timeouts.get('retries', 90)
-        attempts = configuration.get('delete_attempts', 3)
-        heat_client = self.get_heat_client(configuration)
+        attempts = self.settings.get('delete_attempts', 3)
+        credentials = get_credentials(self.settings, stack.provider)
+        heat_client = self.get_heat_client(credentials)
 
         def update_stack_status():
             try:

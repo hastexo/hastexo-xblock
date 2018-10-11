@@ -9,16 +9,23 @@ from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 from xblockutils.settings import XBlockWithSettingsMixin
 
-from django.db import transaction
 from django.utils import timezone
 
-from .models import Stack
 from .utils import (UP_STATES, LAUNCH_STATE, LAUNCH_ERROR_STATE, SETTINGS_KEY,
-                    DEFAULT_SETTINGS, get_xblock_configuration)
+                    get_xblock_settings, update_stack, get_stack)
 from .tasks import LaunchStackTask, CheckStudentProgressTask
 
 logger = logging.getLogger(__name__)
 loader = ResourceLoader(__name__)
+
+
+class LaunchError(Exception):
+    error_msg = ""
+
+    def __init__(self, error_msg):
+        super(LaunchError, self).__init__()
+
+        self.error_msg = error_msg
 
 
 @XBlock.wants('settings')
@@ -61,10 +68,15 @@ class HastexoXBlock(XBlock,
         default=[],
         scope=Scope.settings,
         help="Names of ports defined above.")
+    # Deprecated in favor or "providers"
     provider = String(
-        default="default",
+        default="",
         scope=Scope.settings,
-        help="Where to launch the stack.")
+        help="Where to launch the stack. (DEPRECATED)")
+    providers = List(
+        default=[],
+        scope=Scope.settings,
+        help="List of providers to launch the stack in.")
 
     # Set exclusively via XML
     tests = List(
@@ -81,6 +93,10 @@ class HastexoXBlock(XBlock,
         default="",
         scope=Scope.user_state,
         help="The name of the user's stack")
+    stack_provider = String(
+        default="",
+        scope=Scope.user_state,
+        help="The provider selected for the current launch of the stack")
     check_id = String(
         default="",
         scope=Scope.user_state,
@@ -126,6 +142,23 @@ class HastexoXBlock(XBlock,
                 text = textwrap.dedent(text)
 
                 block.tests.append(text)
+            elif child.tag == "provider":
+                name = child.attrib["name"]
+                if not name:
+                    raise KeyError("name")
+                capacity = child.attrib.get("capacity")
+                if capacity in (None, "None"):
+                    capacity = -1
+                else:
+                    # This will raise a TypeError if the string literal cannot
+                    # be converted
+                    capacity = int(capacity)
+                environment = child.attrib.get("environment", None)
+                provider = {"name": name,
+                            "capacity": capacity,
+                            "environment": environment}
+
+                block.providers.append(provider)
             else:
                 block.runtime.add_node_as_child(block, child, id_generator)
 
@@ -163,31 +196,25 @@ class HastexoXBlock(XBlock,
 
         return (course_id, student_id)
 
-    def get_stack_template(self):
+    def read_from_contentstore(self, path):
         """
-        Load the stack template directly from the course's content store.
-
-        Note: accessing the contentstore directly is not supported by the
-        XBlock API, so this depends on keeping pace with changes to
-        edx-platform itself.  Because of it, this should be replaced with an
-        HTTP GET to the LMS, in the future.
+        Loads a file directly from the course's content store.
 
         """
         course_id, _ = self.get_block_ids()
-        stack_template = None
+        contents = None
         try:
             from xmodule.contentstore.content import StaticContent
             from xmodule.contentstore.django import contentstore
             from xmodule.exceptions import NotFoundError
 
-            loc = StaticContent.compute_location(course_id,
-                                                 self.stack_template_path)
+            loc = StaticContent.compute_location(course_id, path)
             asset = contentstore().find(loc)
-            stack_template = asset.data
+            contents = asset.data
         except (ImportError, NotFoundError):
             pass
 
-        return stack_template
+        return contents
 
     def student_view(self, context=None):
         """
@@ -206,7 +233,7 @@ class HastexoXBlock(XBlock,
             return frag
 
         # Load configuration
-        configuration = self.get_configuration()
+        settings = get_xblock_settings()
 
         # Get the course id and anonymous user id, and derive the stack name
         # from them
@@ -232,76 +259,45 @@ class HastexoXBlock(XBlock,
         # Set the port
         port = None
         if len(self.stack_ports) > 0:
-            port = self.stack_get("port")
+            port = self.get_stack("port")
             if not port or port not in self.stack_ports:
                 port = self.stack_ports[0]
 
-        # Update stack info
-        self.stack_update({
-            "provider": self.provider,
+        # Update stack info in the database
+        self.update_stack({
             "protocol": self.stack_protocol,
             "port": port
         })
 
         # Call the JS initialization function
         frag.initialize_js('HastexoXBlock', {
-            "terminal_url": configuration.get("terminal_url"),
-            "timeouts": configuration.get("js_timeouts"),
+            "terminal_url": settings.get("terminal_url"),
+            "timeouts": settings.get("js_timeouts"),
             "has_tests": len(self.tests) > 0,
             "protocol": self.stack_protocol,
             "ports": self.stack_ports,
             "port_names": self.stack_port_names,
-            "port": port,
-            "provider": self.provider
+            "port": port
         })
 
         return frag
 
-    def get_configuration(self):
-        """
-        Get the configuration data for the student_view.
-
-        """
-        settings = self.get_xblock_settings(default=DEFAULT_SETTINGS)
-        return get_xblock_configuration(settings, self.provider)
-
-    @transaction.atomic()
-    def stack_update(self, data):
+    def update_stack(self, data):
         course_id, student_id = self.get_block_ids()
-        stack, _ = Stack.objects.select_for_update().get_or_create(
-            student_id=student_id,
-            course_id=course_id,
-            name=self.stack_name
-        )
-        for (field, value) in data.items():
-            if hasattr(stack, field):
-                setattr(stack, field, value)
-        stack.save()
+        update_stack(self.stack_name, course_id, student_id, data)
 
-    @transaction.atomic()
-    def stack_get(self, prop=None):
+    def get_stack(self, prop=None):
         course_id, student_id = self.get_block_ids()
-        stack, _ = Stack.objects.select_for_update().get_or_create(
-            student_id=student_id,
-            course_id=course_id,
-            name=self.stack_name
-        )
-
-        if prop:
-            return getattr(stack, prop)
-        else:
-            return stack
+        return get_stack(self.stack_name, course_id, student_id, prop)
 
     def reset_suspend_timestamp(self):
-        self.stack_update({"suspend_timestamp": timezone.now()})
+        self.update_stack({"suspend_timestamp": timezone.now()})
 
-    def launch_stack_task(self, args):
-        configuration = args[0]
+    def launch_stack_task(self, soft_time_limit, kwargs):
         task = LaunchStackTask()
-        soft_time_limit = configuration.get('launch_timeout')
         time_limit = soft_time_limit + 30
         result = task.apply_async(
-            args=args,
+            kwargs=kwargs,
             expires=soft_time_limit,
             soft_time_limit=soft_time_limit,
             time_limit=time_limit
@@ -318,24 +314,70 @@ class HastexoXBlock(XBlock,
 
     @XBlock.json_handler
     def get_user_stack_status(self, request_data, suffix=''):
-        configuration = self.get_configuration()
+        settings = get_xblock_settings()
+        course_id, student_id = self.get_block_ids()
 
         def _launch_stack(reset=False):
-            args = (
-                configuration,
-                self.stack_run,
-                self.stack_name,
-                self.get_stack_template(),
-                self.stack_user_name,
-                reset
-            )
+            stack_template = self.read_from_contentstore(
+                self.stack_template_path)
+            if stack_template is None:
+                raise LaunchError("Stack template file not found.")
+
+            providers = []
+            if len(self.providers):
+                for provider in self.providers:
+                    p = dict(provider)
+                    env_path = p.get("environment")
+                    p["environment"] = self.read_from_contentstore(env_path)
+                    if p["environment"] is None:
+                        logger.info('Provider environment file for [%s]'
+                                    'not found.' % p["name"])
+
+                    providers.append(p)
+            # For backward compatibility
+            elif self.provider:
+                providers.append({
+                    "name": self.provider,
+                    "capacity": -1,
+                    "environment": None
+                })
+            # No providers have been configured.  Use the "default" one if it
+            # exists, or the first one if not.
+            else:
+                configured_providers = settings.get("providers", {})
+                provider_name = None
+                if configured_providers.get("default"):
+                    provider_name = "default"
+                else:
+                    try:
+                        provider_name = configured_providers.iterkeys().next()
+                    except StopIteration:
+                        pass
+
+                if provider_name:
+                    providers.append({
+                        "name": provider_name,
+                        "capacity": -1,
+                        "environment": None
+                    })
 
             logger.info('Firing async launch '
                         'task for [%s]' % (self.stack_name))
-            result = self.launch_stack_task(args)
+            kwargs = {
+                "providers": providers,
+                "stack_template": stack_template,
+                "stack_run": self.stack_run,
+                "stack_name": self.stack_name,
+                "stack_user_name": self.stack_user_name,
+                "course_id": str(course_id),
+                "student_id": student_id,
+                "reset": reset
+            }
+            launch_timeout = settings.get("launch_timeout")
+            result = self.launch_stack_task(launch_timeout, kwargs)
 
             # Save task ID and timestamp
-            self.stack_update({
+            self.update_stack({
                 "launch_task_id": result.id,
                 "launch_timestamp": timezone.now()
             })
@@ -349,15 +391,15 @@ class HastexoXBlock(XBlock,
                         result.result.get('error')):
                     data = result.result
                 else:
-                    data = {
-                        "status": LAUNCH_ERROR_STATE,
-                        "error_msg": "Unexpected result: %s" % repr(result.result)  # noqa: E501
-                    }
+                    raise LaunchError(repr(result.result))
             else:
                 data = {"status": LAUNCH_STATE}
 
-            # Save status
-            self.stack_update(data)
+            # Save status to the database
+            self.update_stack(data)
+
+            # Sync current provider
+            self.stack_provider = data.get("provider", "")
 
             return data
 
@@ -380,15 +422,15 @@ class HastexoXBlock(XBlock,
             }
 
             # Save status
-            self.stack_update(data)
+            self.update_stack(data)
 
             return data
 
         # Fetch the stack
-        stack = self.stack_get()
+        stack = self.get_stack()
 
         # Calculate the time since the suspend timer was last reset.
-        suspend_timeout = configuration.get("suspend_timeout")
+        suspend_timeout = settings.get("suspend_timeout")
         suspend_timestamp = stack.suspend_timestamp
         time_since_suspend = 0
         if suspend_timeout and suspend_timestamp:
@@ -406,23 +448,30 @@ class HastexoXBlock(XBlock,
         if not prev_status:
             logger.info('Launching stack [%s] '
                         'for the first time.' % (self.stack_name))
-            result = _launch_stack(reset)
-            stack_data = _process_result(result)
+            try:
+                result = _launch_stack(reset)
+                stack_data = _process_result(result)
+            except LaunchError as e:
+                stack_data = _process_error(e.error_msg)
 
         # There was a previous attempt at launching the stack
         elif prev_status == LAUNCH_STATE:
             # Update task result
-            launch_task_id = self.stack_get("launch_task_id")
+            launch_task_id = self.get_stack("launch_task_id")
             result = self.launch_stack_task_result(launch_task_id)
-            stack_data = _process_result(result)
+            try:
+                stack_data = _process_result(result)
+            except LaunchError as e:
+                stack_data = _process_error(e.error_msg)
+
             current_status = stack_data.get("status")
 
             # Stack is still LAUNCH_STATE since last check.
             if current_status == LAUNCH_STATE:
                 # Calculate time since launch
-                launch_timestamp = self.stack_get("launch_timestamp")
+                launch_timestamp = self.get_stack("launch_timestamp")
                 time_since_launch = (timezone.now() - launch_timestamp).seconds
-                launch_timeout = configuration.get("launch_timeout")
+                launch_timeout = settings.get("launch_timeout")
 
                 # Check if the pending task hasn't timed out.
                 if time_since_launch <= launch_timeout:
@@ -439,9 +488,11 @@ class HastexoXBlock(XBlock,
                     else:
                         logger.info('Launch timeout detected on reset. '
                                     'Resetting stack [%s]' % (self.stack_name))
-                    result = _launch_stack(reset)
-                    stack_data = _process_result(result)
-
+                    try:
+                        result = _launch_stack(reset)
+                        stack_data = _process_result(result)
+                    except LaunchError as e:
+                        stack_data = _process_error(e.error_msg)
                 else:
                     # Timeout reached.  Consider the task a failure and let the
                     # user retry manually.
@@ -460,8 +511,11 @@ class HastexoXBlock(XBlock,
                     else:
                         logger.info('Stack [%s] may have suspended. '
                                     'Relaunching.' % (self.stack_name))
-                    result = _launch_stack(reset)
-                    stack_data = _process_result(result)
+                    try:
+                        result = _launch_stack(reset)
+                        stack_data = _process_result(result)
+                    except LaunchError as e:
+                        stack_data = _process_error(e.error_msg)
 
                 # The stack couldn't have been suspended, yet.
                 else:
@@ -479,8 +533,11 @@ class HastexoXBlock(XBlock,
                 else:
                     logger.info('Retrying previously failed '
                                 'stack [%s].' % (self.stack_name))
-                result = _launch_stack(reset)
-                stack_data = _process_result(result)
+                try:
+                    result = _launch_stack(reset)
+                    stack_data = _process_result(result)
+                except LaunchError as e:
+                    stack_data = _process_error(e.error_msg)
 
             # Detected a failed launch attempt.
             # Report the error and let the user retry manually.
@@ -498,8 +555,11 @@ class HastexoXBlock(XBlock,
                 else:
                     logger.info('Stack [%s] may have suspended. '
                                 'Relaunching.' % (self.stack_name))
-                result = _launch_stack(reset)
-                stack_data = _process_result(result)
+                try:
+                    result = _launch_stack(reset)
+                    stack_data = _process_result(result)
+                except LaunchError as e:
+                    stack_data = _process_error(e.error_msg)
 
             else:
                 logger.info('Successful launch detected for [%s], '
@@ -515,8 +575,11 @@ class HastexoXBlock(XBlock,
             else:
                 logger.info('Retrying previously failed '
                             'stack [%s].' % (self.stack_name))
-            result = _launch_stack(reset)
-            stack_data = _process_result(result)
+            try:
+                result = _launch_stack(reset)
+                stack_data = _process_result(result)
+            except LaunchError as e:
+                stack_data = _process_error(e.error_msg)
 
         # Detected a failed launch attempt.  Report the error and let the user
         # retry manually.
@@ -536,13 +599,11 @@ class HastexoXBlock(XBlock,
         # Reset the dead man's switch
         self.reset_suspend_timestamp()
 
-    def check_progress_task(self, args):
-        configuration = args[0]
+    def check_progress_task(self, soft_time_limit, **kwargs):
         task = CheckStudentProgressTask()
-        soft_time_limit = configuration.get('check_timeout')
         time_limit = soft_time_limit + 30
         result = task.apply_async(
-            args=args,
+            kwargs=kwargs,
             expires=soft_time_limit,
             soft_time_limit=soft_time_limit,
             time_limit=time_limit
@@ -558,24 +619,24 @@ class HastexoXBlock(XBlock,
         """
         Checks the current student score.
         """
-        configuration = self.get_configuration()
+        settings = get_xblock_settings()
+        check_timeout = settings.get("check_timeout")
 
         def _launch_check():
-            stack = self.stack_get()
+            stack = self.get_stack()
             logger.info('Executing tests for stack [%s], IP [%s], user [%s]:' %
                         (self.stack_name, stack.ip,
                          self.stack_user_name))
             for test in self.tests:
                 logger.info('Test: %s' % test)
 
-            args = (
-                configuration,
-                self.tests,
-                stack.ip,
-                self.stack_user_name,
-                stack.key
-            )
-            result = self.check_progress_task(args)
+            kwargs = {
+                "tests": self.tests,
+                "stack_ip": stack.ip,
+                "stack_user_name": self.stack_user_name,
+                "stack_key": stack.key
+            }
+            result = self.check_progress_task(check_timeout, **kwargs)
 
             # Save task ID and timestamp
             self.check_id = result.id
@@ -619,7 +680,6 @@ class HastexoXBlock(XBlock,
 
             if status['status'] == 'CHECK_PROGRESS_PENDING':
                 time_since_check = int(time.time()) - self.check_timestamp
-                check_timeout = configuration.get("check_timeout")
 
                 # Check if the pending task hasn't timed out.
                 if time_since_check >= check_timeout:
@@ -642,7 +702,7 @@ class HastexoXBlock(XBlock,
     @XBlock.json_handler
     def set_port(self, data, suffix=''):
         # Set the preferred stack port
-        self.stack_update({"port": int(data.get("port"))})
+        self.update_stack({"port": int(data.get("port"))})
 
     @staticmethod
     def workbench_scenarios():

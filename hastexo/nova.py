@@ -27,13 +27,12 @@ class NovaWrapper(object):
 
     options = {}
 
-    def __init__(self, **configuration):
+    def __init__(self, **options):
         self.service_type = 'compute'
         self.endpoint_type = 'publicURL'
         self.api_version = '2.0'
 
         # Set OpenStack options
-        options = configuration.get("credentials")
         for os_option in self.os_options:
             self.options[os_option] = options.get(os_option)
 

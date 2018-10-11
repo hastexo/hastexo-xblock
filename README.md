@@ -368,9 +368,6 @@ configured with the following attributes:
 * `protocol`: One of 'ssh', 'rdp', or 'vnc'.  This defines the protocol that
   will be used to connect to the environment.  The default is 'ssh'.
 
-* `provider`: (Optional) The name of an OpenStack provider configured in the
-  platform.
-
 * `stack_ports`: (Optional) A list of port numbers the user can choose from.
   This is intended as a means of providing a way to connect directly to
   multiple VMs in a lab environment, via port forwarding or proxying at the VM
@@ -380,6 +377,22 @@ configured with the following attributes:
   shown as a dropdown to the user.  It must match the list of port numbers in
   both order and number.
 
+You can also use the following nested XML elements:
+
+* `provider`: Reference to an OpenStack provider configured in the platform.
+  Its `name` attribute must match one of the providers in the XBlock
+  configuration, `capacity` specifies how many environments should be launched
+  in that provider at maximum (where "-1" means keep launching environments
+  until encountering a launch failure, and "0" disables the provider), and
+  `environment` optionally specifies a content store path to a Heat environment
+  file specifying template parameters for that provider.  This element must be
+  specified at least once, and can be specified multiple times to use one or
+  more fallback providers.
+
+* `test`: The contents of this element will be run verbatim as a script in the
+  user's lab environment, when they click the "Check Progress" button.  As
+  such, it should define an interpreter via the "shebang" convention.  This
+  element is optional, but can be specified multiple times.
 
 For example, in XML:
 
@@ -390,9 +403,19 @@ For example, in XML:
     stack_template_path="hot_lab.yaml"
     stack_user_name="training"
     protocol="rdp"
-    provider="default"
     stack_ports="[3389, 3390]"
-    stack_port_names="['server1', 'server2']" />
+    stack_port_names="['server1', 'server2']">
+    <provider name="provider1" capacity="20" environment="hot_env1.yaml" />
+    <provider name="provider2" capacity="30" environment="hot_env2.yaml" />
+    <provider name="provider3" capacity="0" environment="hot_env3.yaml" />
+    <test>
+      #!/bin/bash
+      # Check for login on vm1
+      logins=$(ssh vm1 last root | grep root | wc -l)
+      [ $logins -ge 1 ] || exit 1
+      exit 0
+    </test>
+  </hastexo>
 </vertical>
 ```
 
