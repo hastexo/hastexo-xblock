@@ -1,3 +1,8 @@
+Version 2.4.1 (2018-10-14)
+---------------------------
+
+* [Enhancement] Update OpenStack client libraries
+
 Version 2.4.0 (2018-08-21)
 ---------------------------
 
