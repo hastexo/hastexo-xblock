@@ -1,3 +1,10 @@
+Version 2.5.0 (2018-10-19)
+---------------------------
+
+* [Enhancement] Multiple provider support
+* [Enhancement] Bump XBlock 1.2 testing to version 1.2.2
+* [Security fix] Bump paramiko version
+
 Version 2.4.1 (2018-10-14)
 ---------------------------
 

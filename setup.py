@@ -32,7 +32,7 @@ def package_data(pkg, roots):
 
 setup(
     name='hastexo-xblock',
-    version='2.4.1',
+    version='2.5.0',
     description='hastexo XBlock: '
                 'Makes arbitrarily complex lab environments '
                 'available on an Open edX LMS',
