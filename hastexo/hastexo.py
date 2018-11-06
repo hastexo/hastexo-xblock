@@ -201,6 +201,9 @@ class HastexoXBlock(XBlock,
         Loads a file directly from the course's content store.
 
         """
+        if not path:
+            return None
+
         course_id, _ = self.get_block_ids()
         contents = None
         try:
