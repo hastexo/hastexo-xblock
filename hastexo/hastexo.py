@@ -406,7 +406,8 @@ class HastexoXBlock(XBlock,
 
             return data
 
-        def _process_stack_data(stack):
+        def _process_stack_data():
+            stack = self.get_stack()
             data = {
                 "status": stack.status,
                 "error_msg": stack.error_msg,
@@ -429,12 +430,9 @@ class HastexoXBlock(XBlock,
 
             return data
 
-        # Fetch the stack
-        stack = self.get_stack()
-
         # Calculate the time since the suspend timer was last reset.
         suspend_timeout = settings.get("suspend_timeout")
-        suspend_timestamp = stack.suspend_timestamp
+        suspend_timestamp = self.get_stack("suspend_timestamp")
         time_since_suspend = 0
         if suspend_timeout and suspend_timestamp:
             time_since_suspend = (timezone.now() - suspend_timestamp).seconds
@@ -444,7 +442,7 @@ class HastexoXBlock(XBlock,
         reset = request_data.get("reset", False)
 
         # Get the last stack status
-        prev_status = stack.status
+        prev_status = self.get_stack("status")
 
         # No last stack status: this is the first time
         # the user launches this stack.
@@ -568,7 +566,7 @@ class HastexoXBlock(XBlock,
                 logger.info('Successful launch detected for [%s], '
                             'with status [%s]' % (self.stack_name,
                                                   prev_status))
-                stack_data = _process_stack_data(stack)
+                stack_data = _process_stack_data()
 
         # Detected a failed launch attempt, but the user just entered the page,
         # or requested a retry or reset, so start from scratch.
@@ -590,7 +588,7 @@ class HastexoXBlock(XBlock,
             logger.error('Failed launch detected for [%s], '
                          'with status [%s]' % (self.stack_name,
                                                prev_status))
-            stack_data = _process_stack_data(stack)
+            stack_data = _process_stack_data()
 
         # Reset the dead man's switch
         self.reset_suspend_timestamp()
