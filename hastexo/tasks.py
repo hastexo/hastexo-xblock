@@ -13,8 +13,8 @@ from io import StringIO
 from .models import Stack
 from .heat import HeatWrapper
 from .nova import NovaWrapper
-from .utils import (OCCUPANCY_STATES, LAUNCH_STATE, get_xblock_settings,
-                    get_credentials, get_stack, update_stack)
+from .utils import (OCCUPANCY_STATES, get_xblock_settings, get_credentials,
+                    get_stack)
 
 logger = get_task_logger(__name__)
 
@@ -68,6 +68,13 @@ class LaunchStackTask(Task):
             stack_data = self.launch_stack()
         except LaunchStackFailed as e:
             logger.error(e.error_msg)
+
+            # In case of failure, only return the provider if this was a failed
+            # resume attempt.
+            provider = ""
+            if e.suspend:
+                provider = e.provider
+
             stack_data = {
                 'status': e.status,
                 'error_msg': e.error_msg,
@@ -75,19 +82,13 @@ class LaunchStackTask(Task):
                 'user': "",
                 'key': "",
                 'password': "",
-                'provider': ""
+                'provider': provider
             }
 
             # Roll back in case of failure
             self.cleanup_stack(e)
 
         return stack_data
-
-    def stack_update(self, data):
-        return update_stack(self.stack_name,
-                            self.course_id,
-                            self.student_id,
-                            data)
 
     def stack_get(self, prop=None):
         return get_stack(self.stack_name,
@@ -245,11 +246,6 @@ class LaunchStackTask(Task):
         if not reset:
             logger.info("Trying to launch stack [%s] on provider [%s]." %
                         (self.stack_name, provider))
-
-            self.stack_update({
-                "provider": provider,
-                "status": LAUNCH_STATE
-            })
         else:
             logger.info("Resetting stack [%s] on provider [%s]." %
                         (self.stack_name, provider))
@@ -302,10 +298,6 @@ class LaunchStackTask(Task):
 
                     logger.info("Resetting stack [%s]." % self.stack_name)
                     status = self.delete_stack(heat_stack, heat_c, provider)
-                    self.stack_update({
-                        "provider": "",
-                        "status": status
-                    })
             except SoftTimeLimitExceeded:
                 error_msg = "Timeout resetting stack [%s]." % self.stack_name
                 raise LaunchStackFailed(provider, "LAUNCH_TIMEOUT", error_msg)
@@ -472,15 +464,10 @@ class LaunchStackTask(Task):
                 logger.error("Deleting unsuccessfully "
                              "created stack [%s]." % self.stack_name)
                 heat_c.stacks.delete(stack_id=self.stack_name)
-                self.stack_update({
-                    "provider": "",
-                    "status": "DELETE_COMPLETE"
-                })
             elif e.suspend:
                 logger.error("Suspending unsuccessfully "
                              "resumed stack [%s]." % self.stack_name)
                 heat_c.actions.suspend(stack_id=self.stack_name)
-                self.stack_update({"status": "SUSPEND_ISSUED"})
 
     def wait_for_ping(self, stack_ip):
         ping_command = PING_COMMAND % (self.sleep_seconds, stack_ip)

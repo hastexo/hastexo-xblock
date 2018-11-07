@@ -354,6 +354,7 @@ class TestHastexoTasks(TestCase):
 
         # Assertions
         self.assertEqual(res["status"], "CREATE_FAILED")
+        self.assertNotEqual(res["error_msg"], "")
         self.assertEqual(res["provider"], "")
         heat.stacks.create.assert_called_with(
             stack_name=self.stack_name,
