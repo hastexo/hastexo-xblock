@@ -14,7 +14,7 @@ function HastexoXBlock(runtime, element, configuration) {
 
     var init = function() {
         /* Bind reset button action. */
-        $(element).find('.buttons .reset').on('click', reset_dialog);
+        $(element).find('.buttons.bar > .reset').on('click', reset_dialog);
 
         /* Display progress check button, if there are tests. */
         if (configuration.has_tests) {
