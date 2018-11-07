@@ -1,3 +1,13 @@
+Version 2.5.1 (2018-11-07)
+---------------------------
+
+* [Bug fix] Don't try to retrieve empty paths
+* [Bug fix] Don't send reset request twice simultaneously
+* [Bug fix] Avoid QuerySet cache
+* [Bug fix] Avoid launch race condition
+* [Bug fix] Don't update database from tasks.py
+* [Bug fix] Stop browser timers on errors
+
 Version 2.5.0 (2018-10-19)
 ---------------------------
 
