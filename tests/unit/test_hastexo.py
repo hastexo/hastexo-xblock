@@ -1,8 +1,7 @@
 import time
 import json
 from hastexo.hastexo import HastexoXBlock
-from hastexo.models import Stack
-from hastexo.utils import DEFAULT_SETTINGS
+from hastexo.utils import DEFAULT_SETTINGS, get_stack, update_stack
 
 from mock import Mock, patch, DEFAULT
 from webob import Request
@@ -70,6 +69,14 @@ class TestHastexoXBlock(TestCase):
                                    field_data,
                                    scope_ids=scope_ids)
 
+    def update_stack(self, data):
+        course_id, student_id = self.block.get_block_ids()
+        update_stack(self.block.stack_name, course_id, student_id, data)
+
+    def get_stack(self, prop=None):
+        course_id, student_id = self.block.get_block_ids()
+        return get_stack(self.block.stack_name, course_id, student_id, prop)
+
     def test_get_user_stack_status_first_time(self):
         self.init_block()
 
@@ -93,6 +100,72 @@ class TestHastexoXBlock(TestCase):
 
         self.assertEqual(result, mock_result.result)
         self.assertTrue(mock_launch_stack_task.called)
+
+    def test_launch_task_id_cleared_on_task_success(self):
+        self.init_block()
+
+        mock_result = Mock()
+        mock_result.id = 'bogus_task_id'
+        mock_result.ready.return_value = True
+        mock_result.successful.return_value = True
+        mock_result.result = {"status": "CREATE_COMPLETE"}
+        mock_launch_stack_task = Mock(return_value=mock_result)
+        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task,
+                read_from_contentstore=mock_read_from_contentstore):
+            data = {
+                "initialize": True,
+                "reset": False
+            }
+            self.call_handler("get_user_stack_status", data)
+
+        self.assertEqual(self.get_stack("launch_task_id"), "")
+
+    def test_launch_task_id_cleared_on_task_failure(self):
+        self.init_block()
+
+        mock_result = Mock()
+        mock_result.id = 'bogus_task_id'
+        mock_result.ready.return_value = True
+        mock_result.successful.return_value = False
+        mock_launch_stack_task = Mock(return_value=mock_result)
+        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task,
+                read_from_contentstore=mock_read_from_contentstore):
+            data = {
+                "initialize": True,
+                "reset": False
+            }
+            self.call_handler("get_user_stack_status", data)
+
+        self.assertEqual(self.get_stack("launch_task_id"), "")
+
+    def test_launch_task_id_not_cleared_on_pending_task(self):
+        self.init_block()
+
+        mock_result = Mock()
+        mock_result.id = 'bogus_task_id'
+        mock_result.ready.return_value = False
+        mock_launch_stack_task = Mock(return_value=mock_result)
+        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task,
+                read_from_contentstore=mock_read_from_contentstore):
+            data = {
+                "initialize": True,
+                "reset": False
+            }
+            self.call_handler("get_user_stack_status", data)
+
+        self.assertNotEqual(self.get_stack("launch_task_id"), "")
 
     def test_get_user_stack_status_with_deprecated_provider(self):
         self.init_block()
@@ -213,14 +286,10 @@ class TestHastexoXBlock(TestCase):
         suspend_timeout = DEFAULT_SETTINGS.get("suspend_timeout")
         timedelta = timezone.timedelta(seconds=suspend_timeout)
         suspend_timestamp = timezone.now() - timedelta
-        course_id, student_id = self.block.get_block_ids()
-        stack, _ = Stack.objects.get_or_create(
-            student_id=student_id,
-            course_id=course_id,
-            name=self.block.stack_name,
-            suspend_timestamp=suspend_timestamp,
-            status='CREATE_COMPLETE'
-        )
+        self.update_stack({
+            "suspend_timestamp": suspend_timestamp,
+            "status": 'CREATE_COMPLETE'
+        })
 
         mock_result = Mock()
         mock_result.id = 'bogus_task_id'
@@ -250,14 +319,10 @@ class TestHastexoXBlock(TestCase):
         suspend_timeout = DEFAULT_SETTINGS.get("suspend_timeout")
         timedelta = timezone.timedelta(seconds=(suspend_timeout - 1))
         suspend_timestamp = timezone.now() - timedelta
-        course_id, student_id = self.block.get_block_ids()
-        stack, _ = Stack.objects.get_or_create(
-            student_id=student_id,
-            course_id=course_id,
-            name=self.block.stack_name,
-            suspend_timestamp=suspend_timestamp,
-            status='CREATE_COMPLETE'
-        )
+        self.update_stack({
+            "suspend_timestamp": suspend_timestamp,
+            "status": 'CREATE_COMPLETE'
+        })
 
         # Async result mock
         mock_result = Mock()
@@ -287,14 +352,10 @@ class TestHastexoXBlock(TestCase):
         suspend_timeout = DEFAULT_SETTINGS.get("suspend_timeout")
         timedelta = timezone.timedelta(seconds=(suspend_timeout - 1))
         suspend_timestamp = timezone.now() - timedelta
-        course_id, student_id = self.block.get_block_ids()
-        stack, _ = Stack.objects.get_or_create(
-            student_id=student_id,
-            course_id=course_id,
-            name=self.block.stack_name,
-            suspend_timestamp=suspend_timestamp,
-            status='RESUME_COMPLETE'
-        )
+        self.update_stack({
+            "suspend_timestamp": suspend_timestamp,
+            "status": 'RESUME_COMPLETE'
+        })
 
         mock_result = Mock()
         mock_result.id = 'bogus_task_id'
@@ -316,6 +377,67 @@ class TestHastexoXBlock(TestCase):
 
         self.assertEqual(result, mock_result.result)
         self.assertTrue(mock_launch_stack_task.called)
+
+    def test_reset_race_condition_a(self):
+        self.init_block()
+
+        suspend_timeout = DEFAULT_SETTINGS.get("suspend_timeout")
+        timedelta = timezone.timedelta(seconds=(suspend_timeout - 1))
+        suspend_timestamp = timezone.now() - timedelta
+        self.update_stack({
+            "suspend_timestamp": suspend_timestamp,
+            "status": 'RESUME_COMPLETE',
+            "launch_task_id": 'PENDING'
+        })
+
+        mock_launch_stack_task = Mock()
+        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task,
+                read_from_contentstore=mock_read_from_contentstore):
+            data = {
+                "initialize": True,
+                "reset": True
+            }
+            result = self.call_handler("get_user_stack_status", data)
+
+        self.assertFalse(mock_launch_stack_task.called)
+        self.assertEqual(result, {"status": "LAUNCH_PENDING"})
+
+    def test_reset_race_condition_b(self):
+        self.init_block()
+
+        suspend_timeout = DEFAULT_SETTINGS.get("suspend_timeout")
+        timedelta = timezone.timedelta(seconds=(suspend_timeout - 1))
+        suspend_timestamp = timezone.now() - timedelta
+        self.update_stack({
+            "suspend_timestamp": suspend_timestamp,
+            "status": 'RESUME_COMPLETE',
+            "launch_task_id": 'bogus_task_id'
+        })
+
+        mock_launch_stack_task = Mock()
+        mock_result = Mock()
+        mock_result.id = 'bogus_task_id'
+        mock_result.ready.return_value = False
+        mock_launch_stack_task_result = Mock(return_value=mock_result)
+        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task,
+                launch_stack_task_result=mock_launch_stack_task_result,
+                read_from_contentstore=mock_read_from_contentstore):
+            data = {
+                "initialize": True,
+                "reset": True
+            }
+            result = self.call_handler("get_user_stack_status", data)
+
+        self.assertFalse(mock_launch_stack_task.called)
+        self.assertEqual(result, {"status": "LAUNCH_PENDING"})
 
     def test_get_check_status(self):
         self.init_block()

@@ -305,10 +305,6 @@ class HastexoXBlock(XBlock,
             soft_time_limit=soft_time_limit,
             time_limit=time_limit
         )
-        logger.info(
-            'Launch task id for '
-            'stack [%s] is: [%s]' % (self.stack_name, result.id)
-        )
 
         return result
 
@@ -364,8 +360,6 @@ class HastexoXBlock(XBlock,
                         "environment": None
                     })
 
-            logger.info('Firing async launch '
-                        'task for [%s]' % (self.stack_name))
             kwargs = {
                 "providers": providers,
                 "stack_template": stack_template,
@@ -377,32 +371,62 @@ class HastexoXBlock(XBlock,
                 "reset": reset
             }
             launch_timeout = settings.get("launch_timeout")
-            result = self.launch_stack_task(launch_timeout, kwargs)
 
-            # Save task ID and timestamp
-            self.update_stack({
-                "launch_task_id": result.id,
-                "launch_timestamp": timezone.now()
-            })
+            # To avoid race conditions between simultaneous requests, make sure
+            # there isn't already a launch task in flight.
+            result = None
+            launch_task_id = self.get_stack("launch_task_id")
+            if launch_task_id:
+                logger.info('Found launch task [%s] in flight for [%s]' % (
+                    launch_task_id, self.stack_name))
+
+                if launch_task_id != "PENDING":
+                    result = self.launch_stack_task_result(launch_task_id)
+                else:
+                    # We're in a race condition
+                    logger.info('Race condition launching [%s]' % (
+                        self.stack_name))
+            else:
+                # Lock the task ASAP
+                self.update_stack({
+                    "status": LAUNCH_STATE,
+                    "launch_task_id": "PENDING"
+                })
+
+                # Run
+                result = self.launch_stack_task(launch_timeout, kwargs)
+
+                # Save task ID and timestamp
+                self.update_stack({
+                    "launch_task_id": result.id,
+                    "launch_timestamp": timezone.now()
+                })
+
+                logger.info('Fired async launch task [%s] for [%s]' % (
+                    result.id, self.stack_name))
 
             return result
 
         def _process_result(result):
-            if result.ready():
+            if result and result.ready():
+                # Clear launch task ID from the database
+                self.update_stack({"launch_task_id": ""})
+
                 if (result.successful() and
                         isinstance(result.result, dict) and not
                         result.result.get('error')):
                     data = result.result
+
+                    # Sync current provider
+                    self.stack_provider = data.get("provider", "")
+
+                    # Save status to the database
+                    self.update_stack(data)
                 else:
                     raise LaunchError(repr(result.result))
+
             else:
                 data = {"status": LAUNCH_STATE}
-
-            # Save status to the database
-            self.update_stack(data)
-
-            # Sync current provider
-            self.stack_provider = data.get("provider", "")
 
             return data
 
