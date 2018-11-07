@@ -333,6 +333,8 @@ function HastexoXBlock(runtime, element, configuration) {
                 terminal_connect(stack, configuration.port);
             } catch (e) {
                 /* Connection error.  Display error message. */
+                if (keepalive_timer) clearTimeout(keepalive_timer);
+                if (idle_timer) clearTimeout(idle_timer);
                 var dialog = $('#launch_error');
                 dialog.find('.message').html('Could not connect to your lab environment:');
                 dialog.find('.error_msg').html(e);
@@ -373,6 +375,8 @@ function HastexoXBlock(runtime, element, configuration) {
             );
         } else {
             /* Unexpected status.  Display error message. */
+            if (keepalive_timer) clearTimeout(keepalive_timer);
+            if (idle_timer) clearTimeout(idle_timer);
             var dialog = $('#launch_error');
             dialog.find('.message').html('There was a problem preparing your lab environment:');
             dialog.find('.error_msg').html(stack.error_msg);
