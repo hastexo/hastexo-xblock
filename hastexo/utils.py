@@ -111,11 +111,14 @@ def update_stack(name, course_id, student_id, data):
         course_id=course_id,
         name=name
     )
+    update_stack_atomic(stack, data)
+    stack.save()
+
+
+def update_stack_atomic(stack, data):
     for field, value in data.iteritems():
         if hasattr(stack, field):
             setattr(stack, field, value)
-
-    stack.save()
 
 
 def get_stack(name, course_id, student_id, prop=None):
