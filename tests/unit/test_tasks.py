@@ -2,7 +2,7 @@ from unittest import TestCase
 from mock import Mock, patch
 from heatclient.exc import HTTPNotFound
 from hastexo.models import Stack
-from hastexo.utils import update_stack
+from hastexo.utils import get_stack, update_stack
 from hastexo.tasks import (LaunchStackTask, CheckStudentProgressTask,
                            PING_COMMAND)
 from celery.exceptions import SoftTimeLimitExceeded
@@ -14,6 +14,10 @@ class TestHastexoTasks(TestCase):
 
     def get_ssh_client_mock(self):
         return self.mocks["paramiko"].SSHClient.return_value
+
+    def get_stack(self, prop=None):
+        return get_stack(self.stack_name, self.course_id, self.student_id,
+                         prop)
 
     def update_stack(self, data):
         update_stack(self.stack_name, self.course_id, self.student_id, data)
@@ -152,6 +156,7 @@ class TestHastexoTasks(TestCase):
         # Assertions
         self.assertEqual(res["status"], "CREATE_COMPLETE")
         self.assertEqual(res["provider"], self.providers[0]["name"])
+        self.assertEqual(self.get_stack("provider"), self.providers[0]["name"])
         self.assertNotEqual(res["error_msg"], None)
         heat.stacks.create.assert_called_with(
             stack_name=self.stack_name,
@@ -193,6 +198,7 @@ class TestHastexoTasks(TestCase):
         # Assertions
         self.assertEqual(res["status"], "CREATE_COMPLETE")
         self.assertEqual(res["provider"], self.providers[0]["name"])
+        self.assertEqual(self.get_stack("provider"), self.providers[0]["name"])
         self.assertEqual(res["error_msg"], "")
         heat.stacks.create.assert_called_with(
             stack_name=self.stack_name,
@@ -220,6 +226,7 @@ class TestHastexoTasks(TestCase):
         # Assertions
         self.assertEqual(res["status"], "CREATE_COMPLETE")
         self.assertEqual(res["provider"], self.providers[1]["name"])
+        self.assertEqual(self.get_stack("provider"), self.providers[1]["name"])
         self.assertEqual(res["error_msg"], "")
         heat.stacks.create.assert_called_with(
             stack_name=self.stack_name,
@@ -256,6 +263,7 @@ class TestHastexoTasks(TestCase):
         # Assertions
         self.assertEqual(res["status"], "CREATE_COMPLETE")
         self.assertEqual(res["provider"], self.providers[1]["name"])
+        self.assertEqual(self.get_stack("provider"), self.providers[1]["name"])
         self.assertEqual(res["error_msg"], "")
         heat.stacks.create.assert_called_with(
             stack_name=self.stack_name,
@@ -285,6 +293,7 @@ class TestHastexoTasks(TestCase):
         # Assertions
         self.assertEqual(res["status"], "CREATE_FAILED")
         self.assertEqual(res["provider"], "")
+        self.assertEqual(self.get_stack("provider"), "")
         heat = self.get_heat_client_mock()
         heat.stacks.create.assert_not_called()
 
@@ -307,6 +316,7 @@ class TestHastexoTasks(TestCase):
         # Assertions
         self.assertEqual(res["status"], "CREATE_COMPLETE")
         self.assertEqual(res["provider"], self.providers[1]["name"])
+        self.assertEqual(self.get_stack("provider"), self.providers[1]["name"])
         self.assertNotEqual(res["error_msg"], None)
         heat.stacks.create.assert_called_with(
             stack_name=self.stack_name,
@@ -332,6 +342,7 @@ class TestHastexoTasks(TestCase):
         # Assertions
         self.assertEqual(res["status"], "LAUNCH_TIMEOUT")
         self.assertEqual(res["provider"], "")
+        self.assertEqual(self.get_stack("provider"), "")
 
     def test_create_failure_on_all_providers(self):
         # Setup
@@ -356,6 +367,7 @@ class TestHastexoTasks(TestCase):
         self.assertEqual(res["status"], "CREATE_FAILED")
         self.assertNotEqual(res["error_msg"], "")
         self.assertEqual(res["provider"], "")
+        self.assertEqual(self.get_stack("provider"), "")
         heat.stacks.create.assert_called_with(
             stack_name=self.stack_name,
             template=self.stack_template,
@@ -430,6 +442,7 @@ class TestHastexoTasks(TestCase):
         # Assertions
         self.assertEqual(res["status"], "RESUME_COMPLETE")
         self.assertEqual(res["provider"], self.providers[1]["name"])
+        self.assertEqual(self.get_stack("provider"), self.providers[1]["name"])
         heat.actions.resume.assert_called_with(
             stack_id=self.stacks["SUSPEND_COMPLETE"].id
         )
@@ -456,6 +469,7 @@ class TestHastexoTasks(TestCase):
         # Assertions
         self.assertEqual(res["status"], "RESUME_COMPLETE")
         self.assertEqual(res["provider"], self.providers[2]["name"])
+        self.assertEqual(self.get_stack("provider"), self.providers[2]["name"])
         heat.actions.resume.assert_called_with(
             stack_id=self.stacks["SUSPEND_COMPLETE"].id
         )

@@ -14,7 +14,7 @@ from .models import Stack
 from .heat import HeatWrapper
 from .nova import NovaWrapper
 from .utils import (OCCUPANCY_STATES, get_xblock_settings, get_credentials,
-                    get_stack)
+                    get_stack, update_stack)
 
 logger = get_task_logger(__name__)
 
@@ -90,11 +90,17 @@ class LaunchStackTask(Task):
 
         return stack_data
 
-    def stack_get(self, prop=None):
+    def get_stack(self, prop=None):
         return get_stack(self.stack_name,
                          self.course_id,
                          self.student_id,
                          prop)
+
+    def update_stack(self, data):
+        return update_stack(self.stack_name,
+                            self.course_id,
+                            self.student_id,
+                            data)
 
     def sleep(self):
         time.sleep(self.sleep_seconds)
@@ -145,7 +151,7 @@ class LaunchStackTask(Task):
         logger.info("Launching stack [%s]." % self.stack_name)
 
         # Fetch stack information from the database
-        stack = self.stack_get()
+        stack = self.get_stack()
 
         if stack.provider:
             if self.reset:
@@ -202,9 +208,11 @@ class LaunchStackTask(Task):
 
             # Launch stack in provider.  If successful, don't continue trying.
             try:
+                self.update_stack({"provider": provider["name"]})
                 stack_data = self.try_provider(provider["name"])
                 break
             except LaunchStackFailed as e:
+                self.update_stack({"provider": ""})
                 # If this is the last provider, or it was a timeout, re-raise
                 # the exception and let the parent clean up.
                 if (index == (len(self.providers) - 1) or
