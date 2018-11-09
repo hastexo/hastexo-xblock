@@ -4,6 +4,7 @@ import uuid
 import paramiko
 import traceback
 
+from django.db import transaction
 from celery import Task
 from celery.utils.log import get_task_logger
 from celery.exceptions import SoftTimeLimitExceeded
@@ -14,7 +15,7 @@ from .models import Stack
 from .heat import HeatWrapper
 from .nova import NovaWrapper
 from .utils import (OCCUPANCY_STATES, get_xblock_settings, get_credentials,
-                    get_stack, update_stack)
+                    update_stack)
 
 logger = get_task_logger(__name__)
 
@@ -90,12 +91,6 @@ class LaunchStackTask(Task):
 
         return stack_data
 
-    def get_stack(self, prop=None):
-        return get_stack(self.stack_name,
-                         self.course_id,
-                         self.student_id,
-                         prop)
-
     def update_stack(self, data):
         return update_stack(self.stack_name,
                             self.course_id,
@@ -150,8 +145,14 @@ class LaunchStackTask(Task):
         """
         logger.info("Launching stack [%s]." % self.stack_name)
 
-        # Fetch stack information from the database
-        stack = self.get_stack()
+        # Fetch stack information from the database, but do so atomically to
+        # make sure the original request had a chance to commit.
+        with transaction.atomic():
+            stack, _ = Stack.objects.select_for_update().get(
+                student_id=self.student_id,
+                course_id=self.course_id,
+                name=self.stack_name
+            )
 
         if stack.provider:
             if self.reset:
