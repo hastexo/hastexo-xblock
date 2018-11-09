@@ -372,6 +372,7 @@ class HastexoXBlock(XBlock,
 
         # Update stack
         stack.status = LAUNCH_STATE
+        stack.error_msg = ""
         stack.launch_task_id = result.id
         stack.launch_timestamp = timezone.now()
 
