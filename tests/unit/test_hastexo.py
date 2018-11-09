@@ -378,67 +378,6 @@ class TestHastexoXBlock(TestCase):
         self.assertEqual(result, mock_result.result)
         self.assertTrue(mock_launch_stack_task.called)
 
-    def test_reset_race_condition_a(self):
-        self.init_block()
-
-        suspend_timeout = DEFAULT_SETTINGS.get("suspend_timeout")
-        timedelta = timezone.timedelta(seconds=(suspend_timeout - 1))
-        suspend_timestamp = timezone.now() - timedelta
-        self.update_stack({
-            "suspend_timestamp": suspend_timestamp,
-            "status": 'RESUME_COMPLETE',
-            "launch_task_id": 'PENDING'
-        })
-
-        mock_launch_stack_task = Mock()
-        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
-
-        with patch.multiple(
-                self.block,
-                launch_stack_task=mock_launch_stack_task,
-                read_from_contentstore=mock_read_from_contentstore):
-            data = {
-                "initialize": True,
-                "reset": True
-            }
-            result = self.call_handler("get_user_stack_status", data)
-
-        self.assertFalse(mock_launch_stack_task.called)
-        self.assertEqual(result, {"status": "LAUNCH_PENDING"})
-
-    def test_reset_race_condition_b(self):
-        self.init_block()
-
-        suspend_timeout = DEFAULT_SETTINGS.get("suspend_timeout")
-        timedelta = timezone.timedelta(seconds=(suspend_timeout - 1))
-        suspend_timestamp = timezone.now() - timedelta
-        self.update_stack({
-            "suspend_timestamp": suspend_timestamp,
-            "status": 'RESUME_COMPLETE',
-            "launch_task_id": 'bogus_task_id'
-        })
-
-        mock_launch_stack_task = Mock()
-        mock_result = Mock()
-        mock_result.id = 'bogus_task_id'
-        mock_result.ready.return_value = False
-        mock_launch_stack_task_result = Mock(return_value=mock_result)
-        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
-
-        with patch.multiple(
-                self.block,
-                launch_stack_task=mock_launch_stack_task,
-                launch_stack_task_result=mock_launch_stack_task_result,
-                read_from_contentstore=mock_read_from_contentstore):
-            data = {
-                "initialize": True,
-                "reset": True
-            }
-            result = self.call_handler("get_user_stack_status", data)
-
-        self.assertFalse(mock_launch_stack_task.called)
-        self.assertEqual(result, {"status": "LAUNCH_PENDING"})
-
     def test_get_check_status(self):
         self.init_block()
         mock_result = Mock()

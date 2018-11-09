@@ -372,38 +372,17 @@ class HastexoXBlock(XBlock,
             }
             launch_timeout = settings.get("launch_timeout")
 
-            # To avoid race conditions between simultaneous requests, make sure
-            # there isn't already a launch task in flight.
-            result = None
-            launch_task_id = self.get_stack("launch_task_id")
-            if launch_task_id:
-                logger.info('Found launch task [%s] in flight for [%s]' % (
-                    launch_task_id, self.stack_name))
+            # Run
+            result = self.launch_stack_task(launch_timeout, kwargs)
 
-                if launch_task_id != "PENDING":
-                    result = self.launch_stack_task_result(launch_task_id)
-                else:
-                    # We're in a race condition
-                    logger.info('Race condition launching [%s]' % (
-                        self.stack_name))
-            else:
-                # Lock the task ASAP
-                self.update_stack({
-                    "status": LAUNCH_STATE,
-                    "launch_task_id": "PENDING"
-                })
+            self.update_stack({
+                "status": LAUNCH_STATE,
+                "launch_task_id": result.id,
+                "launch_timestamp": timezone.now()
+            })
 
-                # Run
-                result = self.launch_stack_task(launch_timeout, kwargs)
-
-                # Save task ID and timestamp
-                self.update_stack({
-                    "launch_task_id": result.id,
-                    "launch_timestamp": timezone.now()
-                })
-
-                logger.info('Fired async launch task [%s] for [%s]' % (
-                    result.id, self.stack_name))
+            logger.info('Fired async launch task [%s] for [%s]' % (
+                result.id, self.stack_name))
 
             return result
 
@@ -494,8 +473,11 @@ class HastexoXBlock(XBlock,
             # Stack is still LAUNCH_STATE since last check.
             if current_status == LAUNCH_STATE:
                 # Calculate time since launch
+                time_since_launch = 0
                 launch_timestamp = self.get_stack("launch_timestamp")
-                time_since_launch = (timezone.now() - launch_timestamp).seconds
+                if launch_timestamp:
+                    time_since_launch = (timezone.now() -
+                                         launch_timestamp).seconds
                 launch_timeout = settings.get("launch_timeout")
 
                 # Check if the pending task hasn't timed out.
