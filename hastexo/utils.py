@@ -106,7 +106,7 @@ def get_credentials(settings, provider):
 
 
 def update_stack(name, course_id, student_id, data):
-    stack, _ = Stack.objects.get_or_create(
+    stack = Stack.objects.get(
         student_id=student_id,
         course_id=course_id,
         name=name
@@ -122,7 +122,7 @@ def update_stack_fields(stack, data):
 
 
 def get_stack(name, course_id, student_id, prop=None):
-    stack, _ = Stack.objects.get_or_create(
+    stack = Stack.objects.get(
         student_id=student_id,
         course_id=course_id,
         name=name
