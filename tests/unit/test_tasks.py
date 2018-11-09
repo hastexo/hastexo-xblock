@@ -2,7 +2,7 @@ from unittest import TestCase
 from mock import Mock, patch
 from heatclient.exc import HTTPNotFound
 from hastexo.models import Stack
-from hastexo.utils import get_stack, update_stack
+from hastexo.utils import get_stack, update_stack, update_stack_fields
 from hastexo.tasks import (LaunchStackTask, CheckStudentProgressTask,
                            PING_COMMAND)
 from celery.exceptions import SoftTimeLimitExceeded
@@ -21,6 +21,14 @@ class TestHastexoTasks(TestCase):
 
     def update_stack(self, data):
         update_stack(self.stack_name, self.course_id, self.student_id, data)
+
+    def create_stack(self, name, course_id, student_id, data):
+        stack, _ = Stack.objects.get_or_create(
+            student_id=student_id,
+            course_id=course_id,
+            name=name)
+        update_stack_fields(stack, data)
+        stack.save()
 
     def setUp(self):
         self.stack_name = "bogus_stack_name"
@@ -116,10 +124,14 @@ class TestHastexoTasks(TestCase):
         Stack.objects.all().delete()
 
         # Create stack in the database
-        self.update_stack({
-            "protocol": self.stack_protocol,
-            "port": self.stack_port
-        })
+        stack, _ = Stack.objects.get_or_create(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            name=self.stack_name,
+            protocol=self.stack_protocol,
+            port=self.stack_port
+        )
+        stack.save()
 
         # Patchers
         patchers = {
@@ -190,7 +202,7 @@ class TestHastexoTasks(TestCase):
         for i in range(0, 10):
             name = "stack_%d" % i
             student_id = "student_%d" % i
-            update_stack(name, self.course_id, student_id, data)
+            self.create_stack(name, self.course_id, student_id, data)
 
         # Run
         res = LaunchStackTask().run(**self.kwargs)
@@ -255,7 +267,7 @@ class TestHastexoTasks(TestCase):
         for i in range(0, capacity):
             name = "stack_%d" % i
             student_id = "student_%d" % i
-            update_stack(name, self.course_id, student_id, data)
+            self.create_stack(name, self.course_id, student_id, data)
 
         # Run
         res = LaunchStackTask().run(**self.kwargs)
@@ -284,7 +296,7 @@ class TestHastexoTasks(TestCase):
             for j in range(0, capacity):
                 name = "stack_%d_%d" % (i, j)
                 student_id = "student_%d_%d" % (i, j)
-                update_stack(name, self.course_id, student_id, data)
+                self.create_stack(name, self.course_id, student_id, data)
         self.kwargs["providers"] = self.providers
 
         # Run

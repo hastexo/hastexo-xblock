@@ -148,7 +148,7 @@ class LaunchStackTask(Task):
         # Fetch stack information from the database, but do so atomically to
         # make sure the original request had a chance to commit.
         with transaction.atomic():
-            stack, _ = Stack.objects.select_for_update().get(
+            stack = Stack.objects.select_for_update().get(
                 student_id=self.student_id,
                 course_id=self.course_id,
                 name=self.stack_name

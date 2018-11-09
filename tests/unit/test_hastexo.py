@@ -1,5 +1,6 @@
 import time
 import json
+from hastexo.models import Stack
 from hastexo.hastexo import HastexoXBlock
 from hastexo.utils import DEFAULT_SETTINGS, get_stack, update_stack
 
@@ -55,6 +56,16 @@ class TestHastexoXBlock(TestCase):
 
         # Set on student view
         self.block.stack_name = "bogus_stack"
+
+        # Clear database
+        Stack.objects.all().delete()
+
+        # Create stack
+        course_id, student_id = self.block.get_block_ids()
+        stack, _ = Stack.objects.get_or_create(
+            student_id=student_id,
+            course_id=course_id,
+            name=self.block.stack_name)
 
     def setUp(self):
         block_type = 'hastexo'

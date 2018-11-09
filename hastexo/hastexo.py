@@ -262,18 +262,25 @@ class HastexoXBlock(XBlock,
             self.runtime.local_resource_url(self, 'public/js/main.js')
         )
 
-        # Set the port
-        port = None
-        if len(self.stack_ports) > 0:
-            port = self.get_stack("port")
-            if not port or port not in self.stack_ports:
-                port = self.stack_ports[0]
+        # Create the stack in the database
+        with transaction.atomic():
+            stack, _ = Stack.objects.select_for_update().get_or_create(
+                student_id=anonymous_student_id,
+                course_id=course_id,
+                name=self.stack_name
+            )
 
-        # Update stack info in the database
-        self.update_stack({
-            "protocol": self.stack_protocol,
-            "port": port
-        })
+            # Set the port
+            port = None
+            if len(self.stack_ports) > 0:
+                port = stack.port
+                if not port or port not in self.stack_ports:
+                    port = self.stack_ports[0]
+
+            # Save
+            stack.protocol = self.stack_protocol
+            stack.port = port
+            stack.save(update_fields=["protocol", "port"])
 
         # Call the JS initialization function
         frag.initialize_js('HastexoXBlock', {
