@@ -15,7 +15,7 @@ from django.utils import timezone
 from .models import Stack
 from .utils import (UP_STATES, LAUNCH_STATE, LAUNCH_ERROR_STATE, SETTINGS_KEY,
                     get_xblock_settings, get_stack, update_stack,
-                    update_stack_atomic)
+                    update_stack_fields)
 from .tasks import LaunchStackTask, CheckStudentProgressTask
 
 logger = logging.getLogger(__name__)
@@ -394,7 +394,7 @@ class HastexoXBlock(XBlock,
                 self.stack_provider = data.get("provider", "")
 
                 # Save status to the database
-                update_stack_atomic(stack, data)
+                update_stack_fields(stack, data)
             else:
                 raise LaunchError(repr(result.result))
 
@@ -422,7 +422,7 @@ class HastexoXBlock(XBlock,
         }
 
         # Save status
-        update_stack_atomic(stack, data)
+        update_stack_fields(stack, data)
 
         return data
 
