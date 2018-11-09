@@ -58,7 +58,7 @@ class SuspenderJob(AbstractJob):
 
             for stack in stacks:
                 stack.status = SUSPEND_STATE
-                stack.save()
+                stack.save(update_fields=["status"])
 
         # Suspend them
         if self.settings.get("suspend_in_parallel", True):
@@ -96,7 +96,7 @@ class SuspenderJob(AbstractJob):
 
             # Save status
             stack.status = SUSPEND_ISSUED_STATE
-            stack.save()
+            stack.save(update_fields=["status"])
         else:
             self.log("Cannot suspend stack [%s] with status [%s]." %
                      (stack.name, heat_status))
@@ -108,7 +108,7 @@ class SuspenderJob(AbstractJob):
             else:
                 stack.status = heat_status
 
-            stack.save()
+            stack.save(update_fields=["status"])
 
 
 class ReaperJob(AbstractJob):
@@ -143,7 +143,7 @@ class ReaperJob(AbstractJob):
 
             for stack in stacks:
                 stack.status = DELETE_STATE
-                stack.save()
+                stack.save(update_fields=["status"])
 
         # Delete them
         for stack in stacks:
@@ -178,7 +178,7 @@ class ReaperJob(AbstractJob):
             else:
                 stack.status = heat_stack.stack_status
 
-            stack.save()
+            stack.save(update_fields=["status"])
 
         update_stack_status()
         retry = 0
@@ -198,7 +198,7 @@ class ReaperJob(AbstractJob):
             elif retry >= retries:
                 self.log("Stack [%s] deletion failed." % stack.name)
                 stack.status = DELETE_FAILED_STATE
-                stack.save()
+                stack.save(update_fields=["status"])
             elif stack.status != DELETE_IN_PROGRESS_STATE:
 
                 attempt += 1
@@ -211,4 +211,4 @@ class ReaperJob(AbstractJob):
                     heat_client.stacks.delete(stack_id=stack.name)
                     stack.status = DELETE_IN_PROGRESS_STATE
 
-                stack.save()
+                stack.save(update_fields=["status"])
