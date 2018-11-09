@@ -101,6 +101,32 @@ class TestHastexoXBlock(TestCase):
         self.assertEqual(result, mock_result.result)
         self.assertTrue(mock_launch_stack_task.called)
 
+    def test_get_user_stack_status_pending(self):
+        self.init_block()
+
+        mock_result = Mock()
+        mock_result.id = 'bogus_task_id'
+        mock_result.ready.return_value = False
+        mock_launch_stack_task_result = Mock(return_value=mock_result)
+        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
+        self.update_stack({
+            "status": 'LAUNCH_PENDING',
+            "launch_task_id": 'bogus_task_id'
+        })
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task_result=mock_launch_stack_task_result,
+                read_from_contentstore=mock_read_from_contentstore):
+            data = {
+                "initialize": False,
+                "reset": False
+            }
+            result = self.call_handler("get_user_stack_status", data)
+
+        self.assertEqual(result, {"status": "LAUNCH_PENDING"})
+        self.assertTrue(mock_launch_stack_task_result.called)
+
     def test_launch_task_id_cleared_on_task_success(self):
         self.init_block()
 

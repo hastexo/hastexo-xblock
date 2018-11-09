@@ -9,10 +9,13 @@ from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 from xblockutils.settings import XBlockWithSettingsMixin
 
+from django.db import transaction
 from django.utils import timezone
 
+from .models import Stack
 from .utils import (UP_STATES, LAUNCH_STATE, LAUNCH_ERROR_STATE, SETTINGS_KEY,
-                    get_xblock_settings, update_stack, get_stack)
+                    get_xblock_settings, get_stack, update_stack,
+                    update_stack_atomic)
 from .tasks import LaunchStackTask, CheckStudentProgressTask
 
 logger = logging.getLogger(__name__)
@@ -293,9 +296,6 @@ class HastexoXBlock(XBlock,
         course_id, student_id = self.get_block_ids()
         return get_stack(self.stack_name, course_id, student_id, prop)
 
-    def reset_suspend_timestamp(self):
-        self.update_stack({"suspend_timestamp": timezone.now()})
-
     def launch_stack_task(self, soft_time_limit, kwargs):
         task = LaunchStackTask()
         time_limit = soft_time_limit + 30
@@ -311,141 +311,135 @@ class HastexoXBlock(XBlock,
     def launch_stack_task_result(self, task_id):
         return LaunchStackTask().AsyncResult(task_id)
 
-    @XBlock.json_handler
-    def get_user_stack_status(self, request_data, suffix=''):
-        settings = get_xblock_settings()
-        course_id, student_id = self.get_block_ids()
+    def launch_stack(self, stack, settings, reset=False):
+        stack_template = self.read_from_contentstore(self.stack_template_path)
+        if stack_template is None:
+            raise LaunchError("Stack template file not found.")
 
-        def _launch_stack(reset=False):
-            stack_template = self.read_from_contentstore(
-                self.stack_template_path)
-            if stack_template is None:
-                raise LaunchError("Stack template file not found.")
+        providers = []
+        if len(self.providers):
+            for provider in self.providers:
+                p = dict(provider)
+                env_path = p.get("environment")
+                p["environment"] = self.read_from_contentstore(env_path)
+                if p["environment"] is None:
+                    logger.info('Provider environment file for [%s]'
+                                'not found.' % p["name"])
 
-            providers = []
-            if len(self.providers):
-                for provider in self.providers:
-                    p = dict(provider)
-                    env_path = p.get("environment")
-                    p["environment"] = self.read_from_contentstore(env_path)
-                    if p["environment"] is None:
-                        logger.info('Provider environment file for [%s]'
-                                    'not found.' % p["name"])
+                providers.append(p)
+        # For backward compatibility
+        elif self.provider:
+            providers.append({
+                "name": self.provider,
+                "capacity": -1,
+                "environment": None
+            })
+        # No providers have been configured.  Use the "default" one if it
+        # exists, or the first one if not.
+        else:
+            configured_providers = settings.get("providers", {})
+            provider_name = None
+            if configured_providers.get("default"):
+                provider_name = "default"
+            else:
+                try:
+                    provider_name = configured_providers.iterkeys().next()
+                except StopIteration:
+                    pass
 
-                    providers.append(p)
-            # For backward compatibility
-            elif self.provider:
+            if provider_name:
                 providers.append({
-                    "name": self.provider,
+                    "name": provider_name,
                     "capacity": -1,
                     "environment": None
                 })
-            # No providers have been configured.  Use the "default" one if it
-            # exists, or the first one if not.
+
+        course_id, student_id = self.get_block_ids()
+        kwargs = {
+            "providers": providers,
+            "stack_template": stack_template,
+            "stack_run": self.stack_run,
+            "stack_name": self.stack_name,
+            "stack_user_name": self.stack_user_name,
+            "course_id": str(course_id),
+            "student_id": student_id,
+            "reset": reset
+        }
+        launch_timeout = settings.get("launch_timeout")
+
+        # Run
+        result = self.launch_stack_task(launch_timeout, kwargs)
+
+        # Update stack
+        stack.status = LAUNCH_STATE
+        stack.launch_task_id = result.id
+        stack.launch_timestamp = timezone.now()
+
+        logger.info('Fired async launch task [%s] for [%s]' % (
+            result.id, self.stack_name))
+
+        return result
+
+    def process_stack_result(self, stack, result):
+        if result and result.ready():
+            # Clear launch task ID from the database
+            stack.launch_task_id = ""
+
+            if (result.successful() and
+                    isinstance(result.result, dict) and not
+                    result.result.get('error')):
+                data = result.result
+
+                # Sync current provider
+                self.stack_provider = data.get("provider", "")
+
+                # Save status to the database
+                update_stack_atomic(stack, data)
             else:
-                configured_providers = settings.get("providers", {})
-                provider_name = None
-                if configured_providers.get("default"):
-                    provider_name = "default"
-                else:
-                    try:
-                        provider_name = configured_providers.iterkeys().next()
-                    except StopIteration:
-                        pass
+                raise LaunchError(repr(result.result))
 
-                if provider_name:
-                    providers.append({
-                        "name": provider_name,
-                        "capacity": -1,
-                        "environment": None
-                    })
+        else:
+            data = {"status": LAUNCH_STATE}
 
-            kwargs = {
-                "providers": providers,
-                "stack_template": stack_template,
-                "stack_run": self.stack_run,
-                "stack_name": self.stack_name,
-                "stack_user_name": self.stack_user_name,
-                "course_id": str(course_id),
-                "student_id": student_id,
-                "reset": reset
-            }
-            launch_timeout = settings.get("launch_timeout")
+        return data
 
-            # Run
-            result = self.launch_stack_task(launch_timeout, kwargs)
+    def process_stack_data(self, stack):
+        data = {
+            "status": stack.status,
+            "error_msg": stack.error_msg,
+            "ip": stack.ip,
+            "user": stack.user,
+            "key": stack.key,
+            "password": stack.password
+        }
 
-            self.update_stack({
-                "status": LAUNCH_STATE,
-                "launch_task_id": result.id,
-                "launch_timestamp": timezone.now()
-            })
+        return data
 
-            logger.info('Fired async launch task [%s] for [%s]' % (
-                result.id, self.stack_name))
+    def process_stack_error(self, stack, error_msg):
+        data = {
+            "status": LAUNCH_ERROR_STATE,
+            "error_msg": error_msg
+        }
 
-            return result
+        # Save status
+        update_stack_atomic(stack, data)
 
-        def _process_result(result):
-            if result and result.ready():
-                # Clear launch task ID from the database
-                self.update_stack({"launch_task_id": ""})
+        return data
 
-                if (result.successful() and
-                        isinstance(result.result, dict) and not
-                        result.result.get('error')):
-                    data = result.result
-
-                    # Sync current provider
-                    self.stack_provider = data.get("provider", "")
-
-                    # Save status to the database
-                    self.update_stack(data)
-                else:
-                    raise LaunchError(repr(result.result))
-
-            else:
-                data = {"status": LAUNCH_STATE}
-
-            return data
-
-        def _process_stack_data():
-            stack = self.get_stack()
-            data = {
-                "status": stack.status,
-                "error_msg": stack.error_msg,
-                "ip": stack.ip,
-                "user": stack.user,
-                "key": stack.key,
-                "password": stack.password
-            }
-
-            return data
-
-        def _process_error(error_msg):
-            data = {
-                "status": LAUNCH_ERROR_STATE,
-                "error_msg": error_msg
-            }
-
-            # Save status
-            self.update_stack(data)
-
-            return data
+    def get_user_stack_status_atomic(self, stack, request_data):
+        settings = get_xblock_settings()
+        initialize = request_data.get("initialize", False)
+        reset = request_data.get("reset", False)
 
         # Calculate the time since the suspend timer was last reset.
         suspend_timeout = settings.get("suspend_timeout")
-        suspend_timestamp = self.get_stack("suspend_timestamp")
+        suspend_timestamp = stack.suspend_timestamp
         time_since_suspend = 0
         if suspend_timeout and suspend_timestamp:
             time_since_suspend = (timezone.now() - suspend_timestamp).seconds
 
-        # Request type
-        initialize = request_data.get("initialize", False)
-        reset = request_data.get("reset", False)
-
         # Get the last stack status
-        prev_status = self.get_stack("status")
+        prev_status = stack.status
 
         # No last stack status: this is the first time
         # the user launches this stack.
@@ -453,20 +447,20 @@ class HastexoXBlock(XBlock,
             logger.info('Launching stack [%s] '
                         'for the first time.' % (self.stack_name))
             try:
-                result = _launch_stack(reset)
-                stack_data = _process_result(result)
+                result = self.launch_stack(stack, settings, reset)
+                stack_data = self.process_stack_result(stack, result)
             except LaunchError as e:
-                stack_data = _process_error(e.error_msg)
+                stack_data = self.process_stack_error(stack, e.error_msg)
 
         # There was a previous attempt at launching the stack
         elif prev_status == LAUNCH_STATE:
             # Update task result
-            launch_task_id = self.get_stack("launch_task_id")
+            launch_task_id = stack.launch_task_id
             result = self.launch_stack_task_result(launch_task_id)
             try:
-                stack_data = _process_result(result)
+                stack_data = self.process_stack_result(stack, result)
             except LaunchError as e:
-                stack_data = _process_error(e.error_msg)
+                stack_data = self.process_stack_error(stack, e.error_msg)
 
             current_status = stack_data.get("status")
 
@@ -474,7 +468,7 @@ class HastexoXBlock(XBlock,
             if current_status == LAUNCH_STATE:
                 # Calculate time since launch
                 time_since_launch = 0
-                launch_timestamp = self.get_stack("launch_timestamp")
+                launch_timestamp = stack.launch_timestamp
                 if launch_timestamp:
                     time_since_launch = (timezone.now() -
                                          launch_timestamp).seconds
@@ -496,18 +490,19 @@ class HastexoXBlock(XBlock,
                         logger.info('Launch timeout detected on reset. '
                                     'Resetting stack [%s]' % (self.stack_name))
                     try:
-                        result = _launch_stack(reset)
-                        stack_data = _process_result(result)
+                        result = self.launch_stack(stack, settings, reset)
+                        stack_data = self.process_stack_result(stack, result)
                     except LaunchError as e:
-                        stack_data = _process_error(e.error_msg)
+                        stack_data = self.process_stack_error(stack,
+                                                              e.error_msg)
                 else:
                     # Timeout reached.  Consider the task a failure and let the
                     # user retry manually.
                     logger.error('Launch timeout reached for [%s] '
                                  'after %s seconds' % (self.stack_name,
                                                        time_since_launch))
-                    stack_data = _process_error("Timeout when launching "
-                                                "or resuming stack.")
+                    error_msg = "Timeout when launching or resuming stack."
+                    stack_data = self.process_stack_error(stack, error_msg)
 
             # Stack changed from LAUNCH_STATE to COMPLETE.
             elif current_status in UP_STATES:
@@ -519,10 +514,11 @@ class HastexoXBlock(XBlock,
                         logger.info('Stack [%s] may have suspended. '
                                     'Relaunching.' % (self.stack_name))
                     try:
-                        result = _launch_stack(reset)
-                        stack_data = _process_result(result)
+                        result = self.launch_stack(stack, settings, reset)
+                        stack_data = self.process_stack_result(stack, result)
                     except LaunchError as e:
-                        stack_data = _process_error(e.error_msg)
+                        stack_data = self.process_stack_error(stack,
+                                                              e.error_msg)
 
                 # The stack couldn't have been suspended, yet.
                 else:
@@ -541,10 +537,10 @@ class HastexoXBlock(XBlock,
                     logger.info('Retrying previously failed '
                                 'stack [%s].' % (self.stack_name))
                 try:
-                    result = _launch_stack(reset)
-                    stack_data = _process_result(result)
+                    result = self.launch_stack(stack, settings, reset)
+                    stack_data = self.process_stack_result(stack, result)
                 except LaunchError as e:
-                    stack_data = _process_error(e.error_msg)
+                    stack_data = self.process_stack_error(stack, e.error_msg)
 
             # Detected a failed launch attempt.
             # Report the error and let the user retry manually.
@@ -563,16 +559,16 @@ class HastexoXBlock(XBlock,
                     logger.info('Stack [%s] may have suspended. '
                                 'Relaunching.' % (self.stack_name))
                 try:
-                    result = _launch_stack(reset)
-                    stack_data = _process_result(result)
+                    result = self.launch_stack(stack, settings, reset)
+                    stack_data = self.process_stack_result(stack, result)
                 except LaunchError as e:
-                    stack_data = _process_error(e.error_msg)
+                    stack_data = self.process_stack_error(stack, e.error_msg)
 
             else:
                 logger.info('Successful launch detected for [%s], '
                             'with status [%s]' % (self.stack_name,
                                                   prev_status))
-                stack_data = _process_stack_data()
+                stack_data = self.process_stack_data(stack)
 
         # Detected a failed launch attempt, but the user just entered the page,
         # or requested a retry or reset, so start from scratch.
@@ -583,10 +579,10 @@ class HastexoXBlock(XBlock,
                 logger.info('Retrying previously failed '
                             'stack [%s].' % (self.stack_name))
             try:
-                result = _launch_stack(reset)
-                stack_data = _process_result(result)
+                result = self.launch_stack(stack, settings, reset)
+                stack_data = self.process_stack_result(stack, result)
             except LaunchError as e:
-                stack_data = _process_error(e.error_msg)
+                stack_data = self.process_stack_error(e.error_msg)
 
         # Detected a failed launch attempt.  Report the error and let the user
         # retry manually.
@@ -594,17 +590,32 @@ class HastexoXBlock(XBlock,
             logger.error('Failed launch detected for [%s], '
                          'with status [%s]' % (self.stack_name,
                                                prev_status))
-            stack_data = _process_stack_data()
+            stack_data = self.process_stack_data(stack)
 
         # Reset the dead man's switch
-        self.reset_suspend_timestamp()
+        stack.suspend_timestamp = timezone.now()
+
+        return stack_data
+
+    @XBlock.json_handler
+    def get_user_stack_status(self, request_data, suffix=''):
+        course_id, student_id = self.get_block_ids()
+
+        with transaction.atomic():
+            stack, _ = Stack.objects.select_for_update().get_or_create(
+                student_id=student_id,
+                course_id=course_id,
+                name=self.stack_name
+            )
+            stack_data = self.get_user_stack_status_atomic(stack, request_data)
+            stack.save()
 
         return stack_data
 
     @XBlock.json_handler
     def keepalive(self, data, suffix=''):
         # Reset the dead man's switch
-        self.reset_suspend_timestamp()
+        self.update_stack({"suspend_timestamp": timezone.now()})
 
     def check_progress_task(self, soft_time_limit, **kwargs):
         task = CheckStudentProgressTask()
