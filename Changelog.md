@@ -1,3 +1,14 @@
+Version 2.5.2 (2018-11-09)
+---------------------------
+
+* [Enhancement] Don't create records implicitly
+* [Bug fix] Wait for commit on LaunchStackTask()
+* [Bug fix] Reset `error_msg` on stack launch
+* [Bug fix] Only update necessary fields
+* [Bug fix] Update provider in real time
+* [Bug fix] Implement proper locking of `get_user_stack_status`
+* [Bug fix] Roll back race condition check
+
 Version 2.5.1 (2018-11-07)
 ---------------------------
 
