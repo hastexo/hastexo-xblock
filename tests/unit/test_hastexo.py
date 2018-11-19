@@ -1,5 +1,6 @@
 import time
 import json
+import textwrap
 from hastexo.models import Stack
 from hastexo.hastexo import HastexoXBlock
 from hastexo.utils import DEFAULT_SETTINGS, get_stack, update_stack
@@ -11,6 +12,7 @@ from django.utils import timezone
 from workbench.runtime import WorkbenchRuntime
 from xblock.fields import ScopeIds
 from xblock.runtime import KvsFieldData, DictKeyValueStore
+from xblock.test.test_parsing import XmlTest
 
 
 def make_request(data, method='POST'):
@@ -23,6 +25,43 @@ def make_request(data, method='POST'):
     request.body = json.dumps(data).encode('utf-8') if data is not None else ""
     request.method = method
     return request
+
+
+class TestHastexoXBlockParsing(XmlTest, TestCase):
+    def test_parsing_deprecated(self):
+        block = self.parse_xml_to_block(textwrap.dedent("""\
+    <?xml version='1.0' encoding='utf-8'?>
+    <hastexo
+      stack_template_path='hot_lab.yaml'
+      stack_user_name='training'
+      stack_protocol='rdp'>
+      <provider name='provider1' capacity='20' environment='hot_env1.yaml' />
+      <provider name='provider2' capacity='30' environment='hot_env2.yaml' />
+      <provider name='provider3' capacity='0' environment='hot_env3.yaml' />
+      <port name='server1' number='3389' />
+      <port name='server2' number='3390' />
+      <test>
+        #!/bin/bash
+        # Check for login on vm1
+        logins=$(ssh vm1 last root | grep root | wc -l)
+        [ $logins -ge 1 ] || exit 1
+        exit 0
+      </test>
+    </hastexo>
+            """).encode('utf-8'))
+
+        self.assertIsInstance(block, HastexoXBlock)
+        self.assertEqual(block.stack_template_path, "hot_lab.yaml")
+        self.assertEqual(block.stack_user_name, "training")
+        self.assertEqual(block.stack_protocol, "rdp")
+        self.assertEqual(len(block.providers), 3)
+        self.assertEqual(block.providers[0]["name"], "provider1")
+        self.assertEqual(block.providers[1]["capacity"], 30)
+        self.assertEqual(block.providers[2]["environment"], "hot_env3.yaml")
+        self.assertEqual(len(block.ports), 2)
+        self.assertEqual(block.ports[0]["number"], 3389)
+        self.assertEqual(block.ports[1]["name"], "server2")
+        self.assertEqual(len(block.tests), 1)
 
 
 class TestHastexoXBlock(TestCase):
@@ -51,6 +90,10 @@ class TestHastexoXBlock(TestCase):
             {"name": "provider1", "capacity": 1, "environment": "env1.yaml"},
             {"name": "provider2", "capacity": 2, "environment": "env2.yaml"},
             {"name": "provider3", "capacity": 0, "environment": "env3.yaml"}
+        ]
+        self.block.ports = [
+            {"name": "server1", "number": 3389},
+            {"name": "server2", "number": 3390}
         ]
         self.block.tests = ["bogus_test"]
 

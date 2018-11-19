@@ -368,15 +368,6 @@ configured with the following attributes:
 * `protocol`: One of 'ssh', 'rdp', or 'vnc'.  This defines the protocol that
   will be used to connect to the environment.  The default is 'ssh'.
 
-* `stack_ports`: (Optional) A list of port numbers the user can choose from.
-  This is intended as a means of providing a way to connect directly to
-  multiple VMs in a lab environment, via port forwarding or proxying at the VM
-  with the public IP address.
-
-* `stack_port_names`: (Optional) A list of user-friendly names that will be
-  shown as a dropdown to the user.  It must match the list of port numbers in
-  both order and number.
-
 You can also use the following nested XML elements:
 
 * `provider`: Reference to an OpenStack provider configured in the platform.
@@ -388,6 +379,12 @@ You can also use the following nested XML elements:
   file specifying template parameters for that provider.  This element must be
   specified at least once, and can be specified multiple times to use one or
   more fallback providers.
+
+* `port`: A port the user can manually choose to connect to.  This is
+  intended as a means of providing a way to connect directly to multiple VMs in
+  a lab environment, via port forwarding or proxying at the VM with the public
+  IP address.  The `name` attribute will be visible to the user.  The `number`
+  attribute specifies the corresponding port.
 
 * `test`: The contents of this element will be run verbatim as a script in the
   user's lab environment, when they click the "Check Progress" button.  As
@@ -402,12 +399,12 @@ For example, in XML:
     url_name="lab_introduction"
     stack_template_path="hot_lab.yaml"
     stack_user_name="training"
-    protocol="rdp"
-    stack_ports="[3389, 3390]"
-    stack_port_names="['server1', 'server2']">
+    protocol="rdp">
     <provider name="provider1" capacity="20" environment="hot_env1.yaml" />
     <provider name="provider2" capacity="30" environment="hot_env2.yaml" />
     <provider name="provider3" capacity="0" environment="hot_env3.yaml" />
+    <port name="server1" number="3389" />
+    <port name="server2" number="3390" />
     <test>
       #!/bin/bash
       # Check for login on vm1

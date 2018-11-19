@@ -28,9 +28,9 @@ function HastexoXBlock(runtime, element, configuration) {
             var select = $(element).find('.buttons .port');
             $.each(configuration.ports, function(i, port) {
                 select.append($('<option>', {
-                    value: port,
-                    text: configuration.port_names[i],
-                    selected: port == configuration.port ? true : false
+                    value: port['number'],
+                    text: port['name'],
+                    selected: port['number'] == configuration.port ? true : false
                 }));
             });
             select.show();

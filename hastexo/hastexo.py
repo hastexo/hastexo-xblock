@@ -63,14 +63,10 @@ class HastexoXBlock(XBlock,
         scope=Scope.settings,
         help="What protocol to use for the connection. "
              "Currently, \"ssh\", \"rdp\", or \"vnc\".")
-    stack_ports = List(
+    ports = List(
         default=[],
         scope=Scope.settings,
         help="What ports are available in the stack.")
-    stack_port_names = List(
-        default=[],
-        scope=Scope.settings,
-        help="Names of ports defined above.")
     # Deprecated in favor or "providers"
     provider = String(
         default="",
@@ -119,8 +115,6 @@ class HastexoXBlock(XBlock,
         'stack_template_path',
         'stack_user_name',
         'stack_protocol',
-        'stack_ports',
-        'stack_port_names',
         'provider')
 
     has_author_view = True
@@ -133,7 +127,7 @@ class HastexoXBlock(XBlock,
     def parse_xml(cls, node, runtime, keys, id_generator):
         block = runtime.construct_xblock_from_class(cls, keys)
 
-        # Find <test> children
+        # Find children
         for child in node:
             if child.tag == "test":
                 text = child.text
@@ -145,6 +139,17 @@ class HastexoXBlock(XBlock,
                 text = textwrap.dedent(text)
 
                 block.tests.append(text)
+            elif child.tag == "port":
+                name = child.attrib["name"]
+                if not name:
+                    raise KeyError("name")
+                number = child.attrib["number"]
+                if not number:
+                    raise KeyError("number")
+                number = int(number)
+                port = {"name": name,
+                        "number": number}
+                block.ports.append(port)
             elif child.tag == "provider":
                 name = child.attrib["name"]
                 if not name:
@@ -272,10 +277,11 @@ class HastexoXBlock(XBlock,
 
             # Set the port
             port = None
-            if len(self.stack_ports) > 0:
+            if len(self.ports) > 0:
+                ports = [p["number"] for p in self.ports]
                 port = stack.port
-                if not port or port not in self.stack_ports:
-                    port = self.stack_ports[0]
+                if not port or port not in ports:
+                    port = self.ports[0]["number"]
 
             # Save
             stack.protocol = self.stack_protocol
@@ -288,8 +294,7 @@ class HastexoXBlock(XBlock,
             "timeouts": settings.get("js_timeouts"),
             "has_tests": len(self.tests) > 0,
             "protocol": self.stack_protocol,
-            "ports": self.stack_ports,
-            "port_names": self.stack_port_names,
+            "ports": self.ports,
             "port": port
         })
 
