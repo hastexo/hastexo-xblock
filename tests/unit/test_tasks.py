@@ -1,6 +1,9 @@
+import ddt
+
 from unittest import TestCase
 from mock import Mock, patch
-from heatclient.exc import HTTPNotFound
+from heatclient import exc as heat_exc
+
 from hastexo.models import Stack
 from hastexo.utils import get_stack, update_stack, update_stack_fields
 from hastexo.tasks import (LaunchStackTask, CheckStudentProgressTask,
@@ -8,6 +11,22 @@ from hastexo.tasks import (LaunchStackTask, CheckStudentProgressTask,
 from celery.exceptions import SoftTimeLimitExceeded
 
 
+HEAT_EXCEPTIONS = [
+    heat_exc.HTTPBadRequest,
+    heat_exc.HTTPUnauthorized,
+    heat_exc.HTTPForbidden,
+    heat_exc.HTTPMethodNotAllowed,
+    heat_exc.HTTPConflict,
+    heat_exc.HTTPOverLimit,
+    heat_exc.HTTPUnsupported,
+    heat_exc.HTTPInternalServerError,
+    heat_exc.HTTPNotImplemented,
+    heat_exc.HTTPBadGateway,
+    heat_exc.HTTPServiceUnavailable
+]
+
+
+@ddt.ddt
 class TestHastexoTasks(TestCase):
     def get_heat_client_mock(self):
         return self.mocks["HeatWrapper"].return_value.get_client.return_value
@@ -155,7 +174,7 @@ class TestHastexoTasks(TestCase):
         # Setup
         heat = self.get_heat_client_mock()
         heat.stacks.get.side_effect = [
-            HTTPNotFound,
+            heat_exc.HTTPNotFound,
             self.stacks["CREATE_IN_PROGRESS"],
             self.stacks["CREATE_IN_PROGRESS"],
             self.stacks["CREATE_COMPLETE"]
@@ -183,11 +202,209 @@ class TestHastexoTasks(TestCase):
                                        username=self.stack_user_name,
                                        pkey=self.stack_key)
 
+    @ddt.data(*HEAT_EXCEPTIONS)
+    def test_heat_error_on_first_provider(self, heat_exception):
+        # Setup
+        heat = self.get_heat_client_mock()
+        heat.stacks.get.side_effect = [
+            heat_exception,
+            heat_exc.HTTPNotFound,
+            self.stacks["CREATE_COMPLETE"]
+        ]
+        heat.stacks.create.return_value = {"stack": {"id": self.stack_name}}
+
+        # Run
+        res = LaunchStackTask().run(**self.kwargs)
+
+        # Assertions
+        self.assertEqual(res["status"], "CREATE_COMPLETE")
+        self.assertEqual(res["provider"], self.providers[1]["name"])
+        self.assertEqual(self.get_stack("provider"), self.providers[1]["name"])
+        self.assertEqual(res["error_msg"], "")
+
+    @ddt.data(*HEAT_EXCEPTIONS)
+    def test_heat_error_on_all_providers(self, heat_exception):
+        # Setup
+        heat = self.get_heat_client_mock()
+        heat.stacks.get.side_effect = [
+            heat_exception,
+            heat_exception,
+            heat_exception
+        ]
+        heat.stacks.create.return_value = {"stack": {"id": self.stack_name}}
+
+        # Run
+        res = LaunchStackTask().run(**self.kwargs)
+
+        # Assertions
+        self.assertEqual(res["status"], "CREATE_FAILED")
+        self.assertNotEqual(res["error_msg"], "")
+
+    @ddt.data(*HEAT_EXCEPTIONS)
+    def test_heat_error_on_create(self, heat_exception):
+        # Setup
+        heat = self.get_heat_client_mock()
+        heat.stacks.get.side_effect = [
+            heat_exc.HTTPNotFound,
+            heat_exc.HTTPNotFound,
+            self.stacks["CREATE_COMPLETE"]
+        ]
+        heat.stacks.create.side_effect = [
+            heat_exception,
+            {"stack": {"id": self.stack_name}}
+        ]
+
+        # Run
+        res = LaunchStackTask().run(**self.kwargs)
+
+        # Assertions
+        self.assertEqual(res["status"], "CREATE_COMPLETE")
+        self.assertEqual(res["provider"], self.providers[1]["name"])
+        self.assertEqual(self.get_stack("provider"), self.providers[1]["name"])
+        self.assertEqual(res["error_msg"], "")
+
+    @ddt.data(*HEAT_EXCEPTIONS)
+    def test_heat_error_on_reset(self, heat_exception):
+        # Setup
+        heat = self.get_heat_client_mock()
+        heat.stacks.get.side_effect = [self.stacks["CREATE_FAILED"]]
+        heat.stacks.delete.side_effect = [heat_exception]
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "CREATE_FAILED"
+        })
+        self.kwargs["reset"] = True
+
+        # Run
+        res = LaunchStackTask().run(**self.kwargs)
+
+        # Assertions
+        self.assertEqual(res["status"], "CREATE_FAILED")
+        self.assertNotEqual(res["error_msg"], "")
+
+    @ddt.data(*HEAT_EXCEPTIONS)
+    def test_heat_error_on_create_progress(self, heat_exception):
+        # Setup
+        heat = self.get_heat_client_mock()
+        heat.stacks.get.side_effect = [
+            heat_exc.HTTPNotFound,
+            self.stacks["CREATE_IN_PROGRESS"],
+            heat_exception,
+            heat_exc.HTTPNotFound,
+            self.stacks["CREATE_COMPLETE"]
+        ]
+        heat.stacks.create.return_value = {"stack": {"id": self.stack_name}}
+
+        # Run
+        res = LaunchStackTask().run(**self.kwargs)
+
+        # Assertions
+        self.assertEqual(res["status"], "CREATE_COMPLETE")
+        self.assertEqual(res["provider"], self.providers[1]["name"])
+        self.assertEqual(self.get_stack("provider"), self.providers[1]["name"])
+        self.assertEqual(res["error_msg"], "")
+
+    @ddt.data(*HEAT_EXCEPTIONS)
+    def test_heat_error_on_resume(self, heat_exception):
+        # Setup
+        heat = self.get_heat_client_mock()
+        heat.stacks.get.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+        heat.actions.resume.side_effect = [
+            heat_exception
+        ]
+        self.update_stack({
+            "provider": self.providers[1]["name"],
+            "status": "SUSPEND_ISSUED"
+        })
+
+        # Run
+        res = LaunchStackTask().run(**self.kwargs)
+
+        # Assertions
+        self.assertEqual(res["status"], "RESUME_FAILED")
+        self.assertEqual(res["provider"], self.providers[1]["name"])
+        self.assertEqual(self.get_stack("provider"), self.providers[1]["name"])
+        heat.actions.suspend.assert_called()
+
+    @ddt.data(*HEAT_EXCEPTIONS)
+    def test_heat_error_on_resume_progress(self, heat_exception):
+        # Setup
+        heat = self.get_heat_client_mock()
+        heat.stacks.get.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"],
+            self.stacks["RESUME_IN_PROGRESS"],
+            heat_exception
+        ]
+        self.update_stack({
+            "provider": self.providers[1]["name"],
+            "status": "SUSPEND_ISSUED"
+        })
+
+        # Run
+        res = LaunchStackTask().run(**self.kwargs)
+
+        # Assertions
+        self.assertEqual(res["status"], "RESUME_FAILED")
+        self.assertEqual(res["provider"], self.providers[1]["name"])
+        self.assertEqual(self.get_stack("provider"), self.providers[1]["name"])
+        heat.actions.suspend.assert_called()
+
+    @ddt.data(*HEAT_EXCEPTIONS)
+    def test_heat_error_on_cleanup_delete(self, heat_exception):
+        # Setup
+        heat = self.get_heat_client_mock()
+        heat.stacks.get.side_effect = [
+            heat_exc.HTTPNotFound,
+            self.stacks["CREATE_FAILED"],
+            heat_exc.HTTPNotFound,
+            self.stacks["CREATE_COMPLETE"]
+        ]
+        heat.stacks.delete.side_effect = [
+            heat_exception
+        ]
+
+        # Run
+        res = LaunchStackTask().run(**self.kwargs)
+
+        # Assertions
+        self.assertEqual(res["status"], "CREATE_COMPLETE")
+        self.assertEqual(res["provider"], self.providers[1]["name"])
+        self.assertEqual(self.get_stack("provider"), self.providers[1]["name"])
+        self.assertEqual(res["error_msg"], "")
+        heat.stacks.delete.assert_called()
+
+    @ddt.data(*HEAT_EXCEPTIONS)
+    def test_heat_error_on_cleanup_resume(self, heat_exception):
+        # Setup
+        heat = self.get_heat_client_mock()
+        heat.stacks.get.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"],
+            self.stacks["RESUME_FAILED"]
+        ]
+        heat.actions.suspend.side_effect = [
+            heat_exception
+        ]
+        self.update_stack({
+            "provider": self.providers[1]["name"],
+            "status": "SUSPEND_ISSUED"
+        })
+
+        # Run
+        res = LaunchStackTask().run(**self.kwargs)
+
+        # Assertions
+        self.assertEqual(res["status"], "RESUME_FAILED")
+        self.assertEqual(res["provider"], self.providers[1]["name"])
+        self.assertEqual(self.get_stack("provider"), self.providers[1]["name"])
+        heat.actions.suspend.assert_called()
+
     def test_infinite_capacity(self):
         # Setup
         heat = self.get_heat_client_mock()
         heat.stacks.get.side_effect = [
-            HTTPNotFound,
+            heat_exc.HTTPNotFound,
             self.stacks["CREATE_IN_PROGRESS"],
             self.stacks["CREATE_IN_PROGRESS"],
             self.stacks["CREATE_COMPLETE"]
@@ -223,7 +440,7 @@ class TestHastexoTasks(TestCase):
         # Setup
         heat = self.get_heat_client_mock()
         heat.stacks.get.side_effect = [
-            HTTPNotFound,
+            heat_exc.HTTPNotFound,
             self.stacks["CREATE_IN_PROGRESS"],
             self.stacks["CREATE_IN_PROGRESS"],
             self.stacks["CREATE_COMPLETE"]
@@ -251,7 +468,7 @@ class TestHastexoTasks(TestCase):
         # Setup
         heat = self.get_heat_client_mock()
         heat.stacks.get.side_effect = [
-            HTTPNotFound,
+            heat_exc.HTTPNotFound,
             self.stacks["CREATE_IN_PROGRESS"],
             self.stacks["CREATE_IN_PROGRESS"],
             self.stacks["CREATE_COMPLETE"]
@@ -313,10 +530,10 @@ class TestHastexoTasks(TestCase):
         # Setup
         heat = self.get_heat_client_mock()
         heat.stacks.get.side_effect = [
-            HTTPNotFound,
+            heat_exc.HTTPNotFound,
             self.stacks["CREATE_IN_PROGRESS"],
             self.stacks["CREATE_FAILED"],
-            HTTPNotFound,
+            heat_exc.HTTPNotFound,
             self.stacks["CREATE_IN_PROGRESS"],
             self.stacks["CREATE_COMPLETE"]
         ]
@@ -341,7 +558,7 @@ class TestHastexoTasks(TestCase):
         # Setup
         heat = self.get_heat_client_mock()
         heat.stacks.get.side_effect = [
-            HTTPNotFound,
+            heat_exc.HTTPNotFound,
             self.stacks["CREATE_IN_PROGRESS"],
             self.stacks["CREATE_IN_PROGRESS"],
             SoftTimeLimitExceeded
@@ -360,13 +577,13 @@ class TestHastexoTasks(TestCase):
         # Setup
         heat = self.get_heat_client_mock()
         heat.stacks.get.side_effect = [
-            HTTPNotFound,
+            heat_exc.HTTPNotFound,
             self.stacks["CREATE_IN_PROGRESS"],
             self.stacks["CREATE_FAILED"],
-            HTTPNotFound,
+            heat_exc.HTTPNotFound,
             self.stacks["CREATE_IN_PROGRESS"],
             self.stacks["CREATE_FAILED"],
-            HTTPNotFound,
+            heat_exc.HTTPNotFound,
             self.stacks["CREATE_IN_PROGRESS"],
             self.stacks["CREATE_FAILED"]
         ]
@@ -393,7 +610,7 @@ class TestHastexoTasks(TestCase):
         heat.stacks.get.side_effect = [
             self.stacks["CREATE_FAILED"],
             self.stacks["DELETE_IN_PROGRESS"],
-            HTTPNotFound,
+            heat_exc.HTTPNotFound,
             self.stacks["DELETE_COMPLETE"],
             self.stacks["CREATE_IN_PROGRESS"],
             self.stacks["CREATE_COMPLETE"]
@@ -419,7 +636,7 @@ class TestHastexoTasks(TestCase):
         # Setup
         heat = self.get_heat_client_mock()
         heat.stacks.get.side_effect = [
-            HTTPNotFound,
+            heat_exc.HTTPNotFound,
             self.stacks["CREATE_IN_PROGRESS"],
             self.stacks["CREATE_COMPLETE"]
         ]
@@ -490,7 +707,7 @@ class TestHastexoTasks(TestCase):
         # Setup
         heat = self.get_heat_client_mock()
         heat.stacks.get.side_effect = [
-            HTTPNotFound,
+            heat_exc.HTTPNotFound,
             self.stacks["CREATE_IN_PROGRESS"],
             self.stacks["CREATE_FAILED"]
         ]
@@ -582,7 +799,7 @@ class TestHastexoTasks(TestCase):
         # Setup
         heat = self.get_heat_client_mock()
         heat.stacks.get.side_effect = [
-            HTTPNotFound,
+            heat_exc.HTTPNotFound,
             self.stacks["CREATE_IN_PROGRESS"],
             self.stacks["CREATE_IN_PROGRESS"],
             SoftTimeLimitExceeded

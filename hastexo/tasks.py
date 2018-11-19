@@ -8,7 +8,7 @@ from django.db import transaction
 from celery import Task
 from celery.utils.log import get_task_logger
 from celery.exceptions import SoftTimeLimitExceeded
-from heatclient.exc import HTTPNotFound
+from heatclient.exc import HTTPException, HTTPNotFound
 from io import StringIO
 
 from .models import Stack
@@ -273,6 +273,10 @@ class LaunchStackTask(Task):
         except HTTPNotFound:
             logger.info("Stack [%s] doesn't exist." % self.stack_name)
             status = 'DELETE_COMPLETE'
+        except HTTPException as e:
+            error_msg = ("Error retrieving [%s] stack information: %s" %
+                         (self.stack_name, e))
+            raise LaunchStackFailed(provider, "CREATE_FAILED", error_msg)
         except SoftTimeLimitExceeded:
             error_msg = "Timeout fetching stack [%s] information." % (
                 self.stack_name)
@@ -291,6 +295,11 @@ class LaunchStackTask(Task):
                     heat_stack = heat_c.stacks.get(stack_id=self.stack_name)
                 except HTTPNotFound:
                     status = 'DELETE_COMPLETE'
+                except HTTPException as e:
+                    error_msg = ("Error waiting for stack [%s] to change "
+                                 "state: %s" % (self.stack_name, e))
+                    raise LaunchStackFailed(provider, "CREATE_FAILED",
+                                            error_msg)
                 else:
                     status = heat_stack.stack_status
         except SoftTimeLimitExceeded:
@@ -307,6 +316,10 @@ class LaunchStackTask(Task):
 
                     logger.info("Resetting stack [%s]." % self.stack_name)
                     status = self.delete_stack(heat_stack, heat_c, provider)
+            except HTTPException as e:
+                error_msg = ("Error deleting stack [%s]: %s" %
+                             (self.stack_name, e))
+                raise LaunchStackFailed(provider, "CREATE_FAILED", error_msg)
             except SoftTimeLimitExceeded:
                 error_msg = "Timeout resetting stack [%s]." % self.stack_name
                 raise LaunchStackFailed(provider, "LAUNCH_TIMEOUT", error_msg)
@@ -321,6 +334,11 @@ class LaunchStackTask(Task):
                     env = self.get_environment(provider)
                     heat_stack = self.create_stack(heat_c, provider, env)
                     status = heat_stack.stack_status
+            except HTTPException as e:
+                error_msg = ("Error creating stack [%s]: %s" %
+                             (self.stack_name, e))
+                raise LaunchStackFailed(provider, "CREATE_FAILED", error_msg,
+                                        CLEANUP_DELETE)
             except SoftTimeLimitExceeded:
                 error_msg = "Timeout creating stack [%s]." % self.stack_name
                 raise LaunchStackFailed(provider, "LAUNCH_TIMEOUT", error_msg,
@@ -336,6 +354,11 @@ class LaunchStackTask(Task):
 
                     logger.info("Resuming stack [%s]." % self.stack_name)
                     status = self.resume_stack(heat_stack, heat_c, provider)
+            except HTTPException as e:
+                error_msg = ("Error resuming stack [%s]: %s" %
+                             (self.stack_name, e))
+                raise LaunchStackFailed(provider, "RESUME_FAILED", error_msg,
+                                        CLEANUP_SUSPEND)
             except SoftTimeLimitExceeded:
                 error_msg = "Timeout resuming stack [%s]." % self.stack_name
                 raise LaunchStackFailed(provider, "LAUNCH_TIMEOUT", error_msg,
@@ -472,11 +495,21 @@ class LaunchStackTask(Task):
             elif e.delete:
                 logger.error("Deleting unsuccessfully "
                              "created stack [%s]." % self.stack_name)
-                heat_c.stacks.delete(stack_id=self.stack_name)
+                try:
+                    heat_c.stacks.delete(stack_id=self.stack_name)
+                except HTTPException as e:
+                    logger.error("Failure deleting stack "
+                                 "[%s], with error [%s]." % (
+                                     self.stack_name, e))
             elif e.suspend:
                 logger.error("Suspending unsuccessfully "
                              "resumed stack [%s]." % self.stack_name)
-                heat_c.actions.suspend(stack_id=self.stack_name)
+                try:
+                    heat_c.actions.suspend(stack_id=self.stack_name)
+                except HTTPException as e:
+                    logger.error("Failure suspending stack "
+                                 "[%s], with error [%s]." % (
+                                     self.stack_name, e))
 
     def wait_for_ping(self, stack_ip):
         ping_command = PING_COMMAND % (self.sleep_seconds, stack_ip)
