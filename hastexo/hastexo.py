@@ -389,6 +389,8 @@ class HastexoXBlock(XBlock,
         course_id, student_id = self.get_block_ids()
         kwargs = {
             "providers": providers,
+            "protocol": self.stack_protocol,
+            "port": stack.port,
             "stack_template": stack_template,
             "stack_run": self.stack_run,
             "stack_name": self.stack_name,

@@ -3,6 +3,7 @@ import os
 import uuid
 import paramiko
 import traceback
+import socket
 
 from django.db import transaction
 from celery import Task
@@ -554,6 +555,26 @@ class LaunchStackTask(Task):
                 ssh.close()
                 connected = True
 
+    def wait_for_rdp(self, stack_ip, was_resumed, provider):
+        port = getattr(self, 'port', None)
+        if not port:
+            port = 3389
+
+        connected = False
+        s = socket.socket()
+        s.settimeout(self.sleep_seconds)
+        while not connected:
+            try:
+                s.connect((stack_ip, port))
+            except SoftTimeLimitExceeded:
+                raise
+            except Exception:
+                self.sleep()
+            else:
+                connected = True
+            finally:
+                s.close()
+
     def check_stack(self, stack_outputs, was_resumed, provider):
         """
         Fetch stack outputs, check that the stack has a public IP address, a
@@ -608,6 +629,13 @@ class LaunchStackTask(Task):
         logger.info("Checking SSH connection "
                     "for stack [%s] at [%s]" % (self.stack_name, stack_ip))
         self.wait_for_ssh(stack_key, stack_ip, was_resumed, provider)
+
+        # If the protocol is RDP, wait for xrdp to come up.
+        protocol = getattr(self, 'protocol', None)
+        if protocol and protocol == "rdp":
+            logger.info("Checking RDP connection "
+                        "for stack [%s] at [%s]" % (self.stack_name, stack_ip))
+            self.wait_for_rdp(stack_ip, was_resumed, provider)
 
         check_data = {
             "ip": stack_ip,

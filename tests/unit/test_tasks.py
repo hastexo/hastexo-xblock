@@ -1,4 +1,5 @@
 import ddt
+import socket
 
 from unittest import TestCase
 from mock import Mock, patch
@@ -34,6 +35,9 @@ class TestHastexoTasks(TestCase):
     def get_ssh_client_mock(self):
         return self.mocks["paramiko"].SSHClient.return_value
 
+    def get_socket_mock(self):
+        return self.mocks["socket"].socket.return_value
+
     def get_stack(self, prop=None):
         return get_stack(self.stack_name, self.course_id, self.student_id,
                          prop)
@@ -56,8 +60,8 @@ class TestHastexoTasks(TestCase):
         self.stack_key = u"bogus_stack_key"
         self.stack_password = "bogus_stack_password"
         self.stack_template = "bogus_stack_template"
-        self.stack_protocol = "ssh"
-        self.stack_port = 22
+        self.protocol = "ssh"
+        self.port = None
         self.stack_run = "bogus_run"
         self.course_id = "bogus_course_id"
         self.student_id = "bogus_student_id"
@@ -130,6 +134,8 @@ class TestHastexoTasks(TestCase):
 
         self.kwargs = {
             "providers": self.providers,
+            "protocol": self.protocol,
+            "port": self.port,
             "stack_run": self.stack_run,
             "stack_name": self.stack_name,
             "stack_template": self.stack_template,
@@ -147,8 +153,8 @@ class TestHastexoTasks(TestCase):
             student_id=self.student_id,
             course_id=self.course_id,
             name=self.stack_name,
-            protocol=self.stack_protocol,
-            port=self.stack_port
+            protocol=self.protocol,
+            port=self.port
         )
         stack.save()
 
@@ -156,6 +162,7 @@ class TestHastexoTasks(TestCase):
         patchers = {
             "os": patch("hastexo.tasks.os"),
             "paramiko": patch("hastexo.tasks.paramiko"),
+            "socket": patch("hastexo.tasks.socket"),
             "HeatWrapper": patch("hastexo.tasks.HeatWrapper"),
             "NovaWrapper": patch("hastexo.tasks.NovaWrapper"),
             "settings": patch.dict("hastexo.utils.DEFAULT_SETTINGS",
@@ -756,6 +763,7 @@ class TestHastexoTasks(TestCase):
         res = LaunchStackTask().run(**self.kwargs)
 
         # Assertions
+        system.assert_called()
         self.assertEqual(res["status"], "LAUNCH_TIMEOUT")
 
     def test_dont_wait_forever_for_ssh(self):
@@ -773,6 +781,59 @@ class TestHastexoTasks(TestCase):
         res = LaunchStackTask().run(**self.kwargs)
 
         # Assertions
+        ssh.connect.assert_called()
+        self.assertEqual(res["status"], "LAUNCH_TIMEOUT")
+
+    def test_dont_wait_forever_for_rdp(self):
+        # Setup
+        heat = self.get_heat_client_mock()
+        heat.stacks.get.return_value = self.stacks["CREATE_COMPLETE"]
+        s = self.get_socket_mock()
+        s.connect.side_effect = [
+            socket.timeout,
+            socket.timeout,
+            socket.timeout,
+            SoftTimeLimitExceeded
+        ]
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "LAUNCH_PENDING"
+        })
+        self.protocol = "rdp"
+        self.kwargs["protocol"] = self.protocol
+
+        # Run
+        res = LaunchStackTask().run(**self.kwargs)
+
+        # Assertions
+        s.connect.assert_called_with((self.stack_ip, 3389))
+        self.assertEqual(res["status"], "LAUNCH_TIMEOUT")
+
+    def test_dont_wait_forever_for_rdp_on_custom_port(self):
+        # Setup
+        heat = self.get_heat_client_mock()
+        heat.stacks.get.return_value = self.stacks["CREATE_COMPLETE"]
+        s = self.get_socket_mock()
+        s.connect.side_effect = [
+            socket.timeout,
+            socket.timeout,
+            socket.timeout,
+            SoftTimeLimitExceeded
+        ]
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "LAUNCH_PENDING"
+        })
+        self.protocol = "rdp"
+        self.port = 3390
+        self.kwargs["protocol"] = self.protocol
+        self.kwargs["port"] = self.port
+
+        # Run
+        res = LaunchStackTask().run(**self.kwargs)
+
+        # Assertions
+        s.connect.assert_called_with((self.stack_ip, self.port))
         self.assertEqual(res["status"], "LAUNCH_TIMEOUT")
 
     def test_dont_wait_forever_for_suspension(self):
