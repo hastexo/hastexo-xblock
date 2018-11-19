@@ -2,7 +2,7 @@ import time
 import logging
 import textwrap
 
-from xblock.core import XBlock
+from xblock.core import XBlock, XML_NAMESPACES
 from xblock.fields import Scope, Float, String, Dict, List, Integer
 from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
@@ -11,6 +11,7 @@ from xblockutils.settings import XBlockWithSettingsMixin
 
 from django.db import transaction
 from django.utils import timezone
+from lxml import etree
 
 from .models import Stack
 from .utils import (UP_STATES, LAUNCH_STATE, LAUNCH_ERROR_STATE, SETTINGS_KEY,
@@ -66,6 +67,8 @@ class HastexoXBlock(XBlock,
     ports = List(
         default=[],
         scope=Scope.settings,
+        enforce_type=True,
+        xml_node=True,
         help="What ports are available in the stack.")
     # Deprecated in favor or "providers"
     provider = String(
@@ -75,12 +78,16 @@ class HastexoXBlock(XBlock,
     providers = List(
         default=[],
         scope=Scope.settings,
+        enforce_type=True,
+        xml_node=True,
         help="List of providers to launch the stack in.")
 
     # Set exclusively via XML
     tests = List(
         default=[],
         scope=Scope.content,
+        enforce_type=True,
+        xml_node=True,
         help="The list of tests to run.")
 
     # User state, per instance.
@@ -125,11 +132,26 @@ class HastexoXBlock(XBlock,
 
     @classmethod
     def parse_xml(cls, node, runtime, keys, id_generator):
+        """
+        DEPRECATED: the 'option' namespace is now the preferred way to specify
+        tests, ports, and providers.  This custom parser will be removed in a
+        future version.
+
+        """
         block = runtime.construct_xblock_from_class(cls, keys)
 
         # Find children
         for child in node:
-            if child.tag == "test":
+            if child.tag is etree.Comment:
+                continue
+
+            qname = etree.QName(child)
+            tag = qname.localname
+            namespace = qname.namespace
+
+            if namespace == XML_NAMESPACES["option"]:
+                cls._set_field_if_present(block, tag, child.text, child.attrib)
+            elif tag == "test":
                 text = child.text
 
                 # Fix up whitespace.
@@ -139,7 +161,7 @@ class HastexoXBlock(XBlock,
                 text = textwrap.dedent(text)
 
                 block.tests.append(text)
-            elif child.tag == "port":
+            elif tag == "port":
                 name = child.attrib["name"]
                 if not name:
                     raise KeyError("name")
@@ -150,7 +172,7 @@ class HastexoXBlock(XBlock,
                 port = {"name": name,
                         "number": number}
                 block.ports.append(port)
-            elif child.tag == "provider":
+            elif tag == "provider":
                 name = child.attrib["name"]
                 if not name:
                     raise KeyError("name")
@@ -158,8 +180,8 @@ class HastexoXBlock(XBlock,
                 if capacity in (None, "None"):
                     capacity = -1
                 else:
-                    # This will raise a TypeError if the string literal cannot
-                    # be converted
+                    # This will raise a TypeError if the string literal
+                    # cannot be converted
                     capacity = int(capacity)
                 environment = child.attrib.get("environment", None)
                 provider = {"name": name,
@@ -172,9 +194,7 @@ class HastexoXBlock(XBlock,
 
         # Attributes become fields.
         for name, value in node.items():
-            if name in block.fields:
-                value = (block.fields[name]).from_string(value)
-                setattr(block, name, value)
+            cls._set_field_if_present(block, name, value, {})
 
         return block
 

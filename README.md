@@ -368,50 +368,68 @@ configured with the following attributes:
 * `protocol`: One of 'ssh', 'rdp', or 'vnc'.  This defines the protocol that
   will be used to connect to the environment.  The default is 'ssh'.
 
-You can also use the following nested XML elements:
+You can also use the following nested XML options:
 
-* `provider`: Reference to an OpenStack provider configured in the platform.
-  Its `name` attribute must match one of the providers in the XBlock
-  configuration, `capacity` specifies how many environments should be launched
-  in that provider at maximum (where "-1" means keep launching environments
-  until encountering a launch failure, and "0" disables the provider), and
-  `environment` optionally specifies a content store path to a Heat environment
-  file specifying template parameters for that provider.  This element must be
-  specified at least once, and can be specified multiple times to use one or
-  more fallback providers.
+* `providers`: A list of references to OpenStack providers configured in the
+  platform.  Each `name` attribute must match one of the providers in the
+  XBlock configuration, `capacity` specifies how many environments should be
+  launched in that provider at maximum (where "-1" means keep launching
+  environments until encountering a launch failure, and "0" disables the
+  provider), and `environment` optionally specifies a content store path to a
+  Heat environment file specifying template parameters for that provider.  If
+  no providers are specified, the platform default will be used.
 
-* `port`: A port the user can manually choose to connect to.  This is
+* `ports`: A list of ports the user can manually choose to connect to.  This is
   intended as a means of providing a way to connect directly to multiple VMs in
   a lab environment, via port forwarding or proxying at the VM with the public
-  IP address.  The `name` attribute will be visible to the user.  The `number`
+  IP address.  Each `name` attribute will be visible to the user.  The `number`
   attribute specifies the corresponding port.
 
-* `test`: The contents of this element will be run verbatim as a script in the
-  user's lab environment, when they click the "Check Progress" button.  As
-  such, it should define an interpreter via the "shebang" convention.  This
-  element is optional, but can be specified multiple times.
+* `tests`: A list of test scripts.  The contents of each element will be run
+  verbatim a a script in the user's lab environment, when they click the "Check
+  Progress" button.  As such, each script should define an interpreter via the
+  "shebang" convention.
 
 For example, in XML:
 
 ```
 <vertical url_name="lab_introduction">
-  <hastexo
+  <hastexo xmlns:option="http://code.edx.org/xblock/option"
     url_name="lab_introduction"
     stack_template_path="hot_lab.yaml"
     stack_user_name="training"
     protocol="rdp">
-    <provider name="provider1" capacity="20" environment="hot_env1.yaml" />
-    <provider name="provider2" capacity="30" environment="hot_env2.yaml" />
-    <provider name="provider3" capacity="0" environment="hot_env3.yaml" />
-    <port name="server1" number="3389" />
-    <port name="server2" number="3390" />
-    <test>
-      #!/bin/bash
-      # Check for login on vm1
-      logins=$(ssh vm1 last root | grep root | wc -l)
-      [ $logins -ge 1 ] || exit 1
-      exit 0
-    </test>
+    <option:providers>
+      - name: provider1
+        capacity: 20
+        environment: hot_env1.yaml
+      - name: provider2
+        capacity: 30
+        environment: hot_env2.yaml
+      - name: provider3
+        capacity: 0
+        environment: hot_env3.yaml
+    </option:providers>
+    <option:ports>
+      - name: server1
+        number: 3389
+      - name: server2
+        number: 3390
+    </option:ports>
+    <option:tests>
+      - |
+        #!/bin/bash
+        # Check for login on vm1
+        logins=$(ssh vm1 last root | grep root | wc -l)
+        [ $logins -ge 1 ] || exit 1
+        exit 0
+      - |
+        #!/bin/bash
+        # Check for login on vm2
+        logins=$(ssh vm2 last root | grep root | wc -l)
+        [ $logins -ge 1 ] || exit 1
+        exit 0
+    </option:tests>
   </hastexo>
 </vertical>
 ```

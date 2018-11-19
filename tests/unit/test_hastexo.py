@@ -41,11 +41,12 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
       <port name='server1' number='3389' />
       <port name='server2' number='3390' />
       <test>
-        #!/bin/bash
-        # Check for login on vm1
-        logins=$(ssh vm1 last root | grep root | wc -l)
-        [ $logins -ge 1 ] || exit 1
-        exit 0
+        Multi-line
+        test 1
+      </test>
+      <test>
+        Multi-line
+        test 2
       </test>
     </hastexo>
             """).encode('utf-8'))
@@ -61,7 +62,59 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
         self.assertEqual(len(block.ports), 2)
         self.assertEqual(block.ports[0]["number"], 3389)
         self.assertEqual(block.ports[1]["name"], "server2")
-        self.assertEqual(len(block.tests), 1)
+        self.assertEqual(len(block.tests), 2)
+        self.assertEqual(block.tests[0], "Multi-line\ntest 1\n")
+        self.assertEqual(block.tests[1], "Multi-line\ntest 2\n")
+
+    def test_parsing_new(self):
+        block = self.parse_xml_to_block(textwrap.dedent("""\
+    <?xml version='1.0' encoding='utf-8'?>
+    <hastexo xmlns:option="http://code.edx.org/xblock/option"
+      stack_template_path='hot_lab.yaml'
+      stack_user_name='training'
+      stack_protocol='rdp'>
+      <option:providers>
+        - name: provider1
+          capacity: 20
+          environment: hot_env1.yaml
+        - name: provider2
+          capacity: 30
+          environment: hot_env2.yaml
+        - name: provider3
+          capacity: 0
+          environment: hot_env3.yaml
+      </option:providers>
+      <option:ports>
+        - name: server1
+          number: 3389
+        - name: server2
+          number: 3390
+      </option:ports>
+      <option:tests>
+        - |
+          Multi-line
+          test 1
+        - |
+          Multi-line
+          test 2
+      </option:tests>
+    </hastexo>
+            """).encode('utf-8'))
+
+        self.assertIsInstance(block, HastexoXBlock)
+        self.assertEqual(block.stack_template_path, "hot_lab.yaml")
+        self.assertEqual(block.stack_user_name, "training")
+        self.assertEqual(block.stack_protocol, "rdp")
+        self.assertEqual(len(block.providers), 3)
+        self.assertEqual(block.providers[0]["name"], "provider1")
+        self.assertEqual(block.providers[1]["capacity"], 30)
+        self.assertEqual(block.providers[2]["environment"], "hot_env3.yaml")
+        self.assertEqual(len(block.ports), 2)
+        self.assertEqual(block.ports[0]["number"], 3389)
+        self.assertEqual(block.ports[1]["name"], "server2")
+        self.assertEqual(len(block.tests), 2)
+        self.assertEqual(block.tests[0], "Multi-line\ntest 1\n")
+        self.assertEqual(block.tests[1], "Multi-line\ntest 2\n")
 
 
 class TestHastexoXBlock(TestCase):
