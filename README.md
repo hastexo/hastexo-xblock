@@ -368,6 +368,11 @@ configured with the following attributes:
 * `protocol`: One of 'ssh', 'rdp', or 'vnc'.  This defines the protocol that
   will be used to connect to the environment.  The default is 'ssh'.
 
+The following is optional:
+
+* `launch_timeout`: How long to wait for a stack to be launched, in seconds.
+  If unset, the global timeout will be used.
+
 You can also use the following nested XML options:
 
 * `providers`: A list of references to OpenStack providers configured in the

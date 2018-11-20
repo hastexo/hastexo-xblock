@@ -65,6 +65,13 @@ class HastexoXBlock(XBlock,
         help="What protocol to use for the connection. "
              "Currently, \"ssh\", \"rdp\", or \"vnc\".")
 
+    # Optional
+    launch_timeout = Integer(
+        default=None,
+        scope=Scope.settings,
+        help="Timeout for a launch operation, in seconds.  Takes precedence"
+             "over the globally defined timeout.")
+
     # Set via XML
     ports = List(
         default=[],
@@ -123,6 +130,7 @@ class HastexoXBlock(XBlock,
         'stack_template_path',
         'stack_user_name',
         'stack_protocol',
+        'launch_timeout',
         'ports',
         'providers',
         'tests')
@@ -226,6 +234,15 @@ class HastexoXBlock(XBlock,
             student_id = self.scope_ids.user_id
 
         return (course_id, student_id)
+
+    def get_launch_timeout(self, settings):
+        launch_timeout = None
+        if self.launch_timeout:
+            launch_timeout = self.launch_timeout
+        else:
+            launch_timeout = settings.get("launch_timeout")
+
+        return launch_timeout
 
     def read_from_contentstore(self, path):
         """
@@ -402,7 +419,7 @@ class HastexoXBlock(XBlock,
             "student_id": student_id,
             "reset": reset
         }
-        launch_timeout = settings.get("launch_timeout")
+        launch_timeout = self.get_launch_timeout(settings)
 
         # Run
         result = self.launch_stack_task(launch_timeout, kwargs)
@@ -510,7 +527,7 @@ class HastexoXBlock(XBlock,
                 if launch_timestamp:
                     time_since_launch = (timezone.now() -
                                          launch_timestamp).seconds
-                launch_timeout = settings.get("launch_timeout")
+                launch_timeout = self.get_launch_timeout(settings)
 
                 # Check if the pending task hasn't timed out.
                 if time_since_launch <= launch_timeout:

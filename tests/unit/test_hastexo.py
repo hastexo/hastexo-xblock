@@ -3,7 +3,8 @@ import json
 import textwrap
 from hastexo.models import Stack
 from hastexo.hastexo import HastexoXBlock
-from hastexo.utils import DEFAULT_SETTINGS, get_stack, update_stack
+from hastexo.utils import (DEFAULT_SETTINGS, get_stack, update_stack,
+                           get_xblock_settings)
 
 from mock import Mock, patch, DEFAULT
 from webob import Request
@@ -34,7 +35,8 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
     <hastexo
       stack_template_path='hot_lab.yaml'
       stack_user_name='training'
-      stack_protocol='rdp'>
+      stack_protocol='rdp'
+      launch_timeout='900'>
       <provider name='provider1' capacity='20' environment='hot_env1.yaml' />
       <provider name='provider2' capacity='30' environment='hot_env2.yaml' />
       <provider name='provider3' capacity='0' environment='hot_env3.yaml' />
@@ -55,6 +57,7 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
         self.assertEqual(block.stack_template_path, "hot_lab.yaml")
         self.assertEqual(block.stack_user_name, "training")
         self.assertEqual(block.stack_protocol, "rdp")
+        self.assertEqual(block.launch_timeout, 900)
         self.assertEqual(len(block.providers), 3)
         self.assertEqual(block.providers[0]["name"], "provider1")
         self.assertEqual(block.providers[1]["capacity"], 30)
@@ -72,7 +75,8 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
     <hastexo xmlns:option="http://code.edx.org/xblock/option"
       stack_template_path='hot_lab.yaml'
       stack_user_name='training'
-      stack_protocol='rdp'>
+      stack_protocol='rdp'
+      launch_timeout='900'>
       <option:providers>
         - name: provider1
           capacity: 20
@@ -105,6 +109,7 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
         self.assertEqual(block.stack_template_path, "hot_lab.yaml")
         self.assertEqual(block.stack_user_name, "training")
         self.assertEqual(block.stack_protocol, "rdp")
+        self.assertEqual(block.launch_timeout, 900)
         self.assertEqual(len(block.providers), 3)
         self.assertEqual(block.providers[0]["name"], "provider1")
         self.assertEqual(block.providers[1]["capacity"], 30)
@@ -138,6 +143,7 @@ class TestHastexoXBlock(TestCase):
         # Block settings
         self.block.stack_template_path = "bogus_template_path"
         self.block.stack_user_name = "bogus_user"
+        self.block.launch_timeout = None
         self.block.provider = ""
         self.block.providers = [
             {"name": "provider1", "capacity": 1, "environment": "env1.yaml"},
@@ -183,6 +189,15 @@ class TestHastexoXBlock(TestCase):
     def get_stack(self, prop=None):
         course_id, student_id = self.block.get_block_ids()
         return get_stack(self.block.stack_name, course_id, student_id, prop)
+
+    def test_get_launch_timeout(self):
+        self.init_block()
+        settings = get_xblock_settings()
+        self.assertEqual(self.block.get_launch_timeout(settings),
+                         DEFAULT_SETTINGS["launch_timeout"])
+        self.block.launch_timeout = 1800
+        self.assertEqual(self.block.get_launch_timeout(settings),
+                         self.block.launch_timeout)
 
     def test_get_user_stack_status_first_time(self):
         self.init_block()
