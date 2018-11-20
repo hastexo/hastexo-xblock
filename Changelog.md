@@ -1,3 +1,13 @@
+Version 2.5.3 (2018-11-20)
+---------------------------
+
+* [Enhancement] Allow `launch_timeout` to be set per course
+* [Enhancement] Allow CMS editing of ports, provider, tests
+* [Enhancement] Wait for RDP connection
+* [Enhancement] Deprecate custom XML parsing
+* [Enhancement] Parse stack ports from XML
+* [Enhancement] Handle all Heat HTTP exceptions
+
 Version 2.5.2 (2018-11-09)
 ---------------------------
 
