@@ -64,31 +64,32 @@ class HastexoXBlock(XBlock,
         scope=Scope.settings,
         help="What protocol to use for the connection. "
              "Currently, \"ssh\", \"rdp\", or \"vnc\".")
+
+    # Set via XML
     ports = List(
         default=[],
         scope=Scope.settings,
         enforce_type=True,
         xml_node=True,
         help="What ports are available in the stack.")
-    # Deprecated in favor or "providers"
-    provider = String(
-        default="",
-        scope=Scope.settings,
-        help="Where to launch the stack. (DEPRECATED)")
     providers = List(
         default=[],
         scope=Scope.settings,
         enforce_type=True,
         xml_node=True,
         help="List of providers to launch the stack in.")
-
-    # Set exclusively via XML
     tests = List(
         default=[],
         scope=Scope.content,
         enforce_type=True,
         xml_node=True,
         help="The list of tests to run.")
+
+    # Deprecated in favor or "providers"
+    provider = String(
+        default="",
+        scope=Scope.settings,
+        help="Where to launch the stack. (DEPRECATED)")
 
     # User state, per instance.
     stack_run = String(
@@ -122,7 +123,9 @@ class HastexoXBlock(XBlock,
         'stack_template_path',
         'stack_user_name',
         'stack_protocol',
-        'provider')
+        'ports',
+        'providers',
+        'tests')
 
     has_author_view = True
     has_score = True
