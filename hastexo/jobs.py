@@ -3,7 +3,7 @@ from __future__ import print_function
 import time
 import sys
 
-from django.db import connection, transaction
+from django.db import transaction, close_old_connections
 from django.utils import timezone
 from heatclient.exc import HTTPNotFound
 from multiprocessing.dummy import Pool as ThreadPool
@@ -33,6 +33,14 @@ class AbstractJob(object):
         """
         print(msg, file=sys.stderr)
 
+    def refresh_db(self):
+        """
+        Destroy old or unusable database connections.  Django will reconnect as
+        needed.
+
+        """
+        close_old_connections()
+
 
 class SuspenderJob(AbstractJob):
     """
@@ -45,6 +53,8 @@ class SuspenderJob(AbstractJob):
         timedelta = timezone.timedelta(seconds=timeout)
         cutoff = timezone.now() - timedelta
         states = list(UP_STATES) + [LAUNCH_STATE, SUSPEND_RETRY_STATE]
+
+        self.refresh_db()
 
         # Get stacks to suspend
         with transaction.atomic():
@@ -131,6 +141,8 @@ class ReaperJob(AbstractJob):
                        DELETED_STATE,
                        DELETE_IN_PROGRESS_STATE]
 
+        self.refresh_db()
+
         # Get stacks to delete
         with transaction.atomic():
             stacks = Stack.objects.select_for_update().filter(
@@ -148,12 +160,6 @@ class ReaperJob(AbstractJob):
         # Delete them
         for stack in stacks:
             self.delete_stack(stack)
-
-        # Since we might be idle for longer than Mariadb's `wait_timeout`
-        # (which defaults to 28800 seconds), close the connection. Otherwise,
-        # this might lead to a persistent "MySQL has gone away" error that can
-        # only be remedied by restarting the process.
-        connection.close()
 
     def get_heat_client(self, credentials):
         return HeatWrapper(**credentials).get_client()
