@@ -346,10 +346,11 @@ class LaunchStackTask(Task):
                                         CLEANUP_DELETE)
             # If stack is suspended, resume it.
             try:
-                if status == 'SUSPEND_COMPLETE':
+                if status == 'SUSPEND_COMPLETE' or status == 'RESUME_COMPLETE':
                     # Store the fact the stack was resumed
                     was_resumed = True
 
+                if status == 'SUSPEND_COMPLETE':
                     # Sleep to avoid throttling.
                     self.sleep()
 
