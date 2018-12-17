@@ -90,37 +90,44 @@ class SuspenderJob(AbstractJob):
         Suspend the stack.
 
         """
-        credentials = get_credentials(self.settings, stack.provider)
-        heat_client = self.get_heat_client(credentials)
-
         try:
-            heat_stack = heat_client.stacks.get(stack_id=stack.name)
-        except HTTPNotFound:
-            heat_status = DELETED_STATE
-        else:
-            heat_status = heat_stack.stack_status
+            credentials = get_credentials(self.settings, stack.provider)
+            heat_client = self.get_heat_client(credentials)
 
-        if heat_status in UP_STATES:
-            self.log("Suspending stack [%s]." % stack.name)
-
-            # Suspend stack
-            heat_client.actions.suspend(stack_id=stack.name)
-
-            # Save status
-            stack.status = SUSPEND_ISSUED_STATE
-            stack.save(update_fields=["status"])
-        else:
-            self.log("Cannot suspend stack [%s] with status [%s]." %
-                     (stack.name, heat_status))
-
-            # Schedule for retry, if it makes sense to do so
-            if (heat_status != DELETED_STATE and
-                    'FAILED' not in heat_status):
-                stack.status = SUSPEND_RETRY_STATE
+            try:
+                heat_stack = heat_client.stacks.get(stack_id=stack.name)
+            except HTTPNotFound:
+                heat_status = DELETED_STATE
             else:
-                stack.status = heat_status
+                heat_status = heat_stack.stack_status
 
+            if heat_status in UP_STATES:
+                self.log("Suspending stack [%s], id [%s]." % (stack.name,
+                         heat_stack.id))
+
+                # Suspend stack
+                heat_client.actions.suspend(stack_id=stack.name)
+
+                # Save status
+                stack.status = SUSPEND_ISSUED_STATE
+                stack.save(update_fields=["status"])
+            else:
+                self.log("Cannot suspend stack [%s] with status [%s]." %
+                         (stack.name, heat_status))
+
+                # Schedule for retry, if it makes sense to do so
+                if (heat_status != DELETED_STATE and
+                        'FAILED' not in heat_status):
+                    stack.status = SUSPEND_RETRY_STATE
+                else:
+                    stack.status = heat_status
+
+                stack.save(update_fields=["status"])
+        except Exception as e:
+            # Schedule for retry on any uncaught exception
+            stack.status = SUSPEND_RETRY_STATE
             stack.save(update_fields=["status"])
+            self.log("Error suspending stack [%s]: %s" % (stack.name, str(e)))
 
 
 class ReaperJob(AbstractJob):
@@ -157,13 +164,22 @@ class ReaperJob(AbstractJob):
                 provider__exact=''
             ).order_by('suspend_timestamp')
 
+            prev_states = []
             for stack in stacks:
+                prev_states.append(stack.status)
                 stack.status = DELETE_STATE
                 stack.save(update_fields=["status"])
 
         # Delete them
-        for stack in stacks:
-            self.delete_stack(stack)
+        for i, stack in enumerate(stacks):
+            try:
+                self.delete_stack(stack)
+            except Exception as e:
+                # Roll stack status back
+                stack.status = prev_states[i]
+                stack.save(update_fields=["status"])
+                self.log("Error deleting stack [%s]: %s" % (
+                    stack.name, str(e)))
 
     def get_heat_client(self, credentials):
         return HeatWrapper(**credentials).get_client()
@@ -214,7 +230,8 @@ class ReaperJob(AbstractJob):
                 attempt += 1
 
                 if attempt > attempts:
-                    self.log("Stack [%s] deletion failed." % stack.name)
+                    self.log("Stack [%s] deletion retries exceeded." %
+                             stack.name)
                     stack.status = DELETE_FAILED_STATE
                 else:
                     self.log("Deleting stack [%s]." % (stack.name))

@@ -1,7 +1,7 @@
 from mock import Mock, patch, call
 from django.test import TestCase
 from django.utils import timezone
-from heatclient.exc import HTTPNotFound
+from heatclient.exc import HTTPException, HTTPNotFound
 
 from hastexo.jobs import SuspenderJob, ReaperJob
 from hastexo.models import Stack, StackLog
@@ -100,7 +100,7 @@ class TestHastexoJobs(TestCase):
         suspend_timeout = self.settings.get("suspend_timeout")
         timedelta = timezone.timedelta(seconds=(suspend_timeout + 1))
         suspend_timestamp = timezone.now() - timedelta
-        state = 'RESUME_COMPLETE'
+        state = 'CREATE_COMPLETE'
         stack = Stack(
             student_id=self.student_id,
             course_id=self.course_id,
@@ -307,6 +307,33 @@ class TestHastexoJobs(TestCase):
         stack = Stack.objects.get(name=self.stack_name)
         self.assertEqual(stack.status, SUSPEND_RETRY_STATE)
 
+    def test_retry_on_exception(self):
+        suspend_timeout = self.settings.get("suspend_timeout")
+        timedelta = timezone.timedelta(seconds=(suspend_timeout + 1))
+        suspend_timestamp = timezone.now() - timedelta
+        state = 'RESUME_COMPLETE'
+        stack = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            suspend_timestamp=suspend_timestamp,
+            name=self.stack_name,
+            provider='provider1',
+            status=state
+        )
+        stack.save()
+        mock_heat_client = Mock()
+        mock_heat_client.stacks.get.side_effect = [self.stacks[state]]
+        mock_heat_client.actions.suspend.side_effect = [HTTPException]
+
+        job = SuspenderJob(self.settings)
+        with patch.multiple(
+                job,
+                get_heat_client=Mock(return_value=mock_heat_client)):
+            job.run()
+
+        stack = Stack.objects.get(name=self.stack_name)
+        self.assertEqual(stack.status, SUSPEND_RETRY_STATE)
+
     def test_dont_retry_failed_stack(self):
         suspend_timeout = self.settings.get("suspend_timeout")
         timedelta = timezone.timedelta(seconds=(suspend_timeout + 1))
@@ -466,6 +493,75 @@ class TestHastexoJobs(TestCase):
         self.assertEqual(stack2.status, DELETED_STATE)
         stack3 = Stack.objects.get(name=stack3_name)
         self.assertEqual(stack3.status, state)
+
+    def test_delete_exception_doesnt_hold_up_the_queue(self):
+        delete_age = self.settings.get("delete_age")
+        delete_delta = timezone.timedelta(days=(delete_age + 1))
+        delete_timestamp = timezone.now() - delete_delta
+        state = 'RESUME_COMPLETE'
+        stack1_name = 'bogus_stack_1'
+        stack1 = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            name=stack1_name,
+            suspend_timestamp=delete_timestamp,
+            provider='provider1',
+            status=state
+        )
+        stack1.save()
+        stack2_name = 'bogus_stack_2'
+        stack2 = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            name=stack2_name,
+            suspend_timestamp=delete_timestamp,
+            provider='provider2',
+            status=state
+        )
+        stack2.save()
+        stack3_name = 'bogus_stack_3'
+        stack3 = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            name=stack3_name,
+            suspend_timestamp=delete_timestamp,
+            provider='provider3',
+            status=state
+        )
+        stack3.save()
+        mock_heat_client = Mock()
+        mock_heat_client.stacks.get.side_effect = [
+            self.stacks[state],
+            self.stacks[DELETE_IN_PROGRESS_STATE],
+            HTTPNotFound,
+            self.stacks[state],
+            self.stacks[state],
+            self.stacks[DELETE_IN_PROGRESS_STATE],
+            HTTPNotFound
+        ]
+        mock_heat_client.stacks.delete.side_effect = [
+            True,
+            HTTPException,
+            True
+        ]
+
+        job = ReaperJob(self.settings)
+        with patch.multiple(
+                job,
+                get_heat_client=Mock(return_value=mock_heat_client)):
+            job.run()
+
+        mock_heat_client.stacks.delete.assert_has_calls([
+            call(stack_id=stack1_name),
+            call(stack_id=stack2_name),
+            call(stack_id=stack3_name)
+        ])
+        stack1 = Stack.objects.get(name=stack1_name)
+        self.assertEqual(stack1.status, DELETED_STATE)
+        stack2 = Stack.objects.get(name=stack2_name)
+        self.assertEqual(stack2.status, state)
+        stack3 = Stack.objects.get(name=stack3_name)
+        self.assertEqual(stack3.status, DELETED_STATE)
 
     def test_dont_try_to_delete_certain_stack_states(self):
         delete_age = self.settings.get("delete_age")
