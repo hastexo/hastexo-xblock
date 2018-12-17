@@ -70,6 +70,32 @@ class TestHastexoJobs(TestCase):
         self.course_id = 'bogus_course_id'
         self.stack_name = 'bogus_stack_name'
 
+    def test_dont_suspend_stack_with_no_provider(self):
+        suspend_timeout = self.settings.get("suspend_timeout")
+        timedelta = timezone.timedelta(seconds=(suspend_timeout + 1))
+        suspend_timestamp = timezone.now() - timedelta
+        state = 'RESUME_COMPLETE'
+        stack = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            suspend_timestamp=suspend_timestamp,
+            name=self.stack_name,
+            status=state
+        )
+        stack.save()
+        mock_heat_client = Mock()
+        mock_heat_client.stacks.get.side_effect = [self.stacks[state]]
+
+        job = SuspenderJob(self.settings)
+        with patch.multiple(
+                job,
+                get_heat_client=Mock(return_value=mock_heat_client)):
+            job.run()
+
+        mock_heat_client.actions.suspend.assert_not_called()
+        stack = Stack.objects.get(name=self.stack_name)
+        self.assertEqual(stack.status, state)
+
     def test_suspend_stack_for_the_first_time(self):
         suspend_timeout = self.settings.get("suspend_timeout")
         timedelta = timezone.timedelta(seconds=(suspend_timeout + 1))
@@ -80,6 +106,7 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             suspend_timestamp=suspend_timestamp,
             name=self.stack_name,
+            provider='provider1',
             status=state
         )
         stack.save()
@@ -108,6 +135,7 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             suspend_timestamp=suspend_timestamp,
             name=self.stack_name,
+            provider='provider1',
             status=state
         )
         stack.save()
@@ -152,6 +180,7 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             suspend_timestamp=suspend_timestamp,
             name=self.stack_name,
+            provider='provider1',
             status=state
         )
         stack.save()
@@ -178,6 +207,7 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             suspend_timestamp=suspend_timestamp,
             name=self.stack_name,
+            provider='provider1',
             status=state
         )
         stack.save()
@@ -204,6 +234,7 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             suspend_timestamp=suspend_timestamp,
             name=self.stack_name,
+            provider='provider1',
             status=state
         )
         stack.save()
@@ -230,6 +261,7 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             suspend_timestamp=suspend_timestamp,
             name=self.stack_name,
+            provider='provider1',
             status=state
         )
         stack.save()
@@ -256,6 +288,7 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             suspend_timestamp=suspend_timestamp,
             name=self.stack_name,
+            provider='provider1',
             status=state
         )
         stack.save()
@@ -284,6 +317,7 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             suspend_timestamp=suspend_timestamp,
             name=self.stack_name,
+            provider='provider1',
             status=state
         )
         stack.save()
@@ -314,6 +348,7 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             name=stack1_name,
             suspend_timestamp=suspend_timestamp,
+            provider='provider1',
             status=state
         )
         stack1.save()
@@ -323,6 +358,7 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             name=stack2_name,
             suspend_timestamp=suspend_timestamp,
+            provider='provider2',
             status=state
         )
         stack2.save()
@@ -332,6 +368,7 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             name=stack3_name,
             suspend_timestamp=suspend_timestamp,
+            provider='provider3',
             status=state
         )
         stack3.save()
@@ -375,6 +412,7 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             name=stack1_name,
             suspend_timestamp=delete_timestamp,
+            provider='provider1',
             status=state
         )
         stack1.save()
@@ -384,6 +422,7 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             name=stack2_name,
             suspend_timestamp=delete_timestamp,
+            provider='provider2',
             status=state
         )
         stack2.save()
@@ -393,6 +432,7 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             name=stack3_name,
             suspend_timestamp=dont_delete_timestamp,
+            provider='provider3',
             status=state
         )
         stack3.save()
@@ -437,6 +477,7 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             name=stack1_name,
             suspend_timestamp=delete_timestamp,
+            provider='provider1',
             status=DELETE_STATE
         )
         stack1.save()
@@ -446,6 +487,7 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             name=stack2_name,
             suspend_timestamp=delete_timestamp,
+            provider='provider2',
             status=DELETE_IN_PROGRESS_STATE
         )
         stack2.save()
@@ -455,9 +497,19 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             name=stack3_name,
             suspend_timestamp=delete_timestamp,
+            provider='provider3',
             status=DELETED_STATE
         )
         stack3.save()
+        stack4_name = 'bogus_stack_4'
+        stack4 = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            name=stack4_name,
+            suspend_timestamp=delete_timestamp,
+            status='CREATE_FAILED'
+        )
+        stack4.save()
         mock_heat_client = Mock()
 
         job = ReaperJob(self.settings)
@@ -473,6 +525,8 @@ class TestHastexoJobs(TestCase):
         self.assertEqual(stack2.status, DELETE_IN_PROGRESS_STATE)
         stack3 = Stack.objects.get(name=stack3_name)
         self.assertEqual(stack3.status, DELETED_STATE)
+        stack4 = Stack.objects.get(name=stack4_name)
+        self.assertEqual(stack4.status, 'CREATE_FAILED')
 
     def test_dont_wait_forever_for_deletion(self):
         delete_age = self.settings.get("delete_age")
@@ -484,7 +538,8 @@ class TestHastexoJobs(TestCase):
             student_id=self.student_id,
             course_id=self.course_id,
             name=stack_name,
-            suspend_timestamp=delete_timestamp
+            suspend_timestamp=delete_timestamp,
+            provider='provider1'
         )
         stack.status = state
         stack.save()
@@ -520,6 +575,7 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             name=stack_name,
             suspend_timestamp=delete_timestamp,
+            provider='provider1',
             status=state
         )
         stack.save()
@@ -545,7 +601,8 @@ class TestHastexoJobs(TestCase):
             student_id=self.student_id,
             course_id=self.course_id,
             name=stack_name,
-            suspend_timestamp=delete_timestamp
+            suspend_timestamp=delete_timestamp,
+            provider='provider1'
         )
         stack.status = state
         stack.save()
@@ -580,6 +637,7 @@ class TestHastexoJobs(TestCase):
             student_id=self.student_id,
             course_id=self.course_id,
             suspend_timestamp=suspend_timestamp,
+            provider='provider1',
             name=self.stack_name
         )
         stack.status = state

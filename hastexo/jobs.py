@@ -64,6 +64,8 @@ class SuspenderJob(AbstractJob):
                 suspend_timestamp__lt=cutoff
             ).filter(
                 status__in=states
+            ).exclude(
+                provider__exact=''
             ).order_by('suspend_timestamp')[:concurrency]
 
             for stack in stacks:
@@ -151,6 +153,8 @@ class ReaperJob(AbstractJob):
                 suspend_timestamp__lt=cutoff
             ).exclude(
                 status__in=dont_delete
+            ).exclude(
+                provider__exact=''
             ).order_by('suspend_timestamp')
 
             for stack in stacks:
