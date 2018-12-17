@@ -1,3 +1,11 @@
+Version 2.5.4 (2018-12-17)
+---------------------------
+
+* [Bug fix] Handle all exceptions when suspending or reaping
+* [Bug fix] Don't suspend or reap stacks with no provider
+* [Bug fix] Don't delete manually resumed stacks
+* [Bug fix] Refresh database connection on every run
+
 Version 2.5.3 (2018-11-20)
 ---------------------------
 
