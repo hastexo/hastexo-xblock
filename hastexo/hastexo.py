@@ -14,9 +14,9 @@ from django.utils import timezone
 from lxml import etree
 
 from .models import Stack
-from .utils import (UP_STATES, LAUNCH_STATE, LAUNCH_ERROR_STATE, SETTINGS_KEY,
-                    get_xblock_settings, get_stack, update_stack,
-                    update_stack_fields)
+from .common import (UP_STATES, LAUNCH_STATE, LAUNCH_ERROR_STATE, SETTINGS_KEY,
+                     get_xblock_settings, get_stack, update_stack,
+                     update_stack_fields)
 from .tasks import LaunchStackTask, CheckStudentProgressTask
 
 logger = logging.getLogger(__name__)
@@ -51,10 +51,6 @@ class HastexoXBlock(XBlock,
         help="Defines the maximum total grade of the block.")
 
     # Mandatory: must be set per instance.
-    stack_template_path = String(
-        scope=Scope.settings,
-        help="The relative path to the uploaded orchestration template. "
-             "For example, \"hot_lab.yaml\".")
     stack_user_name = String(
         scope=Scope.settings,
         help="The name of the training user in the stack.")
@@ -66,6 +62,10 @@ class HastexoXBlock(XBlock,
              "Currently, \"ssh\", \"rdp\", or \"vnc\".")
 
     # Optional
+    stack_template_path = String(
+        scope=Scope.settings,
+        help="The relative path to the uploaded orchestration template. "
+             "For example, \"hot_lab.yaml\".")
     launch_timeout = Integer(
         default=None,
         scope=Scope.settings,
@@ -92,7 +92,7 @@ class HastexoXBlock(XBlock,
         xml_node=True,
         help="The list of tests to run.")
 
-    # Deprecated in favor or "providers"
+    # Deprecated in favor of "providers"
     provider = String(
         default="",
         scope=Scope.settings,
@@ -194,9 +194,13 @@ class HastexoXBlock(XBlock,
                     # This will raise a TypeError if the string literal
                     # cannot be converted
                     capacity = int(capacity)
+                template = child.attrib.get("template")
+                if not template:
+                    raise KeyError("template")
                 environment = child.attrib.get("environment", None)
                 provider = {"name": name,
                             "capacity": capacity,
+                            "template": template,
                             "environment": environment}
 
                 block.providers.append(provider)
@@ -361,17 +365,20 @@ class HastexoXBlock(XBlock,
         return LaunchStackTask().AsyncResult(task_id)
 
     def launch_stack(self, stack, settings, reset=False):
-        if not self.stack_template_path:
-            raise LaunchError("Stack template file not provided.")
-
-        stack_template = self.read_from_contentstore(self.stack_template_path)
-        if stack_template is None:
-            raise LaunchError("Stack template file not found.")
-
         providers = []
         if len(self.providers):
             for provider in self.providers:
                 p = dict(provider)
+
+                tmpl_path = p.get("template")
+                if not tmpl_path:
+                    tmpl_path = self.stack_template_path
+                p["template"] = self.read_from_contentstore(tmpl_path)
+                if not tmpl_path or not p["template"]:
+                    raise LaunchError("Provider [%s] template file not found "
+                                      "for [%s]." % (p["name"],
+                                                     self.stack_name))
+
                 env_path = p.get("environment")
                 if env_path:
                     p["environment"] = self.read_from_contentstore(env_path)
@@ -382,9 +389,19 @@ class HastexoXBlock(XBlock,
                 providers.append(p)
         # For backward compatibility
         elif self.provider:
+            template = None
+            if self.stack_template_path:
+                template = self.read_from_contentstore(
+                    self.stack_template_path)
+
+            if not template:
+                raise LaunchError("Provider [%s] template file not found for"
+                                  " [%s]." % (self.provider, self.stack_name))
+
             providers.append({
                 "name": self.provider,
                 "capacity": -1,
+                "template": template,
                 "environment": None
             })
         # No providers have been configured.  Use the "default" one if it
@@ -401,18 +418,31 @@ class HastexoXBlock(XBlock,
                     pass
 
             if provider_name:
+                template = None
+                if self.stack_template_path:
+                    template = self.read_from_contentstore(
+                        self.stack_template_path)
+
+                if not template:
+                    raise LaunchError("Provider [%s] template file not found "
+                                      "for [%s]." % (provider_name,
+                                                     self.stack_name))
+
                 providers.append({
                     "name": provider_name,
                     "capacity": -1,
+                    "template": template,
                     "environment": None
                 })
+            else:
+                raise LaunchError("Provider not configured for [%s]."
+                                  % self.stack_name)
 
         course_id, student_id = self.get_block_ids()
         kwargs = {
             "providers": providers,
             "protocol": self.stack_protocol,
             "port": stack.port,
-            "stack_template": stack_template,
             "stack_run": self.stack_run,
             "stack_name": self.stack_name,
             "stack_user_name": self.stack_user_name,

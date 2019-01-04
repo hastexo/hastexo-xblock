@@ -3,8 +3,8 @@ import json
 import textwrap
 from hastexo.models import Stack
 from hastexo.hastexo import HastexoXBlock
-from hastexo.utils import (DEFAULT_SETTINGS, get_stack, update_stack,
-                           get_xblock_settings)
+from hastexo.common import (DEFAULT_SETTINGS, get_stack, update_stack,
+                            get_xblock_settings)
 
 from mock import Mock, patch, DEFAULT
 from webob import Request
@@ -37,9 +37,12 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
       stack_user_name='training'
       stack_protocol='rdp'
       launch_timeout='900'>
-      <provider name='provider1' capacity='20' environment='hot_env1.yaml' />
-      <provider name='provider2' capacity='30' environment='hot_env2.yaml' />
-      <provider name='provider3' capacity='0' environment='hot_env3.yaml' />
+      <provider name='provider1' capacity='20' template='hot_lab1.yaml'
+        environment='hot_env1.yaml' />
+      <provider name='provider2' capacity='30' template='hot_lab2.yaml'
+        environment='hot_env2.yaml' />
+      <provider name='provider3' capacity='0' template='hot_lab3.yaml'
+        environment='hot_env3.yaml' />
       <port name='server1' number='3389' />
       <port name='server2' number='3390' />
       <test>
@@ -51,7 +54,7 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
         test 2
       </test>
     </hastexo>
-            """).encode('utf-8'))
+        """).encode('utf-8'))
 
         self.assertIsInstance(block, HastexoXBlock)
         self.assertEqual(block.stack_template_path, "hot_lab.yaml")
@@ -60,6 +63,7 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
         self.assertEqual(block.launch_timeout, 900)
         self.assertEqual(len(block.providers), 3)
         self.assertEqual(block.providers[0]["name"], "provider1")
+        self.assertEqual(block.providers[0]["template"], "hot_lab1.yaml")
         self.assertEqual(block.providers[1]["capacity"], 30)
         self.assertEqual(block.providers[2]["environment"], "hot_env3.yaml")
         self.assertEqual(len(block.ports), 2)
@@ -68,6 +72,27 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
         self.assertEqual(len(block.tests), 2)
         self.assertEqual(block.tests[0], "Multi-line\ntest 1\n")
         self.assertEqual(block.tests[1], "Multi-line\ntest 2\n")
+
+    def test_parsing_deprecated_requires_name(self):
+        with self.assertRaises(KeyError):
+            self.parse_xml_to_block(textwrap.dedent("""\
+        <?xml version='1.0' encoding='utf-8'?>
+        <hastexo
+          stack_user_name='training'>
+          <provider capacity='20' environment='hot_env1.yaml' />
+        </hastexo>
+            """).encode('utf-8'))
+
+    def test_parsing_deprecated_requires_template(self):
+        with self.assertRaises(KeyError):
+            self.parse_xml_to_block(textwrap.dedent("""\
+        <?xml version='1.0' encoding='utf-8'?>
+        <hastexo
+          stack_user_name='training'>
+          <provider name='provider1' capacity='20'
+            environment='hot_env1.yaml' />
+        </hastexo>
+            """).encode('utf-8'))
 
     def test_parsing_new(self):
         block = self.parse_xml_to_block(textwrap.dedent("""\
@@ -80,9 +105,11 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
       <option:providers>
         - name: provider1
           capacity: 20
+          template: hot_lab1.yaml
           environment: hot_env1.yaml
         - name: provider2
           capacity: 30
+          template: hot_lab2.yaml
           environment: hot_env2.yaml
         - name: provider3
           capacity: 0
@@ -112,6 +139,7 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
         self.assertEqual(block.launch_timeout, 900)
         self.assertEqual(len(block.providers), 3)
         self.assertEqual(block.providers[0]["name"], "provider1")
+        self.assertEqual(block.providers[0]["template"], "hot_lab1.yaml")
         self.assertEqual(block.providers[1]["capacity"], 30)
         self.assertEqual(block.providers[2]["environment"], "hot_env3.yaml")
         self.assertEqual(len(block.ports), 2)
@@ -146,9 +174,18 @@ class TestHastexoXBlock(TestCase):
         self.block.launch_timeout = None
         self.block.provider = ""
         self.block.providers = [
-            {"name": "provider1", "capacity": 1, "environment": "env1.yaml"},
-            {"name": "provider2", "capacity": 2, "environment": "env2.yaml"},
-            {"name": "provider3", "capacity": 0, "environment": "env3.yaml"}
+            {"name": "provider1",
+             "capacity": 1,
+             "template": "bogus_content",
+             "environment": "bogus_content"},
+            {"name": "provider2",
+             "capacity": 2,
+             "template": "bogus_content",
+             "environment": "bogus_content"},
+            {"name": "provider3",
+             "capacity": 0,
+             "template": "bogus_content",
+             "environment": "bogus_content"}
         ]
         self.block.ports = [
             {"name": "server1", "number": 3389},
@@ -267,7 +304,87 @@ class TestHastexoXBlock(TestCase):
             result = self.call_handler("get_user_stack_status", data)
 
         self.assertEqual(result, mock_result.result)
-        self.assertTrue(mock_launch_stack_task.called)
+        mock_launch_stack_task.assert_called_with(
+            900, {'providers': self.block.providers,
+                  'stack_name': self.block.stack_name,
+                  'stack_run': '',
+                  'port': None,
+                  'course_id': 'all',
+                  'stack_user_name': self.block.stack_user_name,
+                  'student_id': 'user',
+                  'protocol': 'ssh',
+                  'reset': False})
+
+    def test_get_user_stack_status_with_no_per_provider_template(self):
+        self.init_block()
+        self.block.providers = [
+            {"name": "provider1",
+             "capacity": 1,
+             "environment": "bogus_content"}
+        ]
+
+        mock_result = Mock()
+        mock_result.id = 'bogus_task_id'
+        mock_result.ready.return_value = True
+        mock_result.successful.return_value = True
+        mock_result.result = {"status": "CREATE_COMPLETE"}
+        mock_launch_stack_task = Mock(return_value=mock_result)
+        mock_read_from_contentstore = Mock(return_value=("bogus_content"))
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task,
+                read_from_contentstore=mock_read_from_contentstore):
+            data = {
+                "initialize": True,
+                "reset": False
+            }
+            result = self.call_handler("get_user_stack_status", data)
+
+        self.assertEqual(result, mock_result.result)
+        mock_launch_stack_task.assert_called_with(
+            900, {'providers': [{"name": "provider1",
+                                 "capacity": 1,
+                                 "template": "bogus_content",
+                                 "environment": "bogus_content"}],
+                  'stack_name': self.block.stack_name,
+                  'stack_run': '',
+                  'port': None,
+                  'course_id': 'all',
+                  'stack_user_name': self.block.stack_user_name,
+                  'student_id': 'user',
+                  'protocol': 'ssh',
+                  'reset': False})
+
+    def test_get_user_stack_status_with_no_templates(self):
+        self.init_block()
+        self.block.providers = [
+            {"name": "provider1",
+             "capacity": 1,
+             "environment": "bogus_content"}
+        ]
+        self.block.stack_template_path = ""
+
+        mock_result = Mock()
+        mock_result.id = 'bogus_task_id'
+        mock_result.ready.return_value = True
+        mock_result.successful.return_value = True
+        mock_result.result = {"status": "LAUNCH_ERROR"}
+        mock_launch_stack_task = Mock(return_value=mock_result)
+        mock_read_from_contentstore = Mock(return_value=("bogus_content"))
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task,
+                read_from_contentstore=mock_read_from_contentstore):
+            data = {
+                "initialize": True,
+                "reset": False
+            }
+            result = self.call_handler("get_user_stack_status", data)
+
+        self.assertEqual(result["status"], mock_result.result["status"])
+        mock_launch_stack_task.assert_not_called()
 
     def test_get_user_stack_status_pending(self):
         self.init_block()
@@ -455,7 +572,7 @@ class TestHastexoXBlock(TestCase):
         mock_result.id = 'bogus_task_id'
         mock_result.ready.return_value = True
         mock_result.successful.return_value = True
-        mock_result.result = {"status": "CREATE_COMPLETE"}
+        mock_result.result = {"status": "LAUNCH_ERROR"}
         mock_launch_stack_task = Mock(return_value=mock_result)
         mock_read_from_contentstore = Mock(return_value=('bogus_content'))
 
@@ -471,8 +588,8 @@ class TestHastexoXBlock(TestCase):
                 }
                 result = self.call_handler("get_user_stack_status", data)
 
-        self.assertEqual(result, mock_result.result)
-        self.assertTrue(mock_launch_stack_task.called)
+        self.assertEqual(result["status"], mock_result.result["status"])
+        self.assertFalse(mock_launch_stack_task.called)
 
     def test_get_user_stack_status_resume_after_suspend(self):
         self.init_block()
