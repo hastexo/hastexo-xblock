@@ -11,8 +11,11 @@ SNAPSHOT_STATE = 'SNAPSHOT_COMPLETE'
 LAUNCH_STATE = 'LAUNCH_PENDING'
 LAUNCH_ERROR_STATE = 'LAUNCH_ERROR'
 SUSPEND_STATE = 'SUSPEND_PENDING'
+SUSPEND_FAILED_STATE = 'SUSPEND_FAILED'
 SUSPEND_ISSUED_STATE = 'SUSPEND_ISSUED'
 SUSPEND_RETRY_STATE = 'SUSPEND_RETRY'
+RESUME_IN_PROGRESS_STATE = 'RESUME_IN_PROGRESS'
+RESUME_FAILED_STATE = 'RESUME_FAILED'
 DELETED_STATE = 'DELETE_COMPLETE'
 DELETE_STATE = 'DELETE_PENDING'
 DELETE_IN_PROGRESS_STATE = 'DELETE_IN_PROGRESS'
@@ -63,21 +66,6 @@ DEFAULT_SETTINGS = {
     "providers": {}
 }
 
-DEFAULT_CREDENTIALS = {
-    "os_auth_url": "",
-    "os_auth_token": "",
-    "os_username": "",
-    "os_password": "",
-    "os_user_id": "",
-    "os_user_domain_id": "",
-    "os_user_domain_name": "",
-    "os_project_id": "",
-    "os_project_name": "",
-    "os_project_domain_id": "",
-    "os_project_domain_name": "",
-    "os_region_name": ""
-}
-
 
 def get_xblock_settings():
     try:
@@ -89,20 +77,6 @@ def get_xblock_settings():
             SETTINGS_KEY, DEFAULT_SETTINGS)
 
     return settings
-
-
-def get_credentials(settings, provider):
-    providers = settings.get("providers")
-    credentials = providers.get(provider)
-
-    # Sanitize credentials
-    if credentials and isinstance(credentials, dict):
-        tmp = {}
-        for key, default in DEFAULT_CREDENTIALS.iteritems():
-            tmp[key] = credentials.get(key, default)
-        credentials = tmp
-
-    return credentials
 
 
 def update_stack(name, course_id, student_id, data):

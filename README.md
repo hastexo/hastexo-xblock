@@ -21,9 +21,9 @@ SSH).
 ## Purpose
 
 The hastexo XBlock orchestrates a virtual environment (a "stack") that runs on
-an [OpenStack](https://www.openstack.org) private or public cloud using the
-[OpenStack Heat](http://docs.openstack.org/developer/heat/) orchestration
-engine. It provides a Secure Shell session directly within the courseware.
+a private or public cloud (currently [OpenStack](https://www.openstack.org) using the
+its orchestration engine. It provides a Secure Shell session directly within
+the courseware.
 
 Stack creation is idempotent, so a fresh stack will be spun up only if it does
 not already exist. An idle stack will auto-suspend after a configurable time
@@ -40,7 +40,7 @@ month on a public cloud (assuming students use the environment for 1 hour per
 day).
 
 Course authors can fully define and customize the lab environment. It is only
-limited by the feature set of OpenStack Heat.
+limited by the feature set of the cloud's deployment features.
 
 
 ## Deployment
@@ -65,7 +65,7 @@ To deploy the hastexo XBlock:
 2. Collect static assets:
 
     ```
-    $ sudo /edx/bin/edxapp-update-assets-lms
+    $ sudo /edx/bin/edxapp-update-assets
     ```
 
 3. Add it to the `ADDL_INSTALLED_APPS` of your LMS environment, by editing
@@ -112,6 +112,7 @@ To deploy the hastexo XBlock:
             },
             "providers": {
                 "default": {
+                    "type": "openstack",
                     "os_auth_url": "",
                     "os_auth_token": "",
                     "os_username": "",
@@ -126,6 +127,7 @@ To deploy the hastexo XBlock:
                     "os_region_name": ""
                 },
                 "provider2": {
+                    "type": "openstack",
                     "os_auth_url": "",
                     "os_auth_token": "",
                     "os_username": "",
@@ -180,9 +182,8 @@ To deploy the hastexo XBlock:
 
 The hastexo XBlock must be configured via `XBLOCK_SETTINGS` in
 `lms.env.json`, under the `hastexo` key.  At the very minimum, you must
-configure a single "default" provider with the OpenStack credentials specific
-to the cloud you will be using.  All other variables can be left at their
-defaults.
+configure a single "default" provider with the credentials specific to the
+cloud you will be using.  All other variables can be left at their defaults.
 
 This is a brief explanation of each:
 
@@ -240,38 +241,54 @@ This is a brief explanation of each:
       wait between polling attempts, in milliseconds. (Default: `5000`)
 
 * `providers`: A dictionary of OpenStack providers that course authors can pick
-  from.  Each entry is itself a dictionary containing OpenStack credentials.
-  You must configure at least one, named "default".  The following is a list
-  of supported OpenStack credential variables:
+  from.  Each entry is itself a dictionary containing provider configuration
+  parameters.  You must configure at least one, named "default".  The following
+  is a list of supported parameters:
 
-    * `os_auth_url`
-    * `os_auth_token`
-    * `os_username`
-    * `os_password`
-    * `os_user_id`
-    * `os_user_domain_id`
-    * `os_user_domain_name`
-    * `os_project_id`
-    * `os_project_name`
-    * `os_project_domain_id`
-    * `os_project_domain_name`
-    * `os_region_name`
+    * `type`: The provider type.  Currently only "openstack".  Defaults to
+      "openstack" if not provided, for backwards-compatibility.
+
+    * `os_auth_url`: OpenStack auth URL.
+
+    * `os_auth_token`: OpenStack auth token.
+
+    * `os_username`: OpenStack user name.
+
+    * `os_password`: OpenStack password.
+
+    * `os_user_id`: OpenStack user id.
+
+    * `os_user_domain_id`: OpenStack domain id.
+
+    * `os_user_domain_name`: OpenStack domain name.
+
+    * `os_project_id`: OpenStack project id.
+
+    * `os_project_name`: OpenStack project name.
+
+    * `os_project_domain_id`: OpenStack project domain id.
+
+    * `os_project_domain_name`: OpenStack project domain name.
+
+    * `os_region_name`: OpenStack region name.
 
 
-## Creating a Heat template for your course
+## Creating an orchestration template for your course
 
-To use the hastexo XBlock, start by creating a Heat template and uploading it
-to the content store.  The XBlock imposes some constraints on the template
-(detailed below), but you are otherwise free to customize your training
-environment as needed.  A sample template is provided under
+To use the hastexo XBlock, start by creating an orchestration template and
+uploading it to the content store.  The XBlock imposes some constraints on the
+template (detailed below), but you are otherwise free to customize your
+training environment as needed.  A sample Heat template is provided under
 `heat-templates/hot/openstack-sample.yaml`.
 
-To ensure your Heat template has the required configuration:
+To ensure your template has the required configuration:
 
-1. Configure the Heat template to accept a "run" parameter, which will contain
+1. Configure the template to accept a "run" parameter, which will contain
    information about the course run where the XBlock is instanced.  This is
    intended to give course authors a way to, for example, tie this to a
-   specific Glance image when launching VMs:
+   specific virtual image when launching VMs.
+
+    For instance, in Heat:
 
     ```
     run:
@@ -279,7 +296,7 @@ To ensure your Heat template has the required configuration:
       description: Stack run
     ```
 
-2. Configure the Heat template to generate an SSH key pair dynamically and
+2. Configure the template to generate an SSH key pair dynamically and
    save the private key.  For example:
 
     ```
@@ -311,8 +328,8 @@ To ensure your Heat template has the required configuration:
                   "{password}": { get_resource: stack_password }
     ```
 
-3. Configure the Heat template to have an instance that is publicly accessible
-   via `floating_ip_address`.
+3. Configure the template to have at least one instance that is publicly
+   accessible via an IPv4 address.
 
 4. Provide the following outputs with these exact names:
 
@@ -350,8 +367,8 @@ To ensure your Heat template has the required configuration:
     nested KVM, as the latter does not support a managed save and subsequent
     restart.)
 
-5. Upload the Heat template to the content store and make a note of its static
-   asset file name.
+5. Upload the template to the content store and make a note of its static asset
+   file name.
 
 
 ## Using the hastexo XBlock in a course
@@ -360,29 +377,32 @@ To create a stack for a student and display a terminal window where invoked,
 you need to define the `hastexo` tag in your course content.   It must be
 configured with the following attributes:
 
-* `stack_template_path`: The static asset path to a Heat template.
-
 * `stack_user_name`: The name of the user that the Xblock will use to connect
-  to the environment, as specified in the Heat template.
+  to the environment, as specified in the orchestration template.
 
 * `protocol`: One of 'ssh', 'rdp', or 'vnc'.  This defines the protocol that
   will be used to connect to the environment.  The default is 'ssh'.
 
-The following is optional:
+The following are optional:
+
+* `stack_template_path`: The static asset path to the orchestration template,
+  if not specified per provider below.
 
 * `launch_timeout`: How long to wait for a stack to be launched, in seconds.
   If unset, the global timeout will be used.
 
 You can also use the following nested XML options:
 
-* `providers`: A list of references to OpenStack providers configured in the
-  platform.  Each `name` attribute must match one of the providers in the
-  XBlock configuration, `capacity` specifies how many environments should be
-  launched in that provider at maximum (where "-1" means keep launching
-  environments until encountering a launch failure, and "0" disables the
-  provider), and `environment` optionally specifies a content store path to a
-  Heat environment file specifying template parameters for that provider.  If
-  no providers are specified, the platform default will be used.
+* `providers`: A list of references to providers configured in the platform.
+  Each `name` attribute must match one of the providers in the XBlock
+  configuration. `capacity` specifies how many environments should be launched
+  in that provider at maximum (where "-1" means keep launching environments
+  until encountering a launch failure, and "0" disables the provider).
+  `template` is the content store path to the orchestration template (if not
+  given, `stack_template_path` will be used).  `environment` optionally
+  specifies a content store path to a Heat environment file specifying template
+  parameters for that provider.  If no providers are specified, the platform
+  default will be used.
 
 * `ports`: A list of ports the user can manually choose to connect to.  This is
   intended as a means of providing a way to connect directly to multiple VMs in
@@ -401,18 +421,20 @@ For example, in XML:
 <vertical url_name="lab_introduction">
   <hastexo xmlns:option="http://code.edx.org/xblock/option"
     url_name="lab_introduction"
-    stack_template_path="hot_lab.yaml"
     stack_user_name="training"
     protocol="rdp">
     <option:providers>
       - name: provider1
         capacity: 20
+        template: hot_lab1.yaml
         environment: hot_env1.yaml
       - name: provider2
         capacity: 30
+        template: hot_lab2.yaml
         environment: hot_env2.yaml
       - name: provider3
         capacity: 0
+        template: hot_lab3.yaml
         environment: hot_env3.yaml
     </option:providers>
     <option:ports>
@@ -439,7 +461,7 @@ For example, in XML:
 </vertical>
 ```
 
-**Important**: Do this only *once per section*. Defining it more that once
+**Important**: Do this only *once per section*. Defining it more than once
 per section is not supported.
 
 In order to add the hastexo Xblock through Studio, open the unit where you want

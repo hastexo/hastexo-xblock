@@ -9,13 +9,11 @@ from django.db import transaction
 from celery import Task
 from celery.utils.log import get_task_logger
 from celery.exceptions import SoftTimeLimitExceeded
-from heatclient.exc import HTTPException, HTTPNotFound
 from io import StringIO
 
 from .models import Stack
-from .openstack import HeatWrapper, NovaWrapper
-from .utils import (OCCUPANCY_STATES, get_xblock_settings, get_credentials,
-                    update_stack)
+from .provider import Provider, ProviderException
+from .common import (OCCUPANCY_STATES, get_xblock_settings, update_stack)
 
 logger = get_task_logger(__name__)
 
@@ -26,7 +24,7 @@ PING_COMMAND = "ping -c 1 -W %d %s >/dev/null 2>&1"
 
 
 class LaunchStackFailed(Exception):
-    provider = ""
+    provider = None
     status = ""
     error_msg = ""
     suspend = False
@@ -57,7 +55,23 @@ class LaunchStackTask(Task):
         Run the celery task.
 
         """
+        # Initialize providers
+        self.providers = []
+        for provider in kwargs.get("providers", []):
+            p = Provider.init(provider["name"])
+            p.set_capacity(provider["capacity"])
+            p.set_template(provider["template"])
+
+            environment = provider.get("environment")
+            if environment:
+                p.set_environment(environment)
+
+            self.providers.append(p)
+
+        # Set the rest of the arguments.
         for key, value in kwargs.iteritems():
+            if key == "providers":
+                continue
             setattr(self, key, value)
 
         self.settings = get_xblock_settings()
@@ -72,9 +86,9 @@ class LaunchStackTask(Task):
 
             # In case of failure, only return the provider if this was a failed
             # resume attempt.
-            provider = ""
+            provider_name = ""
             if e.suspend:
-                provider = e.provider
+                provider_name = e.provider.name
 
             stack_data = {
                 'status': e.status,
@@ -83,7 +97,7 @@ class LaunchStackTask(Task):
                 'user': "",
                 'key': "",
                 'password': "",
-                'provider': provider
+                'provider': provider_name
             }
 
             # Roll back in case of failure
@@ -102,40 +116,11 @@ class LaunchStackTask(Task):
 
     def get_provider(self, name):
         try:
-            provider = next(p for p in self.providers if p["name"] == name)
+            provider = next(p for p in self.providers if p.name == name)
         except StopIteration:
             provider = None
 
         return provider
-
-    def get_credentials(self, provider):
-        credentials = None
-        provider = self.get_provider(provider)
-        if provider:
-            credentials = get_credentials(self.settings,
-                                          provider.get("name"))
-
-        return credentials
-
-    def get_environment(self, provider):
-        provider = self.get_provider(provider)
-        return provider.get("environment")
-
-    def get_heat_client(self, provider):
-        heat_c = None
-        credentials = self.get_credentials(provider)
-        if credentials:
-            heat_c = HeatWrapper(**credentials).get_client()
-
-        return heat_c
-
-    def get_nova_client(self, provider):
-        nova_c = None
-        credentials = self.get_credentials(provider)
-        if credentials:
-            nova_c = NovaWrapper(**credentials).get_client()
-
-        return nova_c
 
     def launch_stack(self):
         """
@@ -155,12 +140,13 @@ class LaunchStackTask(Task):
             )
 
         if stack.provider:
+            provider = self.get_provider(stack.provider)
             if self.reset:
-                self.try_provider(stack.provider, True)
+                self.try_provider(provider, True)
 
                 stack_data = self.try_all_providers()
             else:
-                stack_data = self.try_provider(stack.provider)
+                stack_data = self.try_provider(provider)
         else:
             stack_data = self.try_all_providers()
 
@@ -169,7 +155,7 @@ class LaunchStackTask(Task):
     def get_provider_stack_count(self, provider):
         stack_count = Stack.objects.filter(
             course_id__exact=self.course_id,
-            provider__exact=provider,
+            provider__exact=provider.name,
             status__in=list(OCCUPANCY_STATES)
         ).exclude(
             name__exact=self.stack_name
@@ -183,34 +169,23 @@ class LaunchStackTask(Task):
         # Try launching the stack in all providers, in sequence
         for index, provider in enumerate(self.providers):
             # Check if provider is full.  If it is, try the next one.
-            capacity = provider.get("capacity")
-            if capacity in (None, "None"):
-                capacity = -1
-            else:
-                try:
-                    capacity = int(capacity)
-                except (TypeError, ValueError):
-                    logger.error("Provider [%s] has invalid capacity." %
-                                 provider["name"])
-                    capacity = 0
-
-            if capacity == 0:
+            if provider.capacity == 0:
                 logger.info("Stack [%s]: provider [%s] is disabled." %
-                            (self.stack_name, provider["name"]))
+                            (self.stack_name, provider.name))
                 continue
-            elif capacity > 0:
-                stack_count = self.get_provider_stack_count(provider["name"])
-                if stack_count >= capacity:
+            elif provider.capacity > 0:
+                stack_count = self.get_provider_stack_count(provider)
+                if stack_count >= provider.capacity:
                     logger.info("Stack [%s]: provider [%s] is full, "
                                 "with capacity [%d/%d]." %
-                                (self.stack_name, provider["name"],
-                                 stack_count, capacity))
+                                (self.stack_name, provider.name,
+                                 stack_count, provider.capacity))
                     continue
 
             # Launch stack in provider.  If successful, don't continue trying.
             try:
-                self.update_stack({"provider": provider["name"]})
-                stack_data = self.try_provider(provider["name"])
+                self.update_stack({"provider": provider.name})
+                stack_data = self.try_provider(provider)
                 break
             except LaunchStackFailed as e:
                 self.update_stack({"provider": ""})
@@ -246,34 +221,21 @@ class LaunchStackTask(Task):
         stack: just delete it.
 
         """
-        status = ""
         error_msg = ""
-        outputs = {}
         was_resumed = False
         stack_data = {}
 
         if not reset:
             logger.info("Trying to launch stack [%s] on provider [%s]." %
-                        (self.stack_name, provider))
+                        (self.stack_name, provider.name))
         else:
             logger.info("Resetting stack [%s] on provider [%s]." %
-                        (self.stack_name, provider))
-
-        # Get heat client for current provider
-        heat_c = self.get_heat_client(provider)
-        if not heat_c:
-            error_msg = ("Could not find credentials for stack [%s], "
-                         "provider [%s]." % (self.stack_name, provider))
-            logger.error(error_msg)
-            raise LaunchStackFailed(provider, "CREATE_FAILED", error_msg)
+                        (self.stack_name, provider.name))
 
         # Check if the stack actually exists
         try:
-            heat_stack = heat_c.stacks.get(stack_id=self.stack_name)
-        except HTTPNotFound:
-            logger.info("Stack [%s] doesn't exist." % self.stack_name)
-            status = 'DELETE_COMPLETE'
-        except HTTPException as e:
+            provider_stack = provider.get_stack(self.stack_name)
+        except ProviderException as e:
             error_msg = ("Error retrieving [%s] stack information: %s" %
                          (self.stack_name, e))
             raise LaunchStackFailed(provider, "CREATE_FAILED", error_msg)
@@ -281,27 +243,21 @@ class LaunchStackTask(Task):
             error_msg = "Timeout fetching stack [%s] information." % (
                 self.stack_name)
             raise LaunchStackFailed(provider, "LAUNCH_TIMEOUT", error_msg)
-        else:
-            status = heat_stack.stack_status
 
         # If stack is undergoing a change of state, wait until it
         # finishes.
         try:
-            while 'IN_PROGRESS' in status:
+            while 'IN_PROGRESS' in provider_stack["status"]:
                 try:
                     # Sleep to avoid throttling.
                     self.sleep()
 
-                    heat_stack = heat_c.stacks.get(stack_id=self.stack_name)
-                except HTTPNotFound:
-                    status = 'DELETE_COMPLETE'
-                except HTTPException as e:
+                    provider_stack = provider.get_stack(self.stack_name)
+                except ProviderException as e:
                     error_msg = ("Error waiting for stack [%s] to change "
                                  "state: %s" % (self.stack_name, e))
                     raise LaunchStackFailed(provider, "CREATE_FAILED",
                                             error_msg)
-                else:
-                    status = heat_stack.stack_status
         except SoftTimeLimitExceeded:
             error_msg = "Timeout waiting for stack [%s] state change." % (
                 self.stack_name)
@@ -310,13 +266,13 @@ class LaunchStackTask(Task):
         # Reset the stack, if necessary
         if reset:
             try:
-                if status != 'DELETE_COMPLETE':
+                if provider_stack["status"] != 'DELETE_COMPLETE':
                     # Sleep to avoid throttling.
                     self.sleep()
 
                     logger.info("Resetting stack [%s]." % self.stack_name)
-                    status = self.delete_stack(heat_stack, heat_c, provider)
-            except HTTPException as e:
+                    provider_stack = provider.delete_stack(self.stack_name)
+            except ProviderException as e:
                 error_msg = ("Error deleting stack [%s]: %s" %
                              (self.stack_name, e))
                 raise LaunchStackFailed(provider, "CREATE_FAILED", error_msg)
@@ -326,15 +282,14 @@ class LaunchStackTask(Task):
         else:
             # Create the stack if it doesn't exist
             try:
-                if status == 'DELETE_COMPLETE':
+                if provider_stack["status"] == 'DELETE_COMPLETE':
                     # Sleep to avoid throttling.
                     self.sleep()
 
                     logger.info("Creating stack [%s]." % self.stack_name)
-                    env = self.get_environment(provider)
-                    heat_stack = self.create_stack(heat_c, provider, env)
-                    status = heat_stack.stack_status
-            except HTTPException as e:
+                    provider_stack = provider.create_stack(self.stack_name,
+                                                           self.stack_run)
+            except ProviderException as e:
                 error_msg = ("Error creating stack [%s]: %s" %
                              (self.stack_name, e))
                 raise LaunchStackFailed(provider, "CREATE_FAILED", error_msg,
@@ -345,17 +300,18 @@ class LaunchStackTask(Task):
                                         CLEANUP_DELETE)
             # If stack is suspended, resume it.
             try:
-                if status == 'SUSPEND_COMPLETE' or status == 'RESUME_COMPLETE':
+                if provider_stack["status"] == 'SUSPEND_COMPLETE' or \
+                        provider_stack["status"] == 'RESUME_COMPLETE':
                     # Store the fact the stack was resumed
                     was_resumed = True
 
-                if status == 'SUSPEND_COMPLETE':
+                if provider_stack["status"] == 'SUSPEND_COMPLETE':
                     # Sleep to avoid throttling.
                     self.sleep()
 
                     logger.info("Resuming stack [%s]." % self.stack_name)
-                    status = self.resume_stack(heat_stack, heat_c, provider)
-            except HTTPException as e:
+                    provider_stack = provider.resume_stack(self.stack_name)
+            except ProviderException as e:
                 error_msg = ("Error resuming stack [%s]: %s" %
                              (self.stack_name, e))
                 raise LaunchStackFailed(provider, "RESUME_FAILED", error_msg,
@@ -365,16 +321,11 @@ class LaunchStackTask(Task):
                 raise LaunchStackFailed(provider, "LAUNCH_TIMEOUT", error_msg,
                                         CLEANUP_SUSPEND)
 
-            # Fetch stack outputs
-            for o in getattr(heat_stack, 'outputs', []):
-                output_key = o["output_key"]
-                output_value = o["output_value"]
-                outputs[output_key] = output_value
-
             # Launch completed successfully.  Wait for provisioning, collect
             # its IP address, and save the private key.
             try:
-                check_data = self.check_stack(outputs, was_resumed, provider)
+                check_data = self.check_stack(provider_stack["outputs"],
+                                              was_resumed, provider)
             except SoftTimeLimitExceeded:
                 if was_resumed:
                     cleanup = CLEANUP_SUSPEND
@@ -386,101 +337,16 @@ class LaunchStackTask(Task):
                                         cleanup)
 
             stack_data = {
-                "status": status,
+                "status": provider_stack["status"],
                 "error_msg": error_msg,
                 "ip": check_data["ip"],
                 "user": self.stack_user_name,
                 "key": check_data["key"],
                 "password": check_data["password"],
-                "provider": provider
+                "provider": provider.name
             }
 
         return stack_data
-
-    def create_stack(self, heat_c, provider, environment):
-        parameters = {'run': self.stack_run}
-        res = heat_c.stacks.create(
-            stack_name=self.stack_name,
-            template=self.stack_template,
-            environment=environment,
-            parameters=parameters
-        )
-        stack_id = res['stack']['id']
-
-        # Sleep to avoid throttling.
-        self.sleep()
-
-        heat_stack = heat_c.stacks.get(stack_id=stack_id)
-        status = heat_stack.stack_status
-
-        # Wait for stack creation
-        while 'IN_PROGRESS' in status:
-            self.sleep()
-
-            try:
-                heat_stack = heat_c.stacks.get(stack_id=heat_stack.id)
-            except HTTPNotFound:
-                error_msg = "Stack [%s] disappeared during creation. " % (
-                    self.stack_name)
-                raise LaunchStackFailed(provider, "CREATE_FAILED", error_msg)
-
-            status = heat_stack.stack_status
-
-        if 'FAILED' in status:
-            error_msg = "Failure creating stack [%s]" % self.stack_name
-            raise LaunchStackFailed(provider, "CREATE_FAILED", error_msg,
-                                    CLEANUP_DELETE)
-
-        return heat_stack
-
-    def delete_stack(self, heat_stack, heat_c, provider):
-        heat_c.stacks.delete(stack_id=heat_stack.id)
-        status = 'DELETE_IN_PROGRESS'
-
-        # Wait until delete finishes.
-        while ('FAILED' not in status and
-               status != 'DELETE_COMPLETE'):
-            self.sleep()
-
-            try:
-                heat_stack = heat_c.stacks.get(
-                    stack_id=heat_stack.id)
-            except HTTPNotFound:
-                status = 'DELETE_COMPLETE'
-            else:
-                status = heat_stack.stack_status
-
-        if 'FAILED' in status:
-            error_msg = "Failure deleting stack [%s]" % self.stack_name
-            raise LaunchStackFailed(provider, "CREATE_FAILED", error_msg)
-
-        return status
-
-    def resume_stack(self, heat_stack, heat_c, provider):
-        heat_c.actions.resume(stack_id=heat_stack.id)
-        status = 'RESUME_IN_PROGRESS'
-
-        # Wait until resume finishes.
-        while ('FAILED' not in status and
-               status != 'RESUME_COMPLETE'):
-            self.sleep()
-
-            try:
-                heat_stack = heat_c.stacks.get(
-                    stack_id=heat_stack.id)
-            except HTTPNotFound:
-                error_msg = "Stack [%s] disappeared during resume. " % (
-                    self.stack_name)
-                raise LaunchStackFailed(provider, "RESUME_FAILED", error_msg)
-            else:
-                status = heat_stack.stack_status
-
-        if 'FAILED' in status:
-            error_msg = "Failure resuming stack [%s]" % self.stack_name
-            raise LaunchStackFailed(provider, "RESUME_FAILED", error_msg,
-                                    CLEANUP_SUSPEND)
-
-        return status
 
     def cleanup_stack(self, e):
         """
@@ -488,17 +354,12 @@ class LaunchStackTask(Task):
 
         """
         if e.delete or e.suspend:
-            heat_c = self.get_heat_client(e.provider)
-            if not heat_c:
-                logger.error("Could not clean up stack [%s] due to missing "
-                             "credentials for provider [%s]." % (
-                                 self.stack_name, e.provider))
-            elif e.delete:
+            if e.delete:
                 logger.error("Deleting unsuccessfully "
                              "created stack [%s]." % self.stack_name)
                 try:
-                    heat_c.stacks.delete(stack_id=self.stack_name)
-                except HTTPException as e:
+                    e.provider.delete_stack(self.stack_name, False)
+                except ProviderException as e:
                     logger.error("Failure deleting stack "
                                  "[%s], with error [%s]." % (
                                      self.stack_name, e))
@@ -506,8 +367,8 @@ class LaunchStackTask(Task):
                 logger.error("Suspending unsuccessfully "
                              "resumed stack [%s]." % self.stack_name)
                 try:
-                    heat_c.actions.suspend(stack_id=self.stack_name)
-                except HTTPException as e:
+                    e.provider.suspend_stack(self.stack_name)
+                except ProviderException as e:
                     logger.error("Failure suspending stack "
                                  "[%s], with error [%s]." % (
                                      self.stack_name, e))
@@ -555,7 +416,7 @@ class LaunchStackTask(Task):
                 ssh.close()
                 connected = True
 
-    def wait_for_rdp(self, stack_ip, was_resumed, provider):
+    def wait_for_rdp(self, stack_ip):
         port = getattr(self, 'port', None)
         if not port:
             port = 3389
@@ -586,7 +447,6 @@ class LaunchStackTask(Task):
         stack_ip = None
         stack_key = ""
         stack_password = ""
-        reboot_on_resume = None
 
         logger.debug("Verifying stack [%s] " % self.stack_name)
 
@@ -594,7 +454,6 @@ class LaunchStackTask(Task):
         stack_ip = stack_outputs.get("public_ip")
         stack_key = stack_outputs.get("private_key")
         stack_password = stack_outputs.get("password")
-        reboot_on_resume = stack_outputs.get("reboot_on_resume")
 
         if stack_ip is None or not stack_key:
             if was_resumed:
@@ -607,15 +466,6 @@ class LaunchStackTask(Task):
             error_msg = ("Stack [%s] did not provide "
                          "IP or private key." % self.stack_name)
             raise LaunchStackFailed(provider, error_status, error_msg, cleanup)
-
-        # Reboot servers, if necessary
-        if (was_resumed and
-                reboot_on_resume is not None and
-                isinstance(reboot_on_resume, list)):
-            nova_c = self.get_nova_client(provider)
-            for server in reboot_on_resume:
-                logger.info("Hard rebooting server [%s]" % server)
-                nova_c.servers.reboot(server, 'HARD')
 
         # Wait until stack is network accessible
         logger.info("Waiting for stack [%s] "
@@ -635,7 +485,7 @@ class LaunchStackTask(Task):
         if protocol and protocol == "rdp":
             logger.info("Checking RDP connection "
                         "for stack [%s] at [%s]" % (self.stack_name, stack_ip))
-            self.wait_for_rdp(stack_ip, was_resumed, provider)
+            self.wait_for_rdp(stack_ip)
 
         check_data = {
             "ip": stack_ip,

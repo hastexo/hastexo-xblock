@@ -5,15 +5,14 @@ import sys
 
 from django.db import transaction, close_old_connections
 from django.utils import timezone
-from heatclient.exc import HTTPNotFound
 from multiprocessing.dummy import Pool as ThreadPool
 
-from .openstack import HeatWrapper
 from .models import Stack
-from .utils import (UP_STATES, LAUNCH_STATE, SUSPEND_STATE,
-                    SUSPEND_ISSUED_STATE, SUSPEND_RETRY_STATE, DELETED_STATE,
-                    DELETE_IN_PROGRESS_STATE, DELETE_FAILED_STATE,
-                    DELETE_STATE, get_credentials)
+from .provider import Provider
+from .common import (UP_STATES, LAUNCH_STATE, SUSPEND_STATE,
+                     SUSPEND_ISSUED_STATE, SUSPEND_RETRY_STATE, DELETED_STATE,
+                     DELETE_IN_PROGRESS_STATE, DELETE_FAILED_STATE,
+                     DELETE_STATE)
 
 
 class AbstractJob(object):
@@ -82,45 +81,34 @@ class SuspenderJob(AbstractJob):
             for stack in stacks:
                 self.suspend_stack(stack)
 
-    def get_heat_client(self, credentials):
-        return HeatWrapper(**credentials).get_client()
-
     def suspend_stack(self, stack):
         """
         Suspend the stack.
 
         """
         try:
-            credentials = get_credentials(self.settings, stack.provider)
-            heat_client = self.get_heat_client(credentials)
+            provider = Provider.init(stack.provider)
+            provider_stack = provider.get_stack(stack.name)
 
-            try:
-                heat_stack = heat_client.stacks.get(stack_id=stack.name)
-            except HTTPNotFound:
-                heat_status = DELETED_STATE
-            else:
-                heat_status = heat_stack.stack_status
-
-            if heat_status in UP_STATES:
-                self.log("Suspending stack [%s], id [%s]." % (stack.name,
-                         heat_stack.id))
+            if provider_stack["status"] in UP_STATES:
+                self.log("Suspending stack [%s]." % stack.name)
 
                 # Suspend stack
-                heat_client.actions.suspend(stack_id=stack.name)
+                provider.suspend_stack(stack.name)
 
                 # Save status
                 stack.status = SUSPEND_ISSUED_STATE
                 stack.save(update_fields=["status"])
             else:
                 self.log("Cannot suspend stack [%s] with status [%s]." %
-                         (stack.name, heat_status))
+                         (stack.name, provider_stack["status"]))
 
                 # Schedule for retry, if it makes sense to do so
-                if (heat_status != DELETED_STATE and
-                        'FAILED' not in heat_status):
+                if (provider_stack["status"] != DELETED_STATE and
+                        'FAILED' not in provider_stack["status"]):
                     stack.status = SUSPEND_RETRY_STATE
                 else:
-                    stack.status = heat_status
+                    stack.status = provider_stack["status"]
 
                 stack.save(update_fields=["status"])
         except Exception as e:
@@ -181,9 +169,6 @@ class ReaperJob(AbstractJob):
                 self.log("Error deleting stack [%s]: %s" % (
                     stack.name, str(e)))
 
-    def get_heat_client(self, credentials):
-        return HeatWrapper(**credentials).get_client()
-
     def delete_stack(self, stack):
         """
         Delete the stack.
@@ -193,17 +178,11 @@ class ReaperJob(AbstractJob):
         sleep = timeouts.get('sleep', 10)
         retries = timeouts.get('retries', 90)
         attempts = self.settings.get('delete_attempts', 3)
-        credentials = get_credentials(self.settings, stack.provider)
-        heat_client = self.get_heat_client(credentials)
+        provider = Provider.init(stack.provider)
 
         def update_stack_status():
-            try:
-                heat_stack = heat_client.stacks.get(stack_id=stack.name)
-            except HTTPNotFound:
-                stack.status = DELETED_STATE
-            else:
-                stack.status = heat_stack.stack_status
-
+            provider_stack = provider.get_stack(stack.name)
+            stack.status = provider_stack["status"]
             stack.save(update_fields=["status"])
 
         update_stack_status()
@@ -226,7 +205,6 @@ class ReaperJob(AbstractJob):
                 stack.status = DELETE_FAILED_STATE
                 stack.save(update_fields=["status"])
             elif stack.status != DELETE_IN_PROGRESS_STATE:
-
                 attempt += 1
 
                 if attempt > attempts:
@@ -235,7 +213,7 @@ class ReaperJob(AbstractJob):
                     stack.status = DELETE_FAILED_STATE
                 else:
                     self.log("Deleting stack [%s]." % (stack.name))
-                    heat_client.stacks.delete(stack_id=stack.name)
+                    provider.delete_stack(stack.name, False)
                     stack.status = DELETE_IN_PROGRESS_STATE
 
                 stack.save(update_fields=["status"])
