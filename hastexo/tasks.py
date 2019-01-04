@@ -17,8 +17,7 @@ from paramiko.ssh_exception import (AuthenticationException,
                                     NoValidConnectionsError)
 
 from .models import Stack
-from .heat import HeatWrapper
-from .nova import NovaWrapper
+from .openstack import HeatWrapper, NovaWrapper
 from .utils import (OCCUPANCY_STATES, get_xblock_settings, get_credentials,
                     update_stack)
 
