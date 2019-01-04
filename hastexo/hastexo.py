@@ -259,12 +259,15 @@ class HastexoXBlock(XBlock,
             from xmodule.contentstore.content import StaticContent
             from xmodule.contentstore.django import contentstore
             from xmodule.exceptions import NotFoundError
-
-            loc = StaticContent.compute_location(course_id, path)
-            asset = contentstore().find(loc)
-            contents = asset.data
-        except (ImportError, NotFoundError):
+        except ImportError:
             pass
+        else:
+            try:
+                loc = StaticContent.compute_location(course_id, path)
+                asset = contentstore().find(loc)
+                contents = asset.data
+            except NotFoundError:
+                pass
 
         return contents
 

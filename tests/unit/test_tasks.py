@@ -678,8 +678,10 @@ class TestHastexoTasks(TestCase):
 
     def test_eoferror_does_not_constitute_verify_failure(self):
         # Setup
-        heat = self.get_heat_client_mock()
-        heat.stacks.get.return_value = self.stacks["CREATE_COMPLETE"]
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["CREATE_COMPLETE"]
+        ]
         ssh = self.get_ssh_client_mock()
         ssh.connect.side_effect = [
             EOFError,
