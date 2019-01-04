@@ -8,7 +8,7 @@ from django.utils import timezone
 from heatclient.exc import HTTPNotFound
 from multiprocessing.dummy import Pool as ThreadPool
 
-from .heat import HeatWrapper
+from .openstack import HeatWrapper
 from .models import Stack
 from .utils import (UP_STATES, LAUNCH_STATE, SUSPEND_STATE,
                     SUSPEND_ISSUED_STATE, SUSPEND_RETRY_STATE, DELETED_STATE,
