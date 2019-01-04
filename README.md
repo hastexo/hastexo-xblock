@@ -21,9 +21,9 @@ SSH).
 ## Purpose
 
 The hastexo XBlock orchestrates a virtual environment (a "stack") that runs on
-a private or public cloud (currently [OpenStack](https://www.openstack.org) using the
-its orchestration engine. It provides a Secure Shell session directly within
-the courseware.
+a private or public cloud (currently [OpenStack](https://www.openstack.org) or
+[Gcloud](https://cloud.google.com/)) using its orchestration engine. It
+provides a Secure Shell session directly within the courseware.
 
 Stack creation is idempotent, so a fresh stack will be spun up only if it does
 not already exist. An idle stack will auto-suspend after a configurable time
@@ -127,19 +127,18 @@ To deploy the hastexo XBlock:
                     "os_region_name": ""
                 },
                 "provider2": {
-                    "type": "openstack",
-                    "os_auth_url": "",
-                    "os_auth_token": "",
-                    "os_username": "",
-                    "os_password": "",
-                    "os_user_id": "",
-                    "os_user_domain_id": "",
-                    "os_user_domain_name": "",
-                    "os_project_id": "",
-                    "os_project_name": "",
-                    "os_project_domain_id": "",
-                    "os_project_domain_name": "",
-                    "os_region_name": ""
+                    "type": "gcloud",
+                    "gc_type": "service_account",
+                    "gc_project_id": "",
+                    "gc_private_key_id": "",
+                    "gc_private_key": "",
+                    "gc_client_email": "",
+                    "gc_client_id": "",
+                    "gc_auth_uri": "",
+                    "gc_token_uri": "",
+                    "gc_auth_provider_x509_cert_url": "",
+                    "gc_client_x509_cert_url": "",
+                    "gc_region_id": ""
                 },
             }
         }
@@ -245,8 +244,10 @@ This is a brief explanation of each:
   parameters.  You must configure at least one, named "default".  The following
   is a list of supported parameters:
 
-    * `type`: The provider type.  Currently only "openstack".  Defaults to
-      "openstack" if not provided, for backwards-compatibility.
+    * `type`: The provider type.  Currently "openstack" or "gcloud".  Defaults
+      to "openstack" if not provided, for backwards-compatibility.
+
+    The following apply to OpenStack only:
 
     * `os_auth_url`: OpenStack auth URL.
 
@@ -272,14 +273,45 @@ This is a brief explanation of each:
 
     * `os_region_name`: OpenStack region name.
 
+    The following apply to Gcloud only.  All values aside from region can be
+    obtained by creating a [service
+    account](https://console.developers.google.com/iam-admin/serviceaccounts)
+    and downloading the JSON-format key:
+
+    * `gc_deploymentmanager_api_version`: The deployment service api version.
+      (Default: "v2")
+
+    * `gc_compute_api_version`: The compute service api version. (Default: "v1")
+
+    * `gc_type`: The type of account, currently only `service_account`.
+
+    * `gc_project_id`: Gcloud project ID.
+
+    * `gc_private_key_id`: Gcloud private key ID.
+
+    * `gc_private_key`: Gcloud private key, in its entirety.
+
+    * `gc_client_email`: Gcloud client email.
+
+    * `gc_client_id`: Gcloud cliend ID.
+
+    * `gc_auth_uri`: Gcloud auth URI.
+
+    * `gc_token_uri`: Gcloud token URI.
+
+    * `gc_auth_provider_x509_cert_url`: Gcloud auth provider cert URL.
+
+    * `gc_client_x509_cert_url`: Gcloud client cert URL.
+
+    * `gc_region_id`: Gcloud region where labs will be launched.
+
 
 ## Creating an orchestration template for your course
 
 To use the hastexo XBlock, start by creating an orchestration template and
 uploading it to the content store.  The XBlock imposes some constraints on the
 template (detailed below), but you are otherwise free to customize your
-training environment as needed.  A sample Heat template is provided under
-`heat-templates/hot/openstack-sample.yaml`.
+training environment as needed.
 
 To ensure your template has the required configuration:
 
@@ -288,7 +320,36 @@ To ensure your template has the required configuration:
    intended to give course authors a way to, for example, tie this to a
    specific virtual image when launching VMs.
 
-    For instance, in Heat:
+2. If your orchestration engine allows it, configure the template to generate
+   an SSH key pair dynamically and save the private key.
+
+3. In addition, if using RDP or VNC you must generate a random password and
+   assign it to the stack user.
+
+4. Configure the template to have at least one instance that is publicly
+   accessible via an IPv4 address.
+
+5. Provide the following outputs with these exact names:
+
+    * `public_ip`: The publically accessible instance.
+    
+    * `private_key`: The generated passphrase-less SSH private key.
+
+    * `password`: The generated password. (OPTIONAL)
+
+    * `reboot_on_resume`: A list of servers to be rebooted upon resume.  This
+      is meant primarily as a workaround to resurrect servers that use nested
+      KVM, as the latter does not support a managed save and subsequent
+      restart. (OPTIONAL)
+
+6. Upload the template to the content store and make a note of its static asset
+   file name.
+
+### Heat examples
+
+A sample Heat template is provided under `samples/hot/sample-template.yaml`.
+
+Accepting the run parameter:
 
     ```
     run:
@@ -296,8 +357,7 @@ To ensure your template has the required configuration:
       description: Stack run
     ```
 
-2. Configure the template to generate an SSH key pair dynamically and
-   save the private key.  For example:
+Generating an SSH key pair:
 
     ```
     training_key:
@@ -307,8 +367,7 @@ To ensure your template has the required configuration:
         save_private_key: true
     ```
 
-    In addition, if using RDP or VNC you must generate a random password and
-    assign it to the stack user:
+Generating a random password and setting it:
 
     ```
     stack_password:
@@ -328,10 +387,7 @@ To ensure your template has the required configuration:
                   "{password}": { get_resource: stack_password }
     ```
 
-3. Configure the template to have at least one instance that is publicly
-   accessible via an IPv4 address.
-
-4. Provide the following outputs with these exact names:
+Defining the outputs:
 
     ```
     outputs:
@@ -341,21 +397,9 @@ To ensure your template has the required configuration:
       private_key:
         description: Training private key
         value: { get_attr: [ training_key, private_key ] }
-    ```
-
-    If you generated a random password as described above, create an output as
-    follows:
-
-    ```
       password:
         description: Stack password
         value: { get_resource: stack_password }
-    ```
-
-    If you also provide a list of servers under an `reboot_on_resume` item, the
-    servers listed therein will be hard rebooted after a resume operation:
-
-    ```
       reboot_on_resume:
         description: Servers to be rebooted after resume
         value:
@@ -363,12 +407,53 @@ To ensure your template has the required configuration:
           - { get_resource: server2 }
     ```
 
-    (This is meant primarily as a workaround to resurrect servers that use
-    nested KVM, as the latter does not support a managed save and subsequent
-    restart.)
+### Gcloud examples
 
-5. Upload the template to the content store and make a note of its static asset
-   file name.
+A sample Gcloud template is provided under `samples/gcloud/sample-template.yaml.jinja`.
+
+The Gcloud deployment manager cannot generate an SSH key or random password
+itself, so the XBlock will do it for you.  There's no need to generate them or
+provide outputs manually.  However, you do need to make use of the ones
+provided as properties:
+
+    ```
+    resources:
+      - name: {{ env["deployment"] }}-server
+        type: compute.v1.instance
+        properties:
+          metadata:
+           items:
+           - key: user-data
+             value: |
+               #cloud-config
+               users:
+                 - default
+                 - name: training
+                   gecos: Training User
+                   groups: users,adm
+                   ssh-authorized-keys:
+                     - ssh-rsa {{ properties["public_key"] }}
+                   lock-passwd: false
+                   shell: /bin/false
+                   sudo: ALL=(ALL) NOPASSWD:ALL
+               chpasswd:
+                 list: |
+                   training:{{ properties["password"] }}
+           runcmd:
+             - echo "exec /usr/bin/screen -xRR" >> /home/training/.profile
+             - echo {{ properties["private_key"] }} | base64 -d > /home/training/.ssh/id_rsa
+    ```
+
+Note that due to the fact that the deployment manager does not accept property
+values with multiple lines, the private key is base64-encoded.
+
+As for outputs, in a Gcloud template one needs only one:
+
+    ```
+    outputs:
+    - name: public_ip
+      value: $(ref.{{ env["deployment"] }}-server.networkInterfaces[0].accessConfigs[0].natIP)
+    ```
 
 
 ## Using the hastexo XBlock in a course
@@ -399,9 +484,9 @@ You can also use the following nested XML options:
   in that provider at maximum (where "-1" means keep launching environments
   until encountering a launch failure, and "0" disables the provider).
   `template` is the content store path to the orchestration template (if not
-  given, `stack_template_path` will be used).  `environment` optionally
-  specifies a content store path to a Heat environment file specifying template
-  parameters for that provider.  If no providers are specified, the platform
+  given, `stack_template_path` will be used).  `environment` specifies a
+  content store path to a either a Heat environment file, or, if using Gcloud,
+  a YAML list of properties.  If no providers are specified, the platform
   default will be used.
 
 * `ports`: A list of ports the user can manually choose to connect to.  This is
@@ -426,16 +511,12 @@ For example, in XML:
     <option:providers>
       - name: provider1
         capacity: 20
-        template: hot_lab1.yaml
-        environment: hot_env1.yaml
+        template: hot_lab1_template.yaml
+        environment: hot_lab1_env.yaml
       - name: provider2
         capacity: 30
-        template: hot_lab2.yaml
-        environment: hot_env2.yaml
-      - name: provider3
-        capacity: 0
-        template: hot_lab3.yaml
-        environment: hot_env3.yaml
+        template: gcloud_lab1_template.yaml
+        environment: gcloud_lab1_config.yaml
     </option:providers>
     <option:ports>
       - name: server1

@@ -6,6 +6,7 @@ keystoneauth1==3.11.0
 python-keystoneclient==3.17.0
 python-heatclient==1.6.1
 python-novaclient==7.1.2
+google-api-python-client==1.7.7
 paramiko==2.1.6
 celery==3.1.18
 apscheduler==3.5.1

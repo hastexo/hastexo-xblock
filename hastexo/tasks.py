@@ -381,6 +381,8 @@ class LaunchStackTask(Task):
     def setup_ssh(self, stack_key):
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        if not isinstance(stack_key, unicode):
+            stack_key = unicode(stack_key, "utf-8")
         pkey = paramiko.RSAKey.from_private_key(StringIO(stack_key))
 
         return (ssh, pkey)
