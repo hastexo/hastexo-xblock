@@ -4,6 +4,7 @@ import socket
 from unittest import TestCase
 from mock import Mock, patch
 from heatclient import exc as heat_exc
+from keystoneauth1.exceptions import http as keystone_exc
 
 from hastexo.models import Stack
 from hastexo.utils import get_stack, update_stack, update_stack_fields
@@ -23,7 +24,32 @@ HEAT_EXCEPTIONS = [
     heat_exc.HTTPInternalServerError,
     heat_exc.HTTPNotImplemented,
     heat_exc.HTTPBadGateway,
-    heat_exc.HTTPServiceUnavailable
+    heat_exc.HTTPServiceUnavailable,
+    keystone_exc.BadRequest,
+    keystone_exc.Unauthorized,
+    keystone_exc.PaymentRequired,
+    keystone_exc.Forbidden,
+    keystone_exc.NotFound,
+    keystone_exc.MethodNotAllowed,
+    keystone_exc.NotAcceptable,
+    keystone_exc.ProxyAuthenticationRequired,
+    keystone_exc.RequestTimeout,
+    keystone_exc.Conflict,
+    keystone_exc.Gone,
+    keystone_exc.LengthRequired,
+    keystone_exc.PreconditionFailed,
+    keystone_exc.RequestEntityTooLarge,
+    keystone_exc.RequestUriTooLong,
+    keystone_exc.UnsupportedMediaType,
+    keystone_exc.RequestedRangeNotSatisfiable,
+    keystone_exc.ExpectationFailed,
+    keystone_exc.UnprocessableEntity,
+    keystone_exc.InternalServerError,
+    keystone_exc.HttpNotImplemented,
+    keystone_exc.BadGateway,
+    keystone_exc.ServiceUnavailable,
+    keystone_exc.GatewayTimeout,
+    keystone_exc.HttpVersionNotSupported
 ]
 
 
