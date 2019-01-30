@@ -749,6 +749,26 @@ class TestHastexoTasks(TestCase):
         self.assertEqual(res["status"], "RESUME_FAILED")
         heat.stacks.delete.assert_not_called()
 
+    def test_eoferror_does_not_constitute_verify_failure(self):
+        # Setup
+        heat = self.get_heat_client_mock()
+        heat.stacks.get.return_value = self.stacks["CREATE_COMPLETE"]
+        ssh = self.get_ssh_client_mock()
+        ssh.connect.side_effect = [
+            EOFError,
+            True
+        ]
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "LAUNCH_PENDING"
+        })
+
+        # Run
+        res = LaunchStackTask().run(**self.kwargs)
+
+        # Assertions
+        self.assertEqual(res["status"], "CREATE_COMPLETE")
+
     def test_ssh_bombs_out(self):
         # Setup
         heat = self.get_heat_client_mock()

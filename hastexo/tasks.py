@@ -531,7 +531,8 @@ class LaunchStackTask(Task):
         while not connected:
             try:
                 ssh.connect(stack_ip, username=self.stack_user_name, pkey=pkey)
-            except (paramiko.ssh_exception.AuthenticationException,
+            except (EOFError,
+                    paramiko.ssh_exception.AuthenticationException,
                     paramiko.ssh_exception.SSHException,
                     paramiko.ssh_exception.NoValidConnectionsError):
                 self.sleep()
