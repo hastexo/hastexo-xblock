@@ -249,9 +249,6 @@ class HastexoXBlock(XBlock,
         Loads a file directly from the course's content store.
 
         """
-        if not path:
-            return None
-
         course_id, _ = self.get_block_ids()
         contents = None
         try:
@@ -364,6 +361,9 @@ class HastexoXBlock(XBlock,
         return LaunchStackTask().AsyncResult(task_id)
 
     def launch_stack(self, stack, settings, reset=False):
+        if not self.stack_template_path:
+            raise LaunchError("Stack template file not provided.")
+
         stack_template = self.read_from_contentstore(self.stack_template_path)
         if stack_template is None:
             raise LaunchError("Stack template file not found.")
@@ -373,10 +373,11 @@ class HastexoXBlock(XBlock,
             for provider in self.providers:
                 p = dict(provider)
                 env_path = p.get("environment")
-                p["environment"] = self.read_from_contentstore(env_path)
-                if p["environment"] is None:
-                    logger.info('Provider environment file for [%s]'
-                                'not found.' % p["name"])
+                if env_path:
+                    p["environment"] = self.read_from_contentstore(env_path)
+                    if p["environment"] is None:
+                        raise LaunchError("Provider environment file for [%s] "
+                                          "not found." % p["name"])
 
                 providers.append(p)
         # For backward compatibility

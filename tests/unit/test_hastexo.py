@@ -199,6 +199,52 @@ class TestHastexoXBlock(TestCase):
         self.assertEqual(self.block.get_launch_timeout(settings),
                          self.block.launch_timeout)
 
+    def test_get_user_stack_status_fails_if_template_not_provided(self):
+        self.init_block()
+        self.block.stack_template_path = None
+
+        data = {
+            "initialize": True,
+            "reset": False
+        }
+        result = self.call_handler("get_user_stack_status", data)
+
+        self.assertEqual(result["status"], "LAUNCH_ERROR")
+
+    def test_get_user_stack_status_fails_if_template_not_found(self):
+        self.init_block()
+        mock_read_from_contentstore = Mock(
+            side_effect=[None]
+        )
+
+        with patch.multiple(
+                self.block,
+                read_from_contentstore=mock_read_from_contentstore):
+            data = {
+                "initialize": True,
+                "reset": False
+            }
+            result = self.call_handler("get_user_stack_status", data)
+
+        self.assertEqual(result["status"], "LAUNCH_ERROR")
+
+    def test_get_user_stack_status_fails_if_env_file_not_found(self):
+        self.init_block()
+        mock_read_from_contentstore = Mock(
+            side_effect=['bogus_content', None]
+        )
+
+        with patch.multiple(
+                self.block,
+                read_from_contentstore=mock_read_from_contentstore):
+            data = {
+                "initialize": True,
+                "reset": False
+            }
+            result = self.call_handler("get_user_stack_status", data)
+
+        self.assertEqual(result["status"], "LAUNCH_ERROR")
+
     def test_get_user_stack_status_first_time(self):
         self.init_block()
 
