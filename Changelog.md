@@ -1,3 +1,10 @@
+Version 2.5.5 (2019-01-30)
+---------------------------
+
+* [Enhancement] Continue SSH verification on EOFError
+* [Enhancement] Also handle keystone HTTP exceptions
+* [Bug fix] Fail if environment not found or template not provided
+
 Version 2.5.4 (2018-12-17)
 ---------------------------
 

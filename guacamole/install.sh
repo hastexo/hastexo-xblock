@@ -1,7 +1,7 @@
 #!/bin/bash -ex
 
 GUACAMOLE_VERSION="0.9.13"
-HASTEXO_VERSION="2.5.4"
+HASTEXO_VERSION="2.5.5"
 
 # Install requirements
 apt update
