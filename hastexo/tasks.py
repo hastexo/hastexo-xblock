@@ -12,6 +12,9 @@ from celery.exceptions import SoftTimeLimitExceeded
 from heatclient.exc import HTTPException, HTTPNotFound
 from keystoneauth1.exceptions.http import HttpError
 from io import StringIO
+from paramiko.ssh_exception import (AuthenticationException,
+                                    SSHException,
+                                    NoValidConnectionsError)
 
 from .models import Stack
 from .heat import HeatWrapper
@@ -533,9 +536,9 @@ class LaunchStackTask(Task):
             try:
                 ssh.connect(stack_ip, username=self.stack_user_name, pkey=pkey)
             except (EOFError,
-                    paramiko.ssh_exception.AuthenticationException,
-                    paramiko.ssh_exception.SSHException,
-                    paramiko.ssh_exception.NoValidConnectionsError):
+                    AuthenticationException,
+                    SSHException,
+                    NoValidConnectionsError):
                 self.sleep()
             except SoftTimeLimitExceeded:
                 raise
