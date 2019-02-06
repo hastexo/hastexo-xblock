@@ -98,7 +98,7 @@ def get_credentials(settings, provider):
     # Sanitize credentials
     if credentials and isinstance(credentials, dict):
         tmp = {}
-        for key, default in DEFAULT_CREDENTIALS.iteritems():
+        for key, default in DEFAULT_CREDENTIALS.items():
             tmp[key] = credentials.get(key, default)
         credentials = tmp
 
@@ -116,7 +116,7 @@ def update_stack(name, course_id, student_id, data):
 
 
 def update_stack_fields(stack, data):
-    for field, value in data.iteritems():
+    for field, value in data.items():
         if hasattr(stack, field):
             setattr(stack, field, value)
 

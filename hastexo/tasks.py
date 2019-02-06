@@ -59,7 +59,7 @@ class LaunchStackTask(Task):
         Run the celery task.
 
         """
-        for key, value in kwargs.iteritems():
+        for key, value in kwargs.items():
             setattr(self, key, value)
 
         self.settings = get_xblock_settings()
@@ -660,7 +660,7 @@ class CheckStudentProgressTask(Task):
         Run the celery task.
 
         """
-        for key, value in kwargs.iteritems():
+        for key, value in kwargs.items():
             setattr(self, key, value)
 
         try:
