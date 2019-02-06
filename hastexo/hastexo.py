@@ -396,7 +396,7 @@ class HastexoXBlock(XBlock,
                 provider_name = "default"
             else:
                 try:
-                    provider_name = configured_providers.iterkeys().next()
+                    provider_name = next(iter(configured_providers))
                 except StopIteration:
                     pass
 
