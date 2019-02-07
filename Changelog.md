@@ -1,4 +1,4 @@
-Unreleased
+Version 2.5.6 (2018-02-07)
 ---------------------------
 
 * [Enhancement] Improve learner-facing warning messages
