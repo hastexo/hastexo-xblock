@@ -1,3 +1,9 @@
+Unreleased
+---------------------------
+
+* [Enhancement] Track XBlock-SDK master branch in test matrix
+* [Bug fix] Python 3.6 compatibility
+
 Version 2.5.6 (2018-02-07)
 ---------------------------
 
