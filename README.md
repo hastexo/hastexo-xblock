@@ -393,7 +393,10 @@ You can also use the following nested XML options:
 * `tests`: A list of test scripts.  The contents of each element will be run
   verbatim a a script in the user's lab environment, when they click the "Check
   Progress" button.  As such, each script should define an interpreter via the
-  "shebang" convention.
+  "shebang" convention.  If any scripts fail with a retval greater than 0, the
+  learner gets a partial score for this instance of the XBlock.  In this case,
+  the `stderr` of failed scripts will be displayed to the learner as a list of
+  hints on how to proceed.
 
 For example, in XML:
 
@@ -421,26 +424,38 @@ For example, in XML:
       - name: server2
         number: 3390
     </option:ports>
-    <option:tests>
+    <option:tests><![CDATA[
       - |
         #!/bin/bash
         # Check for login on vm1
         logins=$(ssh vm1 last root | grep root | wc -l)
-        [ $logins -ge 1 ] || exit 1
+        if [ $logins -lt 1 ]; then
+          # Output a hint to stderr
+          echo "You haven't logged in to vm1, yet." >&2
+          exit 1
+        fi
         exit 0
       - |
         #!/bin/bash
-        # Check for login on vm2
-        logins=$(ssh vm2 last root | grep root | wc -l)
-        [ $logins -ge 1 ] || exit 1
+        # Check for file
+        file=foobar
+        if [ ! -e ${file} ]; then
+          # Output a hint to stderr
+          echo "File \"${file}\" doesn't exist." >&2
+          exit 1
+        fi
         exit 0
-    </option:tests>
+    ]]></option:tests>
   </hastexo>
 </vertical>
 ```
 
 **Important**: Do this only *once per section*. Defining it more that once
 per section is not supported.
+
+Note on tests: as seen in the above example, it is recommended to wrap them all
+in `<![CDATA[..]]>` tags.  This avoids XML parsing errors when special
+characters are encountered, such as the `>&2` used to output to stderr in bash.
 
 In order to add the hastexo Xblock through Studio, open the unit where you want
 it to go.  Add a new component, select `Advanced`, then select the `Lab`

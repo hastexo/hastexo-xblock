@@ -960,21 +960,60 @@ class TestHastexoTasks(TestCase):
         # Assertions
         self.assertEqual(res["status"], "RESUME_FAILED")
 
-    def test_check_student_progress(self):
+    def test_check_student_progress_failure(self):
         # Setup
         stdout_pass = Mock()
         stdout_pass.channel.recv_exit_status.return_value = 0
         stdout_fail = Mock()
         stdout_fail.channel.recv_exit_status.return_value = 1
+        stderr_fail_1 = Mock()
+        stderr_fail_1.read = Mock(return_value="single line")
+        stderr_fail_2 = Mock()
+        stderr_fail_2.read = Mock(return_value="line 1\nline 2")
+        stderr_fail_3 = Mock()
+        stderr_fail_3.read = Mock(return_value="")
         ssh = self.get_ssh_client_mock()
         ssh.exec_command.side_effect = [
             (None, stdout_pass, None),
-            (None, stdout_fail, None),
-            (None, stdout_pass, None)
+            (None, stdout_fail, stderr_fail_1),
+            (None, stdout_fail, stderr_fail_2),
+            (None, stdout_fail, stderr_fail_3)
         ]
         tests = [
             "test pass",
             "test fail",
+            "test fail",
+            "test fail"
+        ]
+        kwargs = {
+            "tests": tests,
+            "stack_ip": self.stack_ip,
+            "stack_key": self.stack_key,
+            "stack_user_name": self.stack_user_name
+        }
+
+        # Run
+        res = CheckStudentProgressTask().run(**kwargs)
+
+        # Assertions
+        self.assertEqual(res["status"], "CHECK_PROGRESS_COMPLETE")
+        self.assertEqual(res["pass"], 1)
+        self.assertEqual(res["total"], 4)
+        self.assertEqual(res["errors"], ["single line", "line 1\nline 2"])
+
+    def test_check_student_progress_success(self):
+        # Setup
+        stdout_pass = Mock()
+        stdout_pass.channel.recv_exit_status.return_value = 0
+        ssh = self.get_ssh_client_mock()
+        ssh.exec_command.side_effect = [
+            (None, stdout_pass, None),
+            (None, stdout_pass, None),
+            (None, stdout_pass, None)
+        ]
+        tests = [
+            "test pass",
+            "test pass",
             "test pass"
         ]
         kwargs = {
@@ -989,5 +1028,6 @@ class TestHastexoTasks(TestCase):
 
         # Assertions
         self.assertEqual(res["status"], "CHECK_PROGRESS_COMPLETE")
-        self.assertEqual(res["pass"], 2)
+        self.assertEqual(res["pass"], 3)
         self.assertEqual(res["total"], 3)
+        self.assertEqual(res["errors"], [])

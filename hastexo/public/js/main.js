@@ -444,6 +444,17 @@ function HastexoXBlock(runtime, element, configuration) {
                     dialog.find('input.ok').one('click', function() {
                         $.dialog.close();
                     });
+                    var hints_title = dialog.find('.hints_title').hide();
+                    var hints = dialog.find('.hints').empty().hide();
+                    if (data.errors.length > 0) {
+                        $.each(data.errors, function(i, error) {
+                            var pre = $('<pre>', {text: error});
+                            var li = $('<li>').append(pre);
+                            hints.append(li);
+                        });
+                        hints_title.show();
+                        hints.show();
+                    }
                     dialog.dialog(element);
                 } else if (check.status == 'CHECK_PROGRESS_PENDING') {
                     dialog = $('#check_pending');

@@ -685,6 +685,7 @@ class CheckStudentProgressTask(Task):
 
         # Write scripts out, run them, and keep score.
         score = 0
+        errors = []
         for test in self.tests:
             # Generate a temporary filename
             script = '/tmp/.%s' % uuid.uuid4()
@@ -696,10 +697,14 @@ class CheckStudentProgressTask(Task):
 
             # Make it executable and run it.
             sftp.chmod(script, 0o775)
-            _, stdout, _ = ssh.exec_command(script)
+            _, stdout, stderr = ssh.exec_command(script)
             retval = stdout.channel.recv_exit_status()
             if retval == 0:
                 score += 1
+            else:
+                error = stderr.read()
+                if error:
+                    errors.append(error)
 
             # Remove the script
             sftp.remove(script)
@@ -707,7 +712,8 @@ class CheckStudentProgressTask(Task):
         return {
             'status': 'CHECK_PROGRESS_COMPLETE',
             'pass': score,
-            'total': len(self.tests)
+            'total': len(self.tests),
+            'errors': errors
         }
 
     def open_ssh_connection(self):

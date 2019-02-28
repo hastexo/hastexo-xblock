@@ -110,9 +110,19 @@
 }
 
 .inner h1,
+.inner h2,
 .inner p {
     text-align: center !important;
     margin: 0 0 0.5em 0!important;
+}
+
+.hints_title {
+    color: red;
+    padding-top: 0.5em;
+}
+
+.hints {
+    font-size: 0.8em;
 }
 
 .dialog {
