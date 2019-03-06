@@ -1,10 +1,12 @@
 Unreleased
 ---------------------------
 
+* [Enhancement] Progress check hints via stderr
 * [Enhancement] Track XBlock-SDK master branch in test matrix
 * [Bug fix] Python 3.6 compatibility
+* [Enhancement] Managed package versions
 
-Version 2.5.6 (2018-02-07)
+Version 2.5.6 (2019-02-07)
 ---------------------------
 
 * [Enhancement] Improve learner-facing warning messages
