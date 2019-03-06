@@ -1,4 +1,4 @@
-Unreleased
+Version 2.6.0 (2019-03-06)
 ---------------------------
 
 * [Enhancement] Progress check hints via stderr
