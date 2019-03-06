@@ -1,0 +1,3 @@
+-r base.txt
+setuptools-scm
+bumpversion

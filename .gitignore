@@ -1,4 +1,5 @@
 *.pyc
+.eggs
 *.egg-info
 .pypirc
 var/
