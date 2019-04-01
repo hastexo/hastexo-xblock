@@ -7,7 +7,6 @@ class StackCommon(models.Model):
 
     """
     class Meta:
-        app_label = 'hastexo'
         abstract = True
 
     name = models.CharField(max_length=64, db_index=True)
@@ -32,6 +31,7 @@ class Stack(StackCommon):
 
     """
     class Meta:
+        app_label = 'hastexo'
         unique_together = (('student_id', 'course_id', 'name'),)
 
     key = models.TextField(blank=True)
@@ -63,5 +63,7 @@ class StackLog(StackCommon):
     A log of stack model changes.
 
     """
+    class Meta:
+        app_label = 'hastexo'
 
     stack = models.ForeignKey('Stack', null=True, on_delete=models.SET_NULL)
