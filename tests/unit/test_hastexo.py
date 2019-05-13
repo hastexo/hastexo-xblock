@@ -474,6 +474,34 @@ class TestHastexoXBlock(TestCase):
         self.assertEqual(result, mock_result.result)
         self.assertTrue(mock_launch_stack_task.called)
 
+    def test_get_user_stack_status_with_preferred_provider(self):
+        self.init_block()
+        self.block.provider = ""
+        preferred = "provider3"
+
+        mock_result = Mock()
+        mock_result.id = 'bogus_task_id'
+        mock_result.ready.return_value = True
+        mock_result.successful.return_value = True
+        mock_result.result = {"status": "CREATE_COMPLETE"}
+        mock_launch_stack_task = Mock(return_value=mock_result)
+        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task,
+                read_from_contentstore=mock_read_from_contentstore):
+            with patch.dict(DEFAULT_SETTINGS,
+                            {'preferred_provider': preferred}):
+                data = {
+                    "initialize": True,
+                    "reset": False
+                }
+                result = self.call_handler("get_user_stack_status", data)
+
+        self.assertEqual(result, mock_result.result)
+        self.assertTrue(mock_launch_stack_task.called)
+
     def test_get_user_stack_status_resume_after_suspend(self):
         self.init_block()
 

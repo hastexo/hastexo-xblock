@@ -368,6 +368,7 @@ class HastexoXBlock(XBlock,
         if stack_template is None:
             raise LaunchError("Stack template file not found.")
 
+        preferred = settings.get("preferred_provider")
         providers = []
         if len(self.providers):
             for provider in self.providers:
@@ -380,6 +381,13 @@ class HastexoXBlock(XBlock,
                                           "not found." % p["name"])
 
                 providers.append(p)
+
+        # Move preferred provider to the front, if it was configured.
+        if preferred:
+            i = next(i for i, p in providers if p["name"] == preferred)
+            if i:
+                providers.insert(0, providers.pop(i))
+
         # For backward compatibility
         elif self.provider:
             providers.append({
@@ -387,11 +395,14 @@ class HastexoXBlock(XBlock,
                 "capacity": -1,
                 "environment": None
             })
-        # No providers have been configured.  Use the "default" one if it
-        # exists, or the first one if not.
+        # No providers have been configured.  Use the preferred provider, the
+        # "default" one if it exists, or the first one if not.
         else:
             configured_providers = settings.get("providers", {})
             provider_name = None
+            if (preferred and
+                    configured_providers.get(preferred)):
+                provider_name = preferred
             if configured_providers.get("default"):
                 provider_name = "default"
             else:

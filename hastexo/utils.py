@@ -60,6 +60,7 @@ DEFAULT_SETTINGS = {
         "idle": 3600000,
         "check": 5000
     },
+    "preferred_provider": "",
     "providers": {}
 }
 

@@ -139,7 +139,8 @@ To deploy the hastexo XBlock:
                     "os_project_domain_name": "",
                     "os_region_name": ""
                 },
-            }
+            },
+            "preferred_provider": "provider2"
         }
     }
     ```
@@ -257,6 +258,10 @@ This is a brief explanation of each:
     * `os_project_domain_name`
     * `os_region_name`
 
+* `preferred_provider`: A provider that if present in the course configuration
+  by the author, should always be used first.  This allows for lower latency,
+  by launching learner stacks in providers that are geographically closer to
+  the frontend.
 
 ## Creating a Heat template for your course
 
