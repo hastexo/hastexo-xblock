@@ -24,7 +24,7 @@ class TestGcloudService(TestCase):
             "build": patch("hastexo.gcloud.build")
         }
         self.mocks = {}
-        for mock_name, patcher in patchers.iteritems():
+        for mock_name, patcher in patchers.items():
             self.mocks[mock_name] = patcher.start()
             self.addCleanup(patcher.stop)
 

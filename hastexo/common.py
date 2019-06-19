@@ -1,3 +1,5 @@
+import sys
+
 from django.conf import settings as django_settings
 
 from .models import Stack
@@ -65,6 +67,16 @@ DEFAULT_SETTINGS = {
     },
     "providers": {}
 }
+
+
+if sys.version_info < (3,):
+    def b(x):
+        return x
+else:
+    import codecs
+
+    def b(x):
+        return codecs.latin_1_encode(x)[0]
 
 
 def get_xblock_settings():

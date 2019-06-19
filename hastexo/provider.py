@@ -6,14 +6,18 @@ import random
 import string
 import yaml
 
-from StringIO import StringIO
+try:
+    from io import StringIO
+except ImportError:
+    from StringIO import StringIO
+
 from heatclient.exc import HTTPException, HTTPNotFound
 from keystoneauth1.exceptions.http import HttpError
 from novaclient.exceptions import ClientException
 from googleapiclient.errors import Error as GcloudApiError
 from googleapiclient.errors import HttpError as GcloudApiHttpError
 
-from .common import (get_xblock_settings,
+from .common import (b, get_xblock_settings,
                      DELETED_STATE, DELETE_IN_PROGRESS_STATE,
                      RESUME_STATE, RESUME_IN_PROGRESS_STATE)
 from .openstack import HeatWrapper, NovaWrapper
@@ -105,7 +109,7 @@ class Provider(object):
         s.close()
 
         if encodeb64:
-            k = base64.b64encode(bytes(k))
+            k = base64.b64encode(b(k))
 
         keypair["private_key"] = k
 

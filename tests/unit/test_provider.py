@@ -9,6 +9,7 @@ from keystoneauth1.exceptions import http as keystone_exc
 from novaclient import exceptions as nova_exc
 from googleapiclient import errors as gcloud_exc
 
+from hastexo.common import b
 from hastexo.provider import (Provider, OpenstackProvider, GcloudProvider,
                               ProviderException)
 
@@ -156,7 +157,7 @@ class TestOpenstackProvider(TestCase):
                                    self.settings),
         }
         self.mocks = {}
-        for mock_name, patcher in patchers.iteritems():
+        for mock_name, patcher in patchers.items():
             self.mocks[mock_name] = patcher.start()
             self.addCleanup(patcher.stop)
 
@@ -604,7 +605,7 @@ class TestGcloudProvider(TestCase):
     def mock_exception(self, status=404, content="exception"):
         resp = Mock()
         resp.status = status
-        return gcloud_exc.HttpError(resp, content)
+        return gcloud_exc.HttpError(resp, b(content))
 
     def mock_operation(self, optype, opstate, name="operation", error=False):
         op = {
@@ -643,7 +644,7 @@ class TestGcloudProvider(TestCase):
         return {"resources": resources}
 
     def mock_manifest(self):
-        encoded_key = base64.b64encode(bytes(self.stack_key))
+        encoded_key = base64.b64encode(b(self.stack_key))
         layout = {
             "outputs": [
                 {"name": "public_ip", "finalValue": self.stack_ip},
@@ -715,7 +716,7 @@ class TestGcloudProvider(TestCase):
                                    self.settings),
         }
         self.mocks = {}
-        for mock_name, patcher in patchers.iteritems():
+        for mock_name, patcher in patchers.items():
             self.mocks[mock_name] = patcher.start()
             self.addCleanup(patcher.stop)
 
