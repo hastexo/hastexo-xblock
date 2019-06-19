@@ -1,3 +1,11 @@
+Unreleased
+---------------------------
+
+* [Enhancement] Refactor OpenStack client wrappers
+* [Enhancement] Multi-cloud support
+* [Enhancement] Introduce Gcloud provider driver
+* [Bug fix] Fix Python 2-isms
+
 Version 2.6.0 (2019-03-06)
 ---------------------------
 
