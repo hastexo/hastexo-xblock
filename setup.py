@@ -61,7 +61,7 @@ setup(
         'cliff==2.2.0',
         'oslo.utils==3.37.1',
         'oslo.serialization==2.28.1',
-        'keystoneauth1==3.11.0',
+        'keystoneauth1==3.13.0',
         'python-keystoneclient==3.17.0',
         'python-heatclient==1.6.1',
         'python-novaclient==7.1.2',

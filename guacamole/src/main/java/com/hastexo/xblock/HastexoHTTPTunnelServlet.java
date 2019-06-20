@@ -17,8 +17,18 @@ public class HastexoHTTPTunnelServlet extends GuacamoleHTTPTunnelServlet {
     protected GuacamoleTunnel doConnect(HttpServletRequest request) throws GuacamoleException {
 
         // guacd connection information
-        String hostname = "localhost";
-        int port = 4822;
+        String guacd_hostname = System.getenv("GUACD_HOSTNAME");
+        if (guacd_hostname == null) guacd_hostname = "localhost";
+
+        int guacd_port;
+        try {
+            guacd_port = Integer.parseInt(System.getenv("GUACD_PORT"));
+        }
+        catch (NumberFormatException e)
+        {
+           guacd_port = 4822;
+        }
+
         String protocol = request.getParameter("protocol");
 
         // Connection configuration
@@ -43,7 +53,7 @@ public class HastexoHTTPTunnelServlet extends GuacamoleHTTPTunnelServlet {
 
         // Connect to guacd, proxying a connection to the VNC server above
         GuacamoleSocket socket = new ConfiguredGuacamoleSocket(
-            new InetGuacamoleSocket(hostname, port),
+            new InetGuacamoleSocket(guacd_hostname, guacd_port),
             config,
             info
         );

@@ -50,8 +50,17 @@ public class HastexoWebSocketTunnelEndpoint extends GuacamoleWebSocketTunnelEndp
             return null;
 
         // guacd connection information
-        String guacd_hostname = "localhost";
-        int    guacd_port = 4822;
+        String guacd_hostname = System.getenv("GUACD_HOSTNAME");
+        if (guacd_hostname == null) guacd_hostname = "localhost";
+
+        int guacd_port;
+        try {
+            guacd_port = Integer.parseInt(System.getenv("GUACD_PORT"));
+        }
+        catch (NumberFormatException e)
+        {
+           guacd_port = 4822;
+        }
 
         // Request parameters
         String protocol = request.getParameter("protocol");
