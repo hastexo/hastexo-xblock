@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from apscheduler.schedulers.blocking import BlockingScheduler
 
-from hastexo.utils import get_xblock_settings
+from hastexo.common import get_xblock_settings
 from hastexo.jobs import ReaperJob
 
 

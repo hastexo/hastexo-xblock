@@ -56,6 +56,7 @@ setup(
     install_requires=[
         'XBlock',
         'xblock-utils',
+        'os-client-config==1.13.1',
         'osc-lib==1.2.0',
         'cliff==2.2.0',
         'oslo.utils==3.37.1',
@@ -66,6 +67,7 @@ setup(
         'python-novaclient==7.1.2',
         'paramiko==2.1.6',
         'apscheduler==3.5.1',
+        'google-api-python-client==1.7.7',
     ],
     entry_points={
         'xblock.v1': [

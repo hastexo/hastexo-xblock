@@ -1,0 +1,69 @@
+resources:
+  - name: {{ env["deployment"] }}-server
+    type: compute.v1.instance
+    properties:
+      zone: {{ properties["zone"] }}
+      machineType: zones/{{ properties["zone"] }}/machineTypes/{{ properties["type"] }}
+      disks:
+      - deviceName: boot
+        type: PERSISTENT
+        boot: true
+        autoDelete: true
+        initializeParams:
+          sourceImage: {{ properties["image"] }}
+          diskSizeGb: {{ properties["size"] }}
+      networkInterfaces:
+      - network: global/networks/default
+        accessConfigs:
+        - name: External NAT
+          type: ONE_TO_ONE_NAT
+      metadata:
+       items:
+       - key: user-data
+         value: |
+           #cloud-config
+           users:
+             - default
+             - name: training
+               gecos: Training User
+               groups: users,adm
+               ssh-authorized-keys:
+                 - ssh-rsa {{ properties["public_key"] }}
+               lock-passwd: false
+               shell: /bin/false
+               sudo: ALL=(ALL) NOPASSWD:ALL
+           chpasswd:
+             list: |
+               training:{{ properties["password"] }}
+             expire: false
+           write_files:
+             - path: /home/training/.xsession
+               permissions: '0644'
+               content: |
+                 xfce4-session
+           package_update: true
+           package_upgrade: true
+           packages:
+             - screen
+             - xfce4
+             - xfce4-goodies
+             - xrdp
+           manage_etc_hosts: localhost
+           runcmd:
+             - echo "exec /usr/bin/screen -xRR" >> /home/training/.profile
+             - echo {{ properties["private_key"] }} | base64 -d > /home/training/.ssh/id_rsa
+             - chmod 600 /home/training/.ssh/id_rsa
+             - chown -R training:training /home/training
+             - chsh -s /bin/bash training
+
+  - name: {{ env["deployment"] }}-firewall
+    type: compute.v1.firewall
+    properties:
+      sourceRanges: ["0.0.0.0/0"]
+      allowed:
+        - IPProtocol: TCP
+          ports: ["22", "3389"]
+
+outputs:
+- name: public_ip
+  value: $(ref.{{ env["deployment"] }}-server.networkInterfaces[0].accessConfigs[0].natIP)
