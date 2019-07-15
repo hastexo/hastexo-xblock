@@ -48,7 +48,7 @@ class Stack(StackCommon):
 
         # Populate the log if there was a status change
         if self.status and self.status != self.prev_status:
-            log_fields = {'stack': self}
+            log_fields = {'stack_id': self.id}
             for field in StackCommon._meta.get_fields():
                 if field.name == 'created_on':
                     continue
@@ -66,4 +66,4 @@ class StackLog(StackCommon):
     class Meta:
         app_label = 'hastexo'
 
-    stack = models.ForeignKey('Stack', null=True, on_delete=models.SET_NULL)
+    stack_id = models.IntegerField(null=True, db_index=True)
