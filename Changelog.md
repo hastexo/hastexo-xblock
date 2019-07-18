@@ -1,4 +1,4 @@
-Unreleased
+Version 3.0.0 (2019-07-18)
 ---------------------------
 
 * [Enhancement] Refactor OpenStack client wrappers
