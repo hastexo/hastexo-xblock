@@ -9,6 +9,9 @@ Unreleased
 * [Enhancement] Add docker support for guacamole app
 * [Enhancement] Bump keystoneauth1
 * [Bug fix] Fix app label
+* [Enhancement] Bump os-client-config
+* [Bug fix] Àdd missing init parameters to OpenStack wrappers
+* [Enhancement] Avoid known stack suspension failure states
 
 Version 2.6.0 (2019-03-06)
 ---------------------------
