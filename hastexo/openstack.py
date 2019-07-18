@@ -74,7 +74,7 @@ class HeatWrapper(OpenStackWrapper):
         self.endpoint_type = 'publicURL'
         self.api_version = '1'
 
-        super(HeatWrapper, self).__init__()
+        super(HeatWrapper, self).__init__(**options)
 
     def get_client(self):
         """
@@ -109,7 +109,7 @@ class NovaWrapper(OpenStackWrapper):
         self.endpoint_type = 'publicURL'
         self.api_version = '2.0'
 
-        super(NovaWrapper, self).__init__()
+        super(NovaWrapper, self).__init__(**options)
 
     def get_client(self):
         keystone_session, keystone_auth = self.get_keystone_auth()
