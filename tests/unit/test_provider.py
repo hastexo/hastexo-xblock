@@ -498,6 +498,9 @@ class TestOpenstackProvider(TestCase):
     def test_suspend_stack_success(self):
         # Setup
         heat = self.get_heat_client_mock()
+        heat.stacks.get.side_effect = [
+            self.stacks["RESUME_COMPLETE"]
+        ]
 
         # Run
         provider = Provider.init(self.provider_name)
@@ -506,8 +509,109 @@ class TestOpenstackProvider(TestCase):
         # Assert
         heat.actions.suspend.assert_called_with(stack_id=self.stack_name)
 
+    def test_suspend_stack_with_no_rebooting_servers(self):
+        # Setup
+        mock_stack = self.stacks["RESUME_COMPLETE"]
+        server_names = ["server1", "server2"]
+        mock_stack.outputs = [
+            {"output_key": "public_ip",
+             "output_value": self.stack_ip},
+            {"output_key": "private_key",
+             "output_value": self.stack_key},
+            {"output_key": "password",
+             "output_value": self.stack_password},
+            {"output_key": "reboot_on_resume",
+             "output_value": server_names}
+        ]
+        heat = self.get_heat_client_mock()
+        heat.stacks.get.side_effect = [
+            mock_stack
+        ]
+        servers = []
+        for server_name in server_names:
+            server = Mock()
+            setattr(server, 'name', server_name)
+            setattr(server, 'OS-EXT-STS:task_state', 'phony_task_state')
+            servers.append(server)
+        nova = self.get_nova_client_mock()
+        nova.servers.get.side_effect = servers
+
+        # Run
+        provider = Provider.init(self.provider_name)
+        provider.suspend_stack(self.stack_name)
+
+        # Assertions
+        heat.actions.suspend.assert_called_with(
+            stack_id=self.stack_name
+        )
+        nova.servers.get.assert_has_calls([
+            call(server_names[0]),
+            call(server_names[1])
+        ])
+
+    def test_suspend_stack_with_rebooting_servers_bails_out(self):
+        # Setup
+        mock_stack = self.stacks["RESUME_COMPLETE"]
+        server_names = ["server1", "server2"]
+        mock_stack.outputs = [
+            {"output_key": "public_ip",
+             "output_value": self.stack_ip},
+            {"output_key": "private_key",
+             "output_value": self.stack_key},
+            {"output_key": "password",
+             "output_value": self.stack_password},
+            {"output_key": "reboot_on_resume",
+             "output_value": server_names}
+        ]
+        heat = self.get_heat_client_mock()
+        heat.stacks.get.side_effect = [
+            mock_stack
+        ]
+        servers = []
+        for server_name in server_names:
+            server = Mock()
+            setattr(server, 'name', server_name)
+            setattr(server, 'OS-EXT-STS:task_state', 'rebooting_hard')
+            servers.append(server)
+        nova = self.get_nova_client_mock()
+        nova.servers.get.side_effect = servers
+
+        # Run
+        with self.assertRaises(ProviderException):
+            provider = Provider.init(self.provider_name)
+            provider.suspend_stack(self.stack_name)
+
+    @ddt.data(*NOVA_EXCEPTIONS)
+    def test_suspend_stack_nova_failure(self, nova_exception):
+        # Setup
+        mock_stack = self.stacks["RESUME_COMPLETE"]
+        server_names = ["server1", "server2"]
+        mock_stack.outputs = [
+            {"output_key": "public_ip",
+             "output_value": self.stack_ip},
+            {"output_key": "private_key",
+             "output_value": self.stack_key},
+            {"output_key": "password",
+             "output_value": self.stack_password},
+            {"output_key": "reboot_on_resume",
+             "output_value": server_names}
+        ]
+        heat = self.get_heat_client_mock()
+        heat.stacks.get.side_effect = [
+            mock_stack
+        ]
+        nova = self.get_nova_client_mock()
+        nova.servers.get.side_effect = [
+            nova_exception("")
+        ]
+
+        # Run
+        with self.assertRaises(ProviderException):
+            provider = Provider.init(self.provider_name)
+            provider.suspend_stack(self.stack_name)
+
     @ddt.data(*HEAT_EXCEPTIONS)
-    def test_suspend_stack_failure(self, heat_exception):
+    def test_suspend_stack_heat_failure(self, heat_exception):
         # Setup
         heat = self.get_heat_client_mock()
         heat.actions.suspend.side_effect = [

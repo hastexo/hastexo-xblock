@@ -10,7 +10,8 @@ from multiprocessing.dummy import Pool as ThreadPool
 from .models import Stack
 from .provider import Provider
 from .common import (UP_STATES, LAUNCH_STATE, SUSPEND_STATE,
-                     SUSPEND_ISSUED_STATE, SUSPEND_RETRY_STATE, DELETED_STATE,
+                     SUSPEND_ISSUED_STATE, SUSPEND_RETRY_STATE,
+                     SUSPEND_FAILED_STATE, DELETED_STATE,
                      DELETE_IN_PROGRESS_STATE, DELETE_FAILED_STATE,
                      DELETE_STATE)
 
@@ -51,7 +52,9 @@ class SuspenderJob(AbstractJob):
         concurrency = self.settings.get("suspend_concurrency", 4)
         timedelta = timezone.timedelta(seconds=timeout)
         cutoff = timezone.now() - timedelta
-        states = list(UP_STATES) + [LAUNCH_STATE, SUSPEND_RETRY_STATE]
+        states = list(UP_STATES) + [LAUNCH_STATE,
+                                    SUSPEND_RETRY_STATE,
+                                    SUSPEND_FAILED_STATE]
 
         self.refresh_db()
 
@@ -90,7 +93,7 @@ class SuspenderJob(AbstractJob):
             provider = Provider.init(stack.provider)
             provider_stack = provider.get_stack(stack.name)
 
-            if provider_stack["status"] in UP_STATES:
+            if provider_stack["status"] in UP_STATES + (SUSPEND_FAILED_STATE,):
                 self.log("Suspending stack [%s]." % stack.name)
 
                 # Suspend stack

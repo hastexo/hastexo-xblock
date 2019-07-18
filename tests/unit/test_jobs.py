@@ -342,6 +342,35 @@ class TestHastexoJobs(TestCase):
         stack = Stack.objects.get(name=self.stack_name)
         self.assertNotEqual(stack.status, SUSPEND_RETRY_STATE)
 
+    def test_retry_suspend_failed_stack(self):
+        # Setup
+        suspend_timeout = self.settings.get("suspend_timeout")
+        timedelta = timezone.timedelta(seconds=(suspend_timeout + 1))
+        suspend_timestamp = timezone.now() - timedelta
+        state = 'SUSPEND_FAILED'
+        stack = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            suspend_timestamp=suspend_timestamp,
+            name=self.stack_name,
+            provider='provider1',
+            status=state
+        )
+        stack.save()
+        mock_provider = self.mocks["Provider"].init.return_value
+        mock_provider.get_stack.side_effect = [
+            self.stacks['SUSPEND_FAILED']
+        ]
+
+        # Run
+        job = SuspenderJob(self.settings)
+        job.run()
+
+        # Assert
+        mock_provider.suspend_stack.assert_called_with(self.stack_name)
+        stack = Stack.objects.get(name=self.stack_name)
+        self.assertEqual(stack.status, SUSPEND_ISSUED_STATE)
+
     def test_suspend_concurrency(self):
         # Setup
         self.settings["suspend_concurrency"] = 2

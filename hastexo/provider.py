@@ -281,6 +281,24 @@ class OpenstackProvider(Provider):
                 "outputs": outputs}
 
     def suspend_stack(self, name):
+        stack = self.get_stack(name)
+
+        # Heat fails to suspend a stack when any of its servers are being
+        # rebooted, so let's try and prevent this.
+        reboot_on_resume = stack["outputs"].get("reboot_on_resume")
+        if (reboot_on_resume is not None and
+                isinstance(reboot_on_resume, list)):
+            for server in reboot_on_resume:
+                try:
+                    nova_server = self.nova_c.servers.get(server)
+                except ClientException as e:
+                    raise ProviderException(e)
+
+                task_state = getattr(nova_server, 'OS-EXT-STS:task_state')
+                if task_state == 'rebooting_hard':
+                    raise ProviderException("Cannot suspend stack with "
+                                            "a rebooting server.")
+
         try:
             self.heat_c.actions.suspend(stack_id=name)
         except (HTTPException, HttpError) as e:
