@@ -68,6 +68,7 @@ setup(
         'paramiko==2.1.6',
         'apscheduler==3.5.1',
         'google-api-python-client==1.7.7',
+        'retry>=0.9.2<1.0'
     ],
     entry_points={
         'xblock.v1': [

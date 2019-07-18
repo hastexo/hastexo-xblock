@@ -1,3 +1,5 @@
+from retry import retry
+
 from django.db import models
 
 

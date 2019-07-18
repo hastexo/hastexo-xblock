@@ -4,6 +4,8 @@ from django.conf import settings as django_settings
 
 from .models import Stack
 
+DATABASE_RETRY_ATTEMPTS = 3
+DATABASE_RETRY_DELAY = 1
 
 CREATE_STATE = 'CREATE_COMPLETE'
 RESUME_STATE = 'RESUME_COMPLETE'
@@ -91,24 +93,8 @@ def get_xblock_settings():
     return settings
 
 
-def update_stack(name, course_id, student_id, data):
-    stack = Stack.objects.get(
-        student_id=student_id,
-        course_id=course_id,
-        name=name
-    )
-    update_stack_fields(stack, data)
-    stack.save(update_fields=list(data.keys()))
-
-
-def update_stack_fields(stack, data):
-    for field, value in data.items():
-        if hasattr(stack, field):
-            setattr(stack, field, value)
-
-
 def get_stack(name, course_id, student_id, prop=None):
-    stack = Stack.objects.get(
+    stack, _ = Stack.objects.select_for_update().get_or_create(
         student_id=student_id,
         course_id=course_id,
         name=name
@@ -118,3 +104,15 @@ def get_stack(name, course_id, student_id, prop=None):
         return getattr(stack, prop)
     else:
         return stack
+
+
+def update_stack(name, course_id, student_id, data):
+    stack = get_stack(name, course_id, student_id)
+    update_stack_fields(stack, data)
+    stack.save(update_fields=list(data.keys()))
+
+
+def update_stack_fields(stack, data):
+    for field, value in data.items():
+        if hasattr(stack, field):
+            setattr(stack, field, value)

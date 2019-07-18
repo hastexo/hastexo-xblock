@@ -2,6 +2,8 @@ import time
 import logging
 import textwrap
 
+from retry import retry
+
 from xblock.core import XBlock, XML_NAMESPACES
 from xblock.fields import Scope, Float, String, Dict, List, Integer
 from xblock.fragment import Fragment
@@ -9,14 +11,14 @@ from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 from xblockutils.settings import XBlockWithSettingsMixin
 
-from django.db import transaction
+from django.db import transaction, OperationalError
 from django.utils import timezone
 from lxml import etree
 
-from .models import Stack
 from .common import (UP_STATES, LAUNCH_STATE, LAUNCH_ERROR_STATE, SETTINGS_KEY,
                      get_xblock_settings, get_stack, update_stack,
-                     update_stack_fields)
+                     update_stack_fields, DATABASE_RETRY_ATTEMPTS,
+                     DATABASE_RETRY_DELAY)
 from .tasks import LaunchStackTask, CheckStudentProgressTask
 
 logger = logging.getLogger(__name__)
@@ -271,6 +273,9 @@ class HastexoXBlock(XBlock,
 
         return contents
 
+    @retry(OperationalError, tries=DATABASE_RETRY_ATTEMPTS,
+           delay=DATABASE_RETRY_DELAY)
+    @transaction.atomic()
     def student_view(self, context=None):
         """
         The primary view of the HastexoXBlock, shown to students when viewing
@@ -292,9 +297,9 @@ class HastexoXBlock(XBlock,
 
         # Get the course id and anonymous user id, and derive the stack name
         # from them
-        course_id, anonymous_student_id = self.get_block_ids()
+        course_id, student_id = self.get_block_ids()
         self.stack_run = "%s_%s" % (course_id.course, course_id.run)
-        self.stack_name = "%s_%s" % (self.stack_run, anonymous_student_id)
+        self.stack_name = "%s_%s" % (self.stack_run, student_id)
 
         # Render the HTML template
         html = loader.render_template('static/html/main.html')
@@ -311,26 +316,20 @@ class HastexoXBlock(XBlock,
             self.runtime.local_resource_url(self, 'public/js/main.js')
         )
 
-        # Create the stack in the database
-        with transaction.atomic():
-            stack, _ = Stack.objects.select_for_update().get_or_create(
-                student_id=anonymous_student_id,
-                course_id=course_id,
-                name=self.stack_name
-            )
+        stack = self.get_stack()
 
-            # Set the port
-            port = None
-            if len(self.ports) > 0:
-                ports = [p["number"] for p in self.ports]
-                port = stack.port
-                if not port or port not in ports:
-                    port = self.ports[0]["number"]
+        # Set the port.
+        port = None
+        if len(self.ports) > 0:
+            ports = [p["number"] for p in self.ports]
+            port = stack.port
+            if not port or port not in ports:
+                port = self.ports[0]["number"]
 
-            # Save
-            stack.protocol = self.stack_protocol
-            stack.port = port
-            stack.save(update_fields=["protocol", "port"])
+        # Update the stack protocol and port.
+        stack.protocol = self.stack_protocol
+        stack.port = port
+        stack.save(update_fields=["protocol", "port"])
 
         # Call the JS initialization function
         frag.initialize_js('HastexoXBlock', {
@@ -482,7 +481,7 @@ class HastexoXBlock(XBlock,
                 # Sync current provider
                 self.stack_provider = data.get("provider", "")
 
-                # Save status to the database
+                # Save status
                 update_stack_fields(stack, data)
             else:
                 raise LaunchError(repr(result.result))
@@ -687,24 +686,29 @@ class HastexoXBlock(XBlock,
         return stack_data
 
     @XBlock.json_handler
+    @transaction.atomic()
     def get_user_stack_status(self, request_data, suffix=''):
-        course_id, student_id = self.get_block_ids()
-
-        with transaction.atomic():
-            stack, _ = Stack.objects.select_for_update().get_or_create(
-                student_id=student_id,
-                course_id=course_id,
-                name=self.stack_name
-            )
-            stack_data = self.get_user_stack_status_atomic(stack, request_data)
-            stack.save()
+        stack = self.get_stack()
+        stack_data = self.get_user_stack_status_atomic(stack, request_data)
+        stack.save()
 
         return stack_data
 
     @XBlock.json_handler
+    @retry(OperationalError, tries=DATABASE_RETRY_ATTEMPTS,
+           delay=DATABASE_RETRY_DELAY)
+    @transaction.atomic()
     def keepalive(self, data, suffix=''):
-        # Reset the dead man's switch
+        """ Reset the dead man's switch. """
         self.update_stack({"suspend_timestamp": timezone.now()})
+
+    @XBlock.json_handler
+    @retry(OperationalError, tries=DATABASE_RETRY_ATTEMPTS,
+           delay=DATABASE_RETRY_DELAY)
+    @transaction.atomic()
+    def set_port(self, data, suffix=''):
+        """ Set the preferred stack port. """
+        self.update_stack({"port": int(data.get("port"))})
 
     def check_progress_task(self, soft_time_limit, **kwargs):
         task = CheckStudentProgressTask()
@@ -722,6 +726,7 @@ class HastexoXBlock(XBlock,
         return CheckStudentProgressTask().AsyncResult(check_id)
 
     @XBlock.json_handler
+    @transaction.atomic()
     def get_check_status(self, data, suffix=''):
         """
         Checks the current student score.
@@ -805,11 +810,6 @@ class HastexoXBlock(XBlock,
             status = _process_result(result)
 
         return status
-
-    @XBlock.json_handler
-    def set_port(self, data, suffix=''):
-        # Set the preferred stack port
-        self.update_stack({"port": int(data.get("port"))})
 
     @staticmethod
     def workbench_scenarios():
