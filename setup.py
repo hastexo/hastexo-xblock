@@ -56,7 +56,7 @@ setup(
     install_requires=[
         'XBlock',
         'xblock-utils',
-        'os-client-config==1.13.1',
+        'os-client-config==1.28.0',
         'osc-lib==1.2.0',
         'cliff==2.2.0',
         'oslo.utils==3.37.1',
