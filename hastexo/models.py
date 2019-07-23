@@ -48,6 +48,8 @@ class Stack(StackCommon):
 
         # Populate the log if there was a status change
         if self.status and self.status != self.prev_status:
+            self.prev_status = self.status
+
             log_fields = {'stack_id': self.id}
             for field in StackCommon._meta.get_fields():
                 if field.name == 'created_on':
