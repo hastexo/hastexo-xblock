@@ -1,4 +1,4 @@
-Unreleased
+Version 3.0.1 (2019-07-23)
 ---------------------------
 
 * [Bug fix] Fix database logging
