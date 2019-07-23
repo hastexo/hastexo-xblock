@@ -103,8 +103,10 @@ class SuspenderJob(AbstractJob):
                 stack.status = SUSPEND_ISSUED_STATE
                 stack.save(update_fields=["status"])
             else:
-                self.log("Cannot suspend stack [%s] with status [%s]." %
-                         (stack.name, provider_stack["status"]))
+                error_msg = "Cannot suspend stack [%s] with status [%s]." % (
+                    stack.name, provider_stack["status"])
+                self.log(error_msg)
+                stack.error_msg = error_msg
 
                 # Schedule for retry, if it makes sense to do so
                 if (provider_stack["status"] != DELETED_STATE and
@@ -113,12 +115,16 @@ class SuspenderJob(AbstractJob):
                 else:
                     stack.status = provider_stack["status"]
 
-                stack.save(update_fields=["status"])
+                stack.save(update_fields=["status", "error_msg"])
         except Exception as e:
+            error_msg = "Error suspending stack [%s]: %s" % (
+                stack.name, str(e))
+            self.log(error_msg)
+            stack.error_msg = error_msg
+
             # Schedule for retry on any uncaught exception
             stack.status = SUSPEND_RETRY_STATE
-            stack.save(update_fields=["status"])
-            self.log("Error suspending stack [%s]: %s" % (stack.name, str(e)))
+            stack.save(update_fields=["status", "error_msg"])
 
 
 class ReaperJob(AbstractJob):
@@ -166,11 +172,14 @@ class ReaperJob(AbstractJob):
             try:
                 self.delete_stack(stack)
             except Exception as e:
+                error_msg = "Error deleting stack [%s]: %s" % (
+                    stack.name, str(e))
+                self.log(error_msg)
+                stack.error_msg = error_msg
+
                 # Roll stack status back
                 stack.status = prev_states[i]
-                stack.save(update_fields=["status"])
-                self.log("Error deleting stack [%s]: %s" % (
-                    stack.name, str(e)))
+                stack.save(update_fields=["status", "error_msg"])
 
     def delete_stack(self, stack):
         """
@@ -204,19 +213,25 @@ class ReaperJob(AbstractJob):
             if stack.status == DELETED_STATE:
                 self.log("Stack [%s] deleted successfully." % stack.name)
             elif retry >= retries:
-                self.log("Stack [%s] deletion failed." % stack.name)
+                error_msg = "Stack [%s] deletion attempt [%d] failed." % (
+                    stack.name, attempt)
+                self.log(error_msg)
+                stack.error_msg = error_msg
                 stack.status = DELETE_FAILED_STATE
-                stack.save(update_fields=["status"])
+                stack.save(update_fields=["status", "error_msg"])
             elif stack.status != DELETE_IN_PROGRESS_STATE:
                 attempt += 1
 
                 if attempt > attempts:
-                    self.log("Stack [%s] deletion retries exceeded." %
-                             stack.name)
+                    error_msg = ("Stack [%s] deletion retries exceeded after "
+                                 "[%d] attempts." % (stack.name, attempts))
+                    self.log(error_msg)
+                    stack.error_msg = error_msg
                     stack.status = DELETE_FAILED_STATE
+                    stack.save(update_fields=["status", "error_msg"])
                 else:
-                    self.log("Deleting stack [%s]." % (stack.name))
+                    self.log("Attempt [%d] to delete stack [%s]." % (
+                        attempt, stack.name))
                     provider.delete_stack(stack.name, False)
                     stack.status = DELETE_IN_PROGRESS_STATE
-
-                stack.save(update_fields=["status"])
+                    stack.save(update_fields=["status"])
