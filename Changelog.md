@@ -1,3 +1,9 @@
+Unreleased
+---------------------------
+
+* [Bug fix] Fix database logging
+* [Enhancement] Improve suspender and reaper database logging
+
 Version 3.0.0 (2019-07-18)
 ---------------------------
 
