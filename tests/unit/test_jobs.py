@@ -5,9 +5,9 @@ from django.utils import timezone
 from hastexo.jobs import SuspenderJob, ReaperJob
 from hastexo.models import Stack, StackLog
 from hastexo.provider import ProviderException
-from hastexo.common import (SUSPEND_ISSUED_STATE, DELETE_STATE, DELETED_STATE,
-                            SUSPEND_RETRY_STATE, DELETE_IN_PROGRESS_STATE,
-                            DELETE_FAILED_STATE)
+from hastexo.common import (CREATE_STATE, SUSPEND_ISSUED_STATE, DELETE_STATE,
+                            DELETED_STATE, SUSPEND_RETRY_STATE,
+                            DELETE_IN_PROGRESS_STATE, DELETE_FAILED_STATE)
 
 
 class TestHastexoJobs(TestCase):
@@ -727,6 +727,117 @@ class TestHastexoJobs(TestCase):
         ])
         stack = Stack.objects.get(name=stack_name)
         self.assertEqual(stack.status, DELETE_FAILED_STATE)
+
+    def test_destroy_zombies(self):
+        # Setup
+        delete_age = self.settings.get("delete_age")
+        delete_delta = timezone.timedelta(days=(delete_age + 1))
+        delete_timestamp = timezone.now() - delete_delta
+        dont_delete_delta = timezone.timedelta(days=(delete_age - 1))
+        dont_delete_timestamp = timezone.now() - dont_delete_delta
+        stack_names = (
+            'zombie_stack_1',
+            'zombie_stack_2',
+            'zombie_stack_3',
+            'zombie_stack_4',
+            'not_a_zombie_stack'
+        )
+
+        # Create zombie stacks
+        for i in range(0, 4):
+            _stack = Stack(
+                student_id=self.student_id,
+                course_id=self.course_id,
+                name=stack_names[i],
+                suspend_timestamp=delete_timestamp,
+                status=DELETED_STATE
+            )
+            _stack.save()
+
+        # Create living stack
+        _stack = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            name=stack_names[4],
+            suspend_timestamp=dont_delete_timestamp,
+            status=CREATE_STATE
+        )
+        _stack.save()
+
+        mock_provider = self.mocks["Provider"].init.return_value
+        provider1_stacks = []
+        for i in range(0, 3):
+            provider1_stacks.append({
+                "name": stack_names[i],
+                "status": CREATE_STATE
+            })
+        provider2_stacks = []
+        for i in range(3, 5):
+            provider2_stacks.append({
+                "name": stack_names[i],
+                "status": CREATE_STATE
+            })
+        provider3_stacks = [{
+            "name": "unknown",
+            "status": CREATE_STATE
+        }]
+        mock_provider.get_stacks.side_effect = [
+            provider1_stacks,
+            provider2_stacks,
+            provider3_stacks
+        ]
+        mock_provider.get_stack.side_effect = [
+            {"name": stack_names[0], "status": CREATE_STATE},
+            {"name": stack_names[0], "status": DELETED_STATE},
+            {"name": stack_names[1], "status": CREATE_STATE},
+            {"name": stack_names[2], "status": CREATE_STATE},
+            {"name": stack_names[2], "status": DELETED_STATE},
+            {"name": stack_names[3], "status": CREATE_STATE},
+            {"name": stack_names[3], "status": DELETED_STATE},
+        ]
+        mock_provider.delete_stack.side_effect = [
+            True,
+            ProviderException(""),
+            True,
+            True
+        ]
+        self.settings["providers"] = {
+            "provider1": {},
+            "provider2": {},
+            "provider3": {}
+        }
+
+        # Run
+        job = ReaperJob(self.settings)
+        job.run()
+
+        # Assert
+        mock_provider.delete_stack.assert_has_calls([
+            call(stack_names[0], False),
+            call(stack_names[1], False),
+            call(stack_names[2], False),
+            call(stack_names[3], False)
+        ])
+        self.assertNotIn(
+            call(stack_names[4], False),
+            mock_provider.delete_stack.mock_calls
+        )
+        self.assertNotIn(
+            call("unknown", False),
+            mock_provider.delete_stack.mock_calls
+        )
+        stack = Stack.objects.get(name=stack_names[1])
+        self.assertEqual(stack.status, DELETE_FAILED_STATE)
+
+    def test_exception_destroying_zombies(self):
+        # Setup
+        mock_provider = self.mocks["Provider"].init.return_value
+        mock_provider.get_stacks.side_effect = ProviderException("")
+        self.settings["providers"] = {"provider": {}}
+
+        # Run
+        job = ReaperJob(self.settings)
+        job.run()
 
     def test_stack_log(self):
         # Setup

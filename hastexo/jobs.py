@@ -181,6 +181,49 @@ class ReaperJob(AbstractJob):
                 stack.status = prev_states[i]
                 stack.save(update_fields=["status", "error_msg"])
 
+        # Apocalypse pass: kill all zombie stacks
+        providers = self.settings.get("providers", {})
+        for provider_name in providers:
+            provider = Provider.init(provider_name)
+            try:
+                provider_stacks = provider.get_stacks()
+            except Exception as e:
+                error_msg = "Error listing stacks for provider [%s]: %s" % (
+                    provider_name, str(e))
+                self.log(error_msg)
+                continue
+
+            for provider_stack in provider_stacks:
+                stack_name = provider_stack["name"]
+
+                try:
+                    stack = Stack.objects.get(name=stack_name)
+                except Stack.DoesNotExist:
+                    continue
+
+                if stack.status == DELETED_STATE:
+                    error_msg = ("Zombie stack [%s] detected at provider [%s]"
+                                 % (stack_name, provider_name))
+                    self.log(error_msg)
+                    stack.provider = provider_name
+                    stack.status = DELETE_STATE
+                    stack.error_msg = error_msg
+                    stack.save(update_fields=[
+                        "provider",
+                        "status",
+                        "error_msg"
+                    ])
+
+                    try:
+                        self.delete_stack(stack)
+                    except Exception as e:
+                        error_msg = "Error deleting zombie stack [%s]: %s" % (
+                            stack.name, str(e))
+                        self.log(error_msg)
+                        stack.status = DELETE_FAILED_STATE
+                        stack.error_msg = error_msg
+                        stack.save(update_fields=["status", "error_msg"])
+
     def delete_stack(self, stack):
         """
         Delete the stack.
