@@ -723,10 +723,11 @@ class TestGcloudProvider(TestCase):
 
         return op
 
-    def mock_deployment(self, optype, opstate, name="deployment",
-                        manifest_name="manifest"):
+    def mock_deployment(self, optype, opstate, name=None,
+                        description=None, manifest_name="manifest"):
         return {
-            "name": name,
+            "name": name and name or self.deployment_name,
+            "description": description and description or self.stack_name,
             "operation": self.mock_operation(optype, opstate),
             "manifest": "https://www.googleapis.com/deploymentmanager/v2/projects/project/global/deployments/deployment/manifests/%s" % manifest_name  # noqa: E501
         }
@@ -769,7 +770,7 @@ class TestGcloudProvider(TestCase):
 
     def setUp(self):
         self.stack_name = "bogus_stack_name"
-        self.sanitized_stack_name = "bogus-stack-name"
+        self.deployment_name = "s-825a4c28f75f7988620732428c09a19b0adb291e"
         self.stack_user_name = "bogus_stack_user_name"
         self.stack_ip = "127.0.0.1"
         self.stack_key = u"bogus_stack_key"
@@ -855,7 +856,7 @@ class TestGcloudProvider(TestCase):
 
         # Run
         provider = Provider.init(self.provider_name)
-        stack = provider.get_stack(deployment["name"])
+        stack = provider.get_stack(self.stack_name)
 
         # Assert
         self.assertIsInstance(stack, dict)
@@ -898,7 +899,7 @@ class TestGcloudProvider(TestCase):
 
         # Run
         provider = Provider.init(self.provider_name)
-        stack = provider.get_stack(deployment["name"])
+        stack = provider.get_stack(self.stack_name)
 
         # Assert
         self.assertIsInstance(stack, dict)
@@ -939,7 +940,7 @@ class TestGcloudProvider(TestCase):
 
         # Run
         provider = Provider.init(self.provider_name)
-        stack = provider.get_stack(deployment["name"])
+        stack = provider.get_stack(self.stack_name)
 
         # Assert
         self.assertIsInstance(stack, dict)
@@ -973,7 +974,7 @@ class TestGcloudProvider(TestCase):
 
         # Run
         provider = Provider.init(self.provider_name)
-        stack = provider.get_stack(deployment["name"])
+        stack = provider.get_stack(self.stack_name)
 
         # Assert
         self.assertIsInstance(stack, dict)
@@ -995,7 +996,7 @@ class TestGcloudProvider(TestCase):
 
         # Run
         provider = Provider.init(self.provider_name)
-        stack = provider.get_stack("bogus")
+        stack = provider.get_stack(self.stack_name)
 
         # Assert
         self.assertIsInstance(stack, dict)
@@ -1013,7 +1014,7 @@ class TestGcloudProvider(TestCase):
         # Run
         with self.assertRaises(ProviderException):
             provider = Provider.init(self.provider_name)
-            provider.get_stack("bogus")
+            provider.get_stack(self.stack_name)
 
     def test_get_with_no_operation(self):
         # Setup
@@ -1027,12 +1028,12 @@ class TestGcloudProvider(TestCase):
         # Run
         with self.assertRaises(ProviderException):
             provider = Provider.init(self.provider_name)
-            provider.get_stack(deployment["name"])
+            provider.get_stack(self.stack_name)
 
     def test_get_with_unknown_operation_type(self):
         # Setup
         ds = self.mock_deployment_service()
-        deployment = self.mock_deployment("bogus", "DONE")
+        deployment = self.mock_deployment("unknown", "DONE")
         ds.deployments().get.return_value.execute.side_effect = [
             deployment
         ]
@@ -1040,12 +1041,12 @@ class TestGcloudProvider(TestCase):
         # Run
         with self.assertRaises(ProviderException):
             provider = Provider.init(self.provider_name)
-            provider.get_stack(deployment["name"])
+            provider.get_stack(self.stack_name)
 
     def test_get_with_unknown_operation_status(self):
         # Setup
         ds = self.mock_deployment_service()
-        deployment = self.mock_deployment("insert", "BOGUS")
+        deployment = self.mock_deployment("insert", "UNKNOWN")
         ds.deployments().get.return_value.execute.side_effect = [
             deployment
         ]
@@ -1053,7 +1054,7 @@ class TestGcloudProvider(TestCase):
         # Run
         with self.assertRaises(ProviderException):
             provider = Provider.init(self.provider_name)
-            provider.get_stack(deployment["name"])
+            provider.get_stack(self.stack_name)
 
     def test_exception_on_resources_list(self):
         # Setup
@@ -1069,7 +1070,7 @@ class TestGcloudProvider(TestCase):
         # Run
         with self.assertRaises(ProviderException):
             provider = Provider.init(self.provider_name)
-            provider.get_stack(deployment["name"])
+            provider.get_stack(self.stack_name)
 
     def test_exception_on_instances_get(self):
         # Setup
@@ -1090,7 +1091,7 @@ class TestGcloudProvider(TestCase):
         # Run
         with self.assertRaises(ProviderException):
             provider = Provider.init(self.provider_name)
-            provider.get_stack(deployment["name"])
+            provider.get_stack(self.stack_name)
 
     def test_exception_on_manifests_get(self):
         # Setup
@@ -1185,10 +1186,10 @@ class TestGcloudProvider(TestCase):
         }
         self.assertEqual(stack["outputs"], expected_outputs)
         expected_config = {
-            "imports": [{"path": "%s.yaml.jinja" % self.sanitized_stack_name}],
+            "imports": [{"path": "%s.yaml.jinja" % self.deployment_name}],
             "resources": [{
-                "type": "%s.yaml.jinja" % self.sanitized_stack_name,
-                "name": "bogus-stack-name",
+                "type": "%s.yaml.jinja" % self.deployment_name,
+                "name": self.deployment_name,
                 "properties": {
                     "run": self.stack_run,
                     "private_key": self.stack_key,
@@ -1198,7 +1199,7 @@ class TestGcloudProvider(TestCase):
             }],
             "outputs": [
                 {"name": "public_ip",
-                 "value": "$(ref.%s.public_ip)" % self.sanitized_stack_name},
+                 "value": "$(ref.%s.public_ip)" % self.deployment_name},
                 {"name": "private_key",
                  "value": self.stack_key},
                 {"name": "password",
@@ -1208,7 +1209,7 @@ class TestGcloudProvider(TestCase):
         expected_body = {
             "target": {
                 "imports": [{
-                    "name": "%s.yaml.jinja" % self.sanitized_stack_name,
+                    "name": "%s.yaml.jinja" % self.deployment_name,
                     "content": self.stack_template
                 }],
                 "config": {
@@ -1216,7 +1217,8 @@ class TestGcloudProvider(TestCase):
                         expected_config, default_flow_style=False)
                 }
             },
-            "name": self.sanitized_stack_name
+            "name": self.deployment_name,
+            "description": self.stack_name
         }
         ds.deployments().insert.assert_called_with(
             project=self.provider_conf["gc_project_id"],
@@ -1233,7 +1235,7 @@ class TestGcloudProvider(TestCase):
         # Run
         with self.assertRaises(ProviderException):
             provider = Provider.init(self.provider_name)
-            provider.create_stack("bogus", "run")
+            provider.create_stack(self.stack_name, "run")
 
     def test_create_stack_exception_with_empty_environment(self):
         # Setup
@@ -1246,7 +1248,7 @@ class TestGcloudProvider(TestCase):
         with self.assertRaises(ProviderException):
             provider = Provider.init(self.provider_name)
             provider.set_environment("")
-            provider.create_stack("bogus", "run")
+            provider.create_stack(self.stack_name, "run")
 
     def test_create_stack_exception_with_bogus_environment(self):
         # Setup
@@ -1259,7 +1261,7 @@ class TestGcloudProvider(TestCase):
         with self.assertRaises(ProviderException):
             provider = Provider.init(self.provider_name)
             provider.set_environment("bogus:::yaml")
-            provider.create_stack("bogus", "run")
+            provider.create_stack(self.stack_name, "run")
 
     def test_create_stack_exception_on_insert(self):
         # Setup
@@ -1273,7 +1275,7 @@ class TestGcloudProvider(TestCase):
             provider = Provider.init(self.provider_name)
             provider.set_template(self.stack_template)
             provider.set_environment(self.stack_environment)
-            provider.create_stack("bogus", "run")
+            provider.create_stack(self.stack_name, "run")
 
     def test_create_stack_exception_on_get(self):
         # Setup
@@ -1291,7 +1293,7 @@ class TestGcloudProvider(TestCase):
             provider = Provider.init(self.provider_name)
             provider.set_template(self.stack_template)
             provider.set_environment(self.stack_environment)
-            provider.create_stack("bogus", "run")
+            provider.create_stack(self.stack_name, "run")
 
     def test_create_stack_error_on_done(self):
         # Setup
@@ -1309,7 +1311,7 @@ class TestGcloudProvider(TestCase):
             provider = Provider.init(self.provider_name)
             provider.set_template(self.stack_template)
             provider.set_environment(self.stack_environment)
-            provider.create_stack("bogus", "run")
+            provider.create_stack(self.stack_name, "run")
 
     def test_delete_stack_exception(self):
         # Setup
@@ -1345,7 +1347,7 @@ class TestGcloudProvider(TestCase):
         self.assertRaises(KeyError, lambda: stack["outputs"])
         ds.deployments().delete.assert_called_with(
             project=self.provider_conf["gc_project_id"],
-            deployment=self.sanitized_stack_name)
+            deployment=self.deployment_name)
 
     def test_delete_stack_wait_with_error(self):
         # Setup
@@ -1362,7 +1364,7 @@ class TestGcloudProvider(TestCase):
         # Run
         with self.assertRaises(ProviderException):
             provider = Provider.init(self.provider_name)
-            provider.delete_stack(self.sanitized_stack_name)
+            provider.delete_stack(self.deployment_name)
 
     def test_delete_stack_wait_operation_disappeared(self):
         # Setup
@@ -1401,7 +1403,7 @@ class TestGcloudProvider(TestCase):
         self.assertRaises(KeyError, lambda: stack["outputs"])
         ds.deployments().delete.assert_called_with(
             project=self.provider_conf["gc_project_id"],
-            deployment=self.sanitized_stack_name)
+            deployment=self.deployment_name)
 
     @ddt.data(
         ("RUNNING", "RUNNING")

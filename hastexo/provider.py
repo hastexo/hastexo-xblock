@@ -1,6 +1,7 @@
 import time
 import base64
 import binascii
+import hashlib
 import paramiko
 import random
 import string
@@ -356,6 +357,7 @@ class GcloudProvider(Provider):
     ds = None
     cs = None
     project = None
+    deployment_name_prefix = 's-'
 
     def __init__(self, provider, config, sleep):
         super(GcloudProvider, self).__init__(provider, config, sleep)
@@ -419,11 +421,11 @@ class GcloudProvider(Provider):
 
         return outputs
 
-    def _get_deployment_servers(self, name):
+    def _get_deployment_servers(self, deployment_name):
         try:
             response = self.ds.resources().list(
                 project=self.project,
-                deployment=name,
+                deployment=deployment_name,
                 filter='type = "compute.v1.instance"'
             ).execute()
         except GcloudApiError as e:
@@ -449,7 +451,7 @@ class GcloudProvider(Provider):
         return servers
 
     def _get_deployment_status(self, deployment):
-        name = deployment["name"]
+        deployment_name = deployment["name"]
 
         if "operation" not in deployment:
             raise ProviderException("Operation not found.")
@@ -478,7 +480,7 @@ class GcloudProvider(Provider):
 
         # Calculate suspend status
         if status == "CREATE_COMPLETE":
-            servers = self._get_deployment_servers(name)
+            servers = self._get_deployment_servers(deployment_name)
             if servers:
                 if any(s.get("status") == "STOPPING" for s in servers):
                     status = "SUSPEND_IN_PROGRESS"
@@ -489,16 +491,22 @@ class GcloudProvider(Provider):
 
         return status
 
-    def _sanitize_name(self, name):
-        sanitized = name.replace('.', '-').replace('_', '-')
-        return sanitized[0].lower() + sanitized[1:]
+    def _encode_name(self, name):
+        """
+        GCP enforces strict resource naming policies (regex
+        '[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?'), so we work around it by naming
+        the stack with a hash.
+
+        """
+        digest = hashlib.sha1(b(name)).hexdigest()
+        return '%s%s' % (self.deployment_name_prefix, digest)
 
     def get_stack(self, name):
-        name = self._sanitize_name(name)
+        deployment_name = self._encode_name(name)
 
         try:
             response = self.ds.deployments().get(
-                project=self.project, deployment=name
+                project=self.project, deployment=deployment_name
             ).execute()
         except GcloudApiHttpError as e:
             if e.resp.status == 404:
@@ -516,7 +524,7 @@ class GcloudProvider(Provider):
                 "outputs": outputs}
 
     def create_stack(self, name, run):
-        name = self._sanitize_name(name)
+        deployment_name = self._encode_name(name)
 
         properties = {"run": run}
 
@@ -539,9 +547,9 @@ class GcloudProvider(Provider):
         properties.update(env.get("properties", {}))
 
         # Create template resource
-        template_path = "%s.yaml.jinja" % name
+        template_path = "%s.yaml.jinja" % deployment_name
         resource = {
-            "name": name,
+            "name": deployment_name,
             "type": template_path,
             "properties": properties
         }
@@ -549,7 +557,7 @@ class GcloudProvider(Provider):
         # Build outputs
         outputs = [
             {"name": "public_ip",
-             "value": "$(ref.%s.public_ip)" % name},
+             "value": "$(ref.%s.public_ip)" % deployment_name},
             {"name": "private_key",
              "value": properties["private_key"]},
             {"name": "password",
@@ -574,7 +582,8 @@ class GcloudProvider(Provider):
                     "content": yaml.safe_dump(config, default_flow_style=False)
                 }
             },
-            "name": name
+            "name": deployment_name,
+            "description": name
         }
 
         try:
@@ -606,11 +615,11 @@ class GcloudProvider(Provider):
         return self.get_stack(name)
 
     def delete_stack(self, name, wait=True):
-        name = self._sanitize_name(name)
+        deployment_name = self._encode_name(name)
 
         try:
             operation = self.ds.deployments().delete(
-                project=self.project, deployment=name
+                project=self.project, deployment=deployment_name
             ).execute()
         except GcloudApiError as e:
             raise ProviderException(e)
@@ -651,10 +660,10 @@ class GcloudProvider(Provider):
         return {"status": status}
 
     def suspend_stack(self, name):
-        name = self._sanitize_name(name)
+        deployment_name = self._encode_name(name)
 
         # Get servers
-        servers = self._get_deployment_servers(name)
+        servers = self._get_deployment_servers(deployment_name)
 
         for server in servers:
             status = server.get("status")
@@ -674,10 +683,10 @@ class GcloudProvider(Provider):
                                                  server["status"]))
 
     def resume_stack(self, name):
-        name = self._sanitize_name(name)
+        deployment_name = self._encode_name(name)
 
         # Start the servers
-        servers = self._get_deployment_servers(name)
+        servers = self._get_deployment_servers(deployment_name)
         for server in servers:
             status = server.get("status")
             if status == "TERMINATED":
@@ -697,7 +706,7 @@ class GcloudProvider(Provider):
 
         # Wait until resume finishes.
         while True:
-            servers = self._get_deployment_servers(name)
+            servers = self._get_deployment_servers(deployment_name)
             if all(s.get("status") == "RUNNING" for s in servers):
                 break
 
