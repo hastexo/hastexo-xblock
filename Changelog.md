@@ -1,3 +1,11 @@
+Unreleased
+---------------------------
+
+* [BACKWARD INCOMPATIBLE FOR GCP LABS ONLY] Encode GCP stack names
+* [Enhancement] Provider stack listing
+* [Enhancement] Reaper zombie destroyer
+* [Enhancement] Add Python 3.7 test target
+
 Version 3.0.1 (2019-07-23)
 ---------------------------
 
