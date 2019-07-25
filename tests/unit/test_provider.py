@@ -109,6 +109,7 @@ class TestOpenstackProvider(TestCase):
 
         for state in self.stack_states:
             stack = Mock()
+            stack.stack_name = "%s_stack" % state.lower()
             stack.stack_status = state
             stack.id = "%s_ID" % state
             stack.outputs = [
@@ -181,6 +182,64 @@ class TestOpenstackProvider(TestCase):
         self.assertIsInstance(provider, OpenstackProvider)
         self.assertNotEqual(provider.heat_c, None)
         self.assertNotEqual(provider.nova_c, None)
+
+    def test_list_existing_stacks(self):
+        # Setup
+        heat = self.get_heat_client_mock()
+        mock_stacks = [
+            self.stacks["CREATE_COMPLETE"],
+            self.stacks["RESUME_COMPLETE"]
+        ]
+        heat.stacks.list.return_value = mock_stacks
+
+        # Run
+        provider = Provider.init(self.provider_name)
+        stacks = provider.get_stacks()
+
+        # Assert
+        self.assertIsInstance(stacks, list)
+        self.assertEqual(len(stacks), 2)
+        self.assertEqual(mock_stacks[0].stack_name, stacks[0]["name"])
+        self.assertEqual(mock_stacks[1].stack_name, stacks[1]["name"])
+        self.assertEqual(mock_stacks[0].stack_status, stacks[0]["status"])
+        self.assertEqual(mock_stacks[1].stack_status, stacks[1]["status"])
+
+    def test_list_existing_stacks_empty(self):
+        # Setup
+        heat = self.get_heat_client_mock()
+        heat.stacks.list.return_value = []
+
+        # Run
+        provider = Provider.init(self.provider_name)
+        stacks = provider.get_stacks()
+
+        # Assert
+        self.assertIsInstance(stacks, list)
+        self.assertEqual(len(stacks), 0)
+
+    def test_list_existing_stacks_not_found(self):
+        # Setup
+        heat = self.get_heat_client_mock()
+        heat.stacks.list.side_effect = heat_exc.HTTPNotFound
+
+        # Run
+        provider = Provider.init(self.provider_name)
+        stacks = provider.get_stacks()
+
+        # Assert
+        self.assertIsInstance(stacks, list)
+        self.assertEqual(len(stacks), 0)
+
+    @ddt.data(*HEAT_EXCEPTIONS)
+    def test_list_existing_stacks_exception(self, heat_exception):
+        # Setup
+        heat = self.get_heat_client_mock()
+        heat.stacks.list.side_effect = heat_exception
+
+        # Run
+        provider = Provider.init(self.provider_name)
+        with self.assertRaises(ProviderException):
+            provider.get_stacks()
 
     def test_get_unexistent_stack(self):
         # Setup
@@ -834,6 +893,102 @@ class TestGcloudProvider(TestCase):
         self.assertNotEqual(provider.ds, None)
         self.assertNotEqual(provider.cs, None)
         self.assertEqual(provider.project, self.provider_conf["gc_project_id"])
+
+    def test_list_existing_stacks(self):
+        # Setup
+        ds = self.mock_deployment_service()
+        cs = self.mock_compute_service()
+        deployments = [
+            self.mock_deployment(
+                "insert",
+                "DONE",
+                name="s-4c0cf4b0b2efdebeba9bbbd8f42fa14a8d9744e9",
+                description="bogus0"
+            ),
+            self.mock_deployment(
+                "insert",
+                "DONE",
+                name="s-7d98c6ee52aea9d50f29f6b9c450cde65a931d0f",
+                description="bogus1"
+            ),
+            self.mock_deployment(
+                "insert",
+                "DONE",
+                name="s-thisisaninvalidhash",
+                description="bogus2"
+            ),
+            self.mock_deployment(
+                "insert",
+                "DONE",
+                name="not-an-xblock-stack",
+                description="bogus3"
+            ),
+        ]
+        response = {"deployments": deployments}
+        ds.deployments().list.return_value.execute.return_value = response
+        ds.resources().list.return_value.execute.side_effect = [
+            self.mock_resources(1),
+            self.mock_resources(2)
+        ]
+        cs.instances().get.return_value.execute.side_effect = [
+            self.mock_server("RUNNING"),
+            self.mock_server("RUNNING"),
+            self.mock_server("RUNNING")
+        ]
+        ds.manifests().get.return_value.execute.side_effect = [
+            self.mock_manifest(),
+            self.mock_manifest()
+        ]
+
+        # Run
+        provider = Provider.init(self.provider_name)
+        stacks = provider.get_stacks()
+
+        self.assertIsInstance(stacks, list)
+        self.assertEqual(len(stacks), 2)
+        self.assertEqual("bogus0", stacks[0]["name"])
+        self.assertEqual("bogus1", stacks[1]["name"])
+        self.assertEqual("CREATE_COMPLETE", stacks[0]["status"])
+        self.assertEqual("CREATE_COMPLETE", stacks[1]["status"])
+
+    def test_list_stacks_empty(self):
+        # Setup
+        ds = self.mock_deployment_service()
+        response = {"deployments": []}
+        ds.deployments().list.return_value.execute.return_value = response
+
+        # Run
+        provider = Provider.init(self.provider_name)
+        stacks = provider.get_stacks()
+
+        self.assertIsInstance(stacks, list)
+        self.assertEqual(len(stacks), 0)
+
+    def test_list_stacks_not_found(self):
+        # Setup
+        ds = self.mock_deployment_service()
+        ds.deployments().list.return_value.execute.side_effect = [
+            self.mock_exception(404)
+        ]
+
+        # Run
+        provider = Provider.init(self.provider_name)
+        stacks = provider.get_stacks()
+
+        self.assertIsInstance(stacks, list)
+        self.assertEqual(len(stacks), 0)
+
+    def test_list_stacks_exception(self):
+        # Setup
+        ds = self.mock_deployment_service()
+        ds.deployments().list.return_value.execute.side_effect = [
+            self.mock_exception(500)
+        ]
+
+        # Run
+        provider = Provider.init(self.provider_name)
+        with self.assertRaises(ProviderException):
+            provider.get_stacks()
 
     def test_get_existing_stack(self):
         # Setup

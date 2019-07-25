@@ -120,6 +120,9 @@ class Provider(object):
         abc = string.ascii_lowercase
         return "".join(random.choice(abc) for i in range(length))
 
+    def get_stacks(self):
+        raise NotImplementedError()
+
     def get_stack(self):
         raise NotImplementedError()
 
@@ -178,6 +181,25 @@ class OpenstackProvider(Provider):
             outputs[output_key] = output_value
 
         return outputs
+
+    def get_stacks(self):
+        stacks = []
+        try:
+            heat_stacks = self.heat_c.stacks.list()
+        except HTTPNotFound:
+            return stacks
+        except (HTTPException, HttpError) as e:
+            raise ProviderException(e)
+
+        if heat_stacks:
+            for heat_stack in heat_stacks:
+                stack = {
+                    "name": heat_stack.stack_name,
+                    "status": heat_stack.stack_status
+                }
+                stacks.append(stack)
+
+        return stacks
 
     def get_stack(self, name):
         try:
@@ -500,6 +522,37 @@ class GcloudProvider(Provider):
         """
         digest = hashlib.sha1(b(name)).hexdigest()
         return '%s%s' % (self.deployment_name_prefix, digest)
+
+    def get_stacks(self):
+        stacks = []
+
+        try:
+            response = self.ds.deployments().list(
+                project=self.project
+            ).execute()
+        except GcloudApiHttpError as e:
+            if e.resp.status == 404:
+                return stacks
+            else:
+                raise ProviderException(e)
+        except GcloudApiError as e:
+            raise ProviderException(e)
+
+        for deployment in response.get("deployments", []):
+            if not deployment["name"].startswith(self.deployment_name_prefix):
+                continue
+
+            try:
+                stack = {
+                    "name": deployment["description"],
+                    "status": self._get_deployment_status(deployment)
+                }
+            except Exception:
+                continue
+
+            stacks.append(stack)
+
+        return stacks
 
     def get_stack(self, name):
         deployment_name = self._encode_name(name)
