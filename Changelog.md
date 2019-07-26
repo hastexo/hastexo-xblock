@@ -1,4 +1,4 @@
-Unreleased
+Version 3.1.0 (2019-07-26)
 ---------------------------
 
 * [BACKWARD INCOMPATIBLE FOR GCP LABS ONLY] Encode GCP stack names
