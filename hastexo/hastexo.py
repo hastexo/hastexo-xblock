@@ -194,9 +194,7 @@ class HastexoXBlock(XBlock,
                     # This will raise a TypeError if the string literal
                     # cannot be converted
                     capacity = int(capacity)
-                template = child.attrib.get("template")
-                if not template:
-                    raise KeyError("template")
+                template = child.attrib.get("template", None)
                 environment = child.attrib.get("environment", None)
                 provider = {"name": name,
                             "capacity": capacity,

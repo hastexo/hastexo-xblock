@@ -37,7 +37,7 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
       stack_user_name='training'
       stack_protocol='rdp'
       launch_timeout='900'>
-      <provider name='provider1' capacity='20' template='hot_lab1.yaml'
+      <provider name='provider1' capacity='20'
         environment='hot_env1.yaml' />
       <provider name='provider2' capacity='30' template='hot_lab2.yaml'
         environment='hot_env2.yaml' />
@@ -63,7 +63,8 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
         self.assertEqual(block.launch_timeout, 900)
         self.assertEqual(len(block.providers), 3)
         self.assertEqual(block.providers[0]["name"], "provider1")
-        self.assertEqual(block.providers[0]["template"], "hot_lab1.yaml")
+        self.assertEqual(block.providers[0]["template"], None)
+        self.assertEqual(block.providers[1]["template"], "hot_lab2.yaml")
         self.assertEqual(block.providers[1]["capacity"], 30)
         self.assertEqual(block.providers[2]["environment"], "hot_env3.yaml")
         self.assertEqual(len(block.ports), 2)
@@ -83,16 +84,15 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
         </hastexo>
             """).encode('utf-8'))
 
-    def test_parsing_deprecated_requires_template(self):
-        with self.assertRaises(KeyError):
-            self.parse_xml_to_block(textwrap.dedent("""\
-        <?xml version='1.0' encoding='utf-8'?>
-        <hastexo
-          stack_user_name='training'>
-          <provider name='provider1' capacity='20'
-            environment='hot_env1.yaml' />
-        </hastexo>
-            """).encode('utf-8'))
+    def test_parsing_deprecated_doesnt_require_template(self):
+        self.parse_xml_to_block(textwrap.dedent("""\
+    <?xml version='1.0' encoding='utf-8'?>
+    <hastexo
+      stack_user_name='training'>
+      <provider name='provider1' capacity='20'
+        environment='hot_env1.yaml' />
+    </hastexo>
+        """).encode('utf-8'))
 
     def test_parsing_new(self):
         block = self.parse_xml_to_block(textwrap.dedent("""\

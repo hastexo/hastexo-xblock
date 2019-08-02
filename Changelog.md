@@ -1,3 +1,8 @@
+Unreleased
+---------------------------
+
+* [Bug fix] Fix XML parsing backward compatibility
+
 Version 3.1.0 (2019-07-26)
 ---------------------------
 
