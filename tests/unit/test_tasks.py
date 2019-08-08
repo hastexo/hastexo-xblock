@@ -1,3 +1,5 @@
+import ddt
+import errno
 import socket
 
 from unittest import TestCase
@@ -11,6 +13,21 @@ from hastexo.tasks import (LaunchStackTask, CheckStudentProgressTask,
 from celery.exceptions import SoftTimeLimitExceeded
 
 
+RETRY_SOCKET_ERRNOS = [
+    errno.EAGAIN,
+    errno.ENETDOWN,
+    errno.ENETUNREACH,
+    errno.ENETRESET,
+    errno.ECONNABORTED,
+    errno.ECONNRESET,
+    errno.ENOTCONN,
+    errno.ECONNREFUSED,
+    errno.EHOSTDOWN,
+    errno.EHOSTUNREACH
+]
+
+
+@ddt.ddt
 class TestHastexoTasks(TestCase):
     def get_ssh_client_mock(self):
         return self.mocks["paramiko"].SSHClient.return_value
@@ -697,6 +714,48 @@ class TestHastexoTasks(TestCase):
 
         # Assertions
         self.assertEqual(res["status"], "CREATE_COMPLETE")
+
+    @ddt.data(*RETRY_SOCKET_ERRNOS)
+    def test_some_socket_errors_do_not_constitute_verify_failure(self, errno):
+        # Setup
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["CREATE_COMPLETE"]
+        ]
+        ssh = self.get_ssh_client_mock()
+        ssh.connect.side_effect = [
+            EnvironmentError(errno, ''),
+            True
+        ]
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "LAUNCH_PENDING"
+        })
+
+        # Run
+        res = LaunchStackTask().run(**self.kwargs)
+
+        # Assertions
+        self.assertEqual(res["status"], "CREATE_COMPLETE")
+
+    def test_other_socket_errors_constitute_verify_failure(self):
+        # Setup
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["CREATE_COMPLETE"]
+        ]
+        ssh = self.get_ssh_client_mock()
+        ssh.connect.side_effect = EnvironmentError(errno.ENOTSOCK, '')
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "LAUNCH_PENDING"
+        })
+
+        # Run
+        res = LaunchStackTask().run(**self.kwargs)
+
+        # Assertions
+        self.assertEqual(res["status"], "CREATE_FAILED")
 
     def test_ssh_bombs_out(self):
         # Setup
