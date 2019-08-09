@@ -32,17 +32,17 @@ class TestHastexoModels(TestCase):
         stack = Stack.objects.all()[0]
         stack.status = 'SUSPEND_PENDING'
         stack.save(update_fields=["status"])
-        stack.status = 'SUSPEND_RETRY'
+        stack.status = 'SUSPEND_FAILED'
         stack.save(update_fields=["status"])
         stack = Stack.objects.all()[0]
         stack.status = 'SUSPEND_PENDING'
         stack.save(update_fields=["status"])
-        stack.status = 'SUSPEND_RETRY'
+        stack.status = 'SUSPEND_FAILED'
         stack.save(update_fields=["status"])
         stack = Stack.objects.all()[0]
         stack.status = 'SUSPEND_PENDING'
         stack.save(update_fields=["status"])
-        stack.status = 'SUSPEND_ISSUED'
+        stack.status = 'SUSPEND_COMPLETE'
         stack.save(update_fields=["status"])
 
         log = StackLog.objects.all()
@@ -50,8 +50,8 @@ class TestHastexoModels(TestCase):
         self.assertEqual(log[0].status, 'CREATE_IN_PROGRESS')
         self.assertEqual(log[1].status, 'CREATE_COMPLETE')
         self.assertEqual(log[2].status, 'SUSPEND_PENDING')
-        self.assertEqual(log[3].status, 'SUSPEND_RETRY')
+        self.assertEqual(log[3].status, 'SUSPEND_FAILED')
         self.assertEqual(log[4].status, 'SUSPEND_PENDING')
-        self.assertEqual(log[5].status, 'SUSPEND_RETRY')
+        self.assertEqual(log[5].status, 'SUSPEND_FAILED')
         self.assertEqual(log[6].status, 'SUSPEND_PENDING')
-        self.assertEqual(log[7].status, 'SUSPEND_ISSUED')
+        self.assertEqual(log[7].status, 'SUSPEND_COMPLETE')

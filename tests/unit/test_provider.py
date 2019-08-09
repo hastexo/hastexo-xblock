@@ -120,7 +120,7 @@ class TestOpenstackProvider(TestCase):
                 {"output_key": "password",
                  "output_value": self.stack_password},
                 {"output_key": "reboot_on_resume",
-                 "output_value": None}
+                 "output_value": None},
             ]
             self.stacks[state] = stack
 
@@ -142,9 +142,7 @@ class TestOpenstackProvider(TestCase):
 
         # Mock settings
         self.settings = {
-            "task_timeouts": {
-                "sleep": 0
-            },
+            "sleep_timeout": 0,
             "providers": {
                 self.provider_name: self.mock_provider_config
             }
@@ -279,7 +277,7 @@ class TestOpenstackProvider(TestCase):
             "public_ip": self.stack_ip,
             "private_key": self.stack_key,
             "password": self.stack_password,
-            "reboot_on_resume": None
+            "reboot_on_resume": None,
         }
         self.assertEqual(stack["outputs"], expected_outputs)
 
@@ -329,7 +327,7 @@ class TestOpenstackProvider(TestCase):
             "public_ip": self.stack_ip,
             "private_key": self.stack_key,
             "password": self.stack_password,
-            "reboot_on_resume": None
+            "reboot_on_resume": None,
         }
         self.assertEqual(stack["outputs"], expected_outputs)
         heat.stacks.create.assert_called_with(
@@ -425,7 +423,7 @@ class TestOpenstackProvider(TestCase):
             "public_ip": self.stack_ip,
             "private_key": self.stack_key,
             "password": self.stack_password,
-            "reboot_on_resume": None
+            "reboot_on_resume": None,
         }
         self.assertEqual(stack["outputs"], expected_outputs)
         heat.actions.resume.assert_called_with(
@@ -464,7 +462,7 @@ class TestOpenstackProvider(TestCase):
             "public_ip": self.stack_ip,
             "private_key": self.stack_key,
             "password": self.stack_password,
-            "reboot_on_resume": servers
+            "reboot_on_resume": servers,
         }
         self.assertEqual(stack["outputs"], expected_outputs)
         heat.actions.resume.assert_called_with(
@@ -554,114 +552,63 @@ class TestOpenstackProvider(TestCase):
             provider = Provider.init(self.provider_name)
             provider.resume_stack(self.stack_name)
 
-    def test_suspend_stack_success(self):
+    def test_suspend_stack_wait(self):
         # Setup
         heat = self.get_heat_client_mock()
         heat.stacks.get.side_effect = [
-            self.stacks["RESUME_COMPLETE"]
+            self.stacks["SUSPEND_IN_PROGRESS"],
+            self.stacks["SUSPEND_IN_PROGRESS"],
+            self.stacks["SUSPEND_COMPLETE"],
         ]
 
         # Run
         provider = Provider.init(self.provider_name)
-        provider.suspend_stack(self.stack_name)
+        provider_stack = provider.suspend_stack(self.stack_name)
 
         # Assert
+        self.assertIsInstance(provider_stack, dict)
+        self.assertEqual("SUSPEND_COMPLETE", provider_stack["status"])
+        self.assertRaises(KeyError, lambda: provider_stack["outputs"])
         heat.actions.suspend.assert_called_with(stack_id=self.stack_name)
 
-    def test_suspend_stack_with_no_rebooting_servers(self):
+    def test_suspend_stack_disappeared(self):
         # Setup
-        mock_stack = self.stacks["RESUME_COMPLETE"]
-        server_names = ["server1", "server2"]
-        mock_stack.outputs = [
-            {"output_key": "public_ip",
-             "output_value": self.stack_ip},
-            {"output_key": "private_key",
-             "output_value": self.stack_key},
-            {"output_key": "password",
-             "output_value": self.stack_password},
-            {"output_key": "reboot_on_resume",
-             "output_value": server_names}
-        ]
         heat = self.get_heat_client_mock()
         heat.stacks.get.side_effect = [
-            mock_stack
+            self.stacks["SUSPEND_IN_PROGRESS"],
+            heat_exc.HTTPNotFound,
         ]
-        servers = []
-        for server_name in server_names:
-            server = Mock()
-            setattr(server, 'name', server_name)
-            setattr(server, 'OS-EXT-STS:task_state', 'phony_task_state')
-            servers.append(server)
-        nova = self.get_nova_client_mock()
-        nova.servers.get.side_effect = servers
 
         # Run
         provider = Provider.init(self.provider_name)
-        provider.suspend_stack(self.stack_name)
+        provider_stack = provider.suspend_stack(self.stack_name)
 
-        # Assertions
-        heat.actions.suspend.assert_called_with(
-            stack_id=self.stack_name
-        )
-        nova.servers.get.assert_has_calls([
-            call(server_names[0]),
-            call(server_names[1])
-        ])
+        # Assert
+        self.assertIsInstance(provider_stack, dict)
+        self.assertEqual("DELETE_COMPLETE", provider_stack["status"])
+        self.assertRaises(KeyError, lambda: provider_stack["outputs"])
+        heat.actions.suspend.assert_called_with(stack_id=self.stack_name)
 
-    def test_suspend_stack_with_rebooting_servers_bails_out(self):
+    def test_suspend_stack_no_wait(self):
         # Setup
-        mock_stack = self.stacks["RESUME_COMPLETE"]
-        server_names = ["server1", "server2"]
-        mock_stack.outputs = [
-            {"output_key": "public_ip",
-             "output_value": self.stack_ip},
-            {"output_key": "private_key",
-             "output_value": self.stack_key},
-            {"output_key": "password",
-             "output_value": self.stack_password},
-            {"output_key": "reboot_on_resume",
-             "output_value": server_names}
-        ]
         heat = self.get_heat_client_mock()
-        heat.stacks.get.side_effect = [
-            mock_stack
-        ]
-        servers = []
-        for server_name in server_names:
-            server = Mock()
-            setattr(server, 'name', server_name)
-            setattr(server, 'OS-EXT-STS:task_state', 'rebooting_hard')
-            servers.append(server)
-        nova = self.get_nova_client_mock()
-        nova.servers.get.side_effect = servers
 
         # Run
-        with self.assertRaises(ProviderException):
-            provider = Provider.init(self.provider_name)
-            provider.suspend_stack(self.stack_name)
+        provider = Provider.init(self.provider_name)
+        provider_stack = provider.suspend_stack(self.stack_name, False)
 
-    @ddt.data(*NOVA_EXCEPTIONS)
-    def test_suspend_stack_nova_failure(self, nova_exception):
+        # Assert
+        self.assertIsInstance(provider_stack, dict)
+        self.assertEqual("SUSPEND_IN_PROGRESS", provider_stack["status"])
+        self.assertRaises(KeyError, lambda: provider_stack["outputs"])
+        heat.actions.suspend.assert_called_with(stack_id=self.stack_name)
+
+    @ddt.data(*HEAT_EXCEPTIONS)
+    def test_suspend_stack_heat_failure(self, heat_exception):
         # Setup
-        mock_stack = self.stacks["RESUME_COMPLETE"]
-        server_names = ["server1", "server2"]
-        mock_stack.outputs = [
-            {"output_key": "public_ip",
-             "output_value": self.stack_ip},
-            {"output_key": "private_key",
-             "output_value": self.stack_key},
-            {"output_key": "password",
-             "output_value": self.stack_password},
-            {"output_key": "reboot_on_resume",
-             "output_value": server_names}
-        ]
         heat = self.get_heat_client_mock()
-        heat.stacks.get.side_effect = [
-            mock_stack
-        ]
-        nova = self.get_nova_client_mock()
-        nova.servers.get.side_effect = [
-            nova_exception("")
+        heat.actions.suspend.side_effect = [
+            heat_exception
         ]
 
         # Run
@@ -670,11 +617,24 @@ class TestOpenstackProvider(TestCase):
             provider.suspend_stack(self.stack_name)
 
     @ddt.data(*HEAT_EXCEPTIONS)
-    def test_suspend_stack_heat_failure(self, heat_exception):
+    def test_suspend_stack_exception_on_get(self, heat_exception):
         # Setup
         heat = self.get_heat_client_mock()
-        heat.actions.suspend.side_effect = [
+        heat.stacks.get.side_effect = [
+            self.stacks["SUSPEND_IN_PROGRESS"],
             heat_exception
+        ]
+
+        # Run
+        with self.assertRaises(ProviderException):
+            provider = Provider.init(self.provider_name)
+            provider.suspend_stack(self.stack_name)
+
+    def test_suspend_stack_failure(self):
+        # Setup
+        heat = self.get_heat_client_mock()
+        heat.stacks.get.side_effect = [
+            self.stacks["SUSPEND_FAILED"]
         ]
 
         # Run
@@ -693,12 +653,12 @@ class TestOpenstackProvider(TestCase):
 
         # Run
         provider = Provider.init(self.provider_name)
-        stack = provider.delete_stack(self.stack_name)
+        provider_stack = provider.delete_stack(self.stack_name)
 
         # Assert
-        self.assertIsInstance(stack, dict)
-        self.assertEqual("DELETE_COMPLETE", stack["status"])
-        self.assertRaises(KeyError, lambda: stack["outputs"])
+        self.assertIsInstance(provider_stack, dict)
+        self.assertEqual("DELETE_COMPLETE", provider_stack["status"])
+        self.assertRaises(KeyError, lambda: provider_stack["outputs"])
         heat.stacks.delete.assert_called_with(stack_id=self.stack_name)
 
     def test_delete_stack_no_wait(self):
@@ -707,12 +667,12 @@ class TestOpenstackProvider(TestCase):
 
         # Run
         provider = Provider.init(self.provider_name)
-        stack = provider.delete_stack(self.stack_name, False)
+        provider_stack = provider.delete_stack(self.stack_name, False)
 
         # Assert
-        self.assertIsInstance(stack, dict)
-        self.assertEqual("DELETE_IN_PROGRESS", stack["status"])
-        self.assertRaises(KeyError, lambda: stack["outputs"])
+        self.assertIsInstance(provider_stack, dict)
+        self.assertEqual("DELETE_IN_PROGRESS", provider_stack["status"])
+        self.assertRaises(KeyError, lambda: provider_stack["outputs"])
         heat.stacks.delete.assert_called_with(stack_id=self.stack_name)
 
     @ddt.data(*HEAT_EXCEPTIONS)
@@ -862,9 +822,7 @@ class TestGcloudProvider(TestCase):
 
         # Mock settings
         self.settings = {
-            "task_timeouts": {
-                "sleep": 0
-            },
+            "sleep_timeout": 0,
             "providers": {
                 self.provider_name: self.provider_conf
             }
@@ -1560,6 +1518,43 @@ class TestGcloudProvider(TestCase):
             project=self.provider_conf["gc_project_id"],
             deployment=self.deployment_name)
 
+    def test_suspend_wait(self):
+        # Setup
+        ds = self.mock_deployment_service()
+        cs = self.mock_compute_service()
+        ds.resources().list().execute.side_effect = [
+            self.mock_resources(2),
+            self.mock_resources(2),
+            self.mock_resources(2),
+        ]
+        cs.instances().get().execute.side_effect = [
+            self.mock_server("RUNNING", name="server1"),
+            self.mock_server("RUNNING", name="server2"),
+            self.mock_server("STOPPING", name="server1"),
+            self.mock_server("STOPPING", name="server2"),
+            self.mock_server("TERMINATED", name="server1"),
+            self.mock_server("TERMINATED", name="server2"),
+        ]
+
+        # Run
+        provider = Provider.init(self.provider_name)
+        provider_stack = provider.suspend_stack(self.stack_name)
+
+        # Assert
+        self.assertIsInstance(provider_stack, dict)
+        self.assertEqual("SUSPEND_COMPLETE", provider_stack["status"])
+        self.assertRaises(KeyError, lambda: provider_stack["outputs"])
+        cs.instances().stop.assert_has_calls([
+            call(project=self.provider_conf["gc_project_id"],
+                 zone="zone",
+                 instance="server1"),
+            call().execute(),
+            call(project=self.provider_conf["gc_project_id"],
+                 zone="zone",
+                 instance="server2"),
+            call().execute(),
+        ])
+
     @ddt.data(
         ("RUNNING", "RUNNING")
     )
@@ -1577,9 +1572,12 @@ class TestGcloudProvider(TestCase):
 
         # Run
         provider = Provider.init(self.provider_name)
-        provider.suspend_stack(self.stack_name)
+        provider_stack = provider.suspend_stack(self.stack_name, False)
 
         # Assert
+        self.assertIsInstance(provider_stack, dict)
+        self.assertEqual("SUSPEND_IN_PROGRESS", provider_stack["status"])
+        self.assertRaises(KeyError, lambda: provider_stack["outputs"])
         cs.instances().stop.assert_has_calls([
             call(project=self.provider_conf["gc_project_id"],
                  zone="zone",
@@ -1609,7 +1607,7 @@ class TestGcloudProvider(TestCase):
 
         # Run
         provider = Provider.init(self.provider_name)
-        provider.suspend_stack(self.stack_name)
+        provider.suspend_stack(self.stack_name, False)
 
         # Assert
         cs.instances().stop.assert_has_calls([
@@ -1637,7 +1635,7 @@ class TestGcloudProvider(TestCase):
 
         # Run
         provider = Provider.init(self.provider_name)
-        provider.suspend_stack(self.stack_name)
+        provider.suspend_stack(self.stack_name, False)
 
         # Assert
         cs.instances().stop.assert_has_calls([
@@ -1667,7 +1665,7 @@ class TestGcloudProvider(TestCase):
 
         # Run
         provider = Provider.init(self.provider_name)
-        provider.suspend_stack(self.stack_name)
+        provider.suspend_stack(self.stack_name, False)
 
         # Assert
         cs.instances().stop.assert_not_called()
@@ -1686,6 +1684,26 @@ class TestGcloudProvider(TestCase):
         cs.instances().stop().execute.side_effect = [
             self.mock_operation("stop", "RUNNING"),
             self.mock_exception(500)
+        ]
+
+        # Run
+        with self.assertRaises(ProviderException):
+            provider = Provider.init(self.provider_name)
+            provider.suspend_stack(self.stack_name, False)
+
+    def test_suspend_stack_exception_on_get(self):
+        # Setup
+        ds = self.mock_deployment_service()
+        cs = self.mock_compute_service()
+        ds.resources().list().execute.side_effect = [
+            self.mock_resources(2),
+            self.mock_resources(2),
+        ]
+        cs.instances().get().execute.side_effect = [
+            self.mock_server("RUNNING"),
+            self.mock_server("RUNNING"),
+            self.mock_server("STOPPING"),
+            self.mock_exception(500),
         ]
 
         # Run
@@ -1718,7 +1736,7 @@ class TestGcloudProvider(TestCase):
         # Run
         with self.assertRaises(ProviderException):
             provider = Provider.init(self.provider_name)
-            provider.suspend_stack(self.stack_name)
+            provider.suspend_stack(self.stack_name, False)
 
     @ddt.data(
         ("TERMINATED", "TERMINATED")

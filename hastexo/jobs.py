@@ -1,24 +1,27 @@
 from __future__ import print_function
 
-import time
 import sys
 
 from django.db import transaction, close_old_connections
 from django.utils import timezone
-from multiprocessing.dummy import Pool as ThreadPool
 
 from .models import Stack
 from .provider import Provider
-from .common import (UP_STATES, LAUNCH_STATE, SUSPEND_STATE,
-                     SUSPEND_ISSUED_STATE, SUSPEND_RETRY_STATE,
-                     SUSPEND_FAILED_STATE, DELETED_STATE,
-                     DELETE_IN_PROGRESS_STATE, DELETE_FAILED_STATE,
-                     DELETE_STATE)
+from .tasks import DeleteStackTask, SuspendStackTask
+from .common import (
+    UP_STATES,
+    SUSPEND_STATE,
+    SUSPEND_RETRY_STATE,
+    SUSPEND_FAILED_STATE,
+    DELETED_STATE,
+    DELETE_IN_PROGRESS_STATE,
+    DELETE_STATE,
+)
 
 
 class AbstractJob(object):
     """
-    Suspends stacks.
+    Parent job class.
 
     """
     settings = {}
@@ -52,9 +55,10 @@ class SuspenderJob(AbstractJob):
         concurrency = self.settings.get("suspend_concurrency", 4)
         timedelta = timezone.timedelta(seconds=timeout)
         cutoff = timezone.now() - timedelta
-        states = list(UP_STATES) + [LAUNCH_STATE,
-                                    SUSPEND_RETRY_STATE,
-                                    SUSPEND_FAILED_STATE]
+
+        # SUSPEND_RETRY_STATE is no longer needed: we always retry on a suspend
+        # failure.  It is, thus, deprecated.
+        states = list(UP_STATES) + [SUSPEND_RETRY_STATE, SUSPEND_FAILED_STATE]
 
         self.refresh_db()
 
@@ -75,56 +79,26 @@ class SuspenderJob(AbstractJob):
                 stack.save(update_fields=["status"])
 
         # Suspend them
-        if self.settings.get("suspend_in_parallel", True):
-            pool = ThreadPool(concurrency)
-            pool.map(self.suspend_stack, stacks)
-            pool.close()
-            pool.join()
-        else:
-            for stack in stacks:
-                self.suspend_stack(stack)
+        for stack in stacks:
+            self.suspend_stack(stack)
 
     def suspend_stack(self, stack):
         """
-        Suspend the stack.
+        Start an asynchronous suspend task with no expiration and ignoring
+        results.
 
         """
-        try:
-            provider = Provider.init(stack.provider)
-            provider_stack = provider.get_stack(stack.name)
-
-            if provider_stack["status"] in UP_STATES + (SUSPEND_FAILED_STATE,):
-                self.log("Suspending stack [%s]." % stack.name)
-
-                # Suspend stack
-                provider.suspend_stack(stack.name)
-
-                # Save status
-                stack.status = SUSPEND_ISSUED_STATE
-                stack.save(update_fields=["status"])
-            else:
-                error_msg = "Cannot suspend stack [%s] with status [%s]." % (
-                    stack.name, provider_stack["status"])
-                self.log(error_msg)
-                stack.error_msg = error_msg
-
-                # Schedule for retry, if it makes sense to do so
-                if (provider_stack["status"] != DELETED_STATE and
-                        'FAILED' not in provider_stack["status"]):
-                    stack.status = SUSPEND_RETRY_STATE
-                else:
-                    stack.status = provider_stack["status"]
-
-                stack.save(update_fields=["status", "error_msg"])
-        except Exception as e:
-            error_msg = "Error suspending stack [%s]: %s" % (
-                stack.name, str(e))
-            self.log(error_msg)
-            stack.error_msg = error_msg
-
-            # Schedule for retry on any uncaught exception
-            stack.status = SUSPEND_RETRY_STATE
-            stack.save(update_fields=["status", "error_msg"])
+        soft_time_limit = self.settings.get("suspend_task_timeout", 900)
+        hard_time_limit = soft_time_limit + 30
+        kwargs = {
+            "stack_id": stack.id
+        }
+        SuspendStackTask().apply_async(
+            kwargs=kwargs,
+            soft_time_limit=soft_time_limit,
+            time_limit=hard_time_limit,
+            ignore_result=True
+        )
 
 
 class ReaperJob(AbstractJob):
@@ -135,10 +109,6 @@ class ReaperJob(AbstractJob):
     def run(self):
         age = self.settings.get("delete_age", 14)
         if not age:
-            return
-
-        attempts = self.settings.get("delete_attempts", 3)
-        if not attempts:
             return
 
         timedelta = timezone.timedelta(days=age)
@@ -161,25 +131,13 @@ class ReaperJob(AbstractJob):
                 provider__exact=''
             ).order_by('suspend_timestamp')
 
-            prev_states = []
             for stack in stacks:
-                prev_states.append(stack.status)
                 stack.status = DELETE_STATE
                 stack.save(update_fields=["status"])
 
         # Delete them
-        for i, stack in enumerate(stacks):
-            try:
-                self.delete_stack(stack)
-            except Exception as e:
-                error_msg = "Error deleting stack [%s]: %s" % (
-                    stack.name, str(e))
-                self.log(error_msg)
-                stack.error_msg = error_msg
-
-                # Roll stack status back
-                stack.status = prev_states[i]
-                stack.save(update_fields=["status", "error_msg"])
+        for stack in stacks:
+            self.delete_stack(stack)
 
         # Apocalypse pass: kill all zombie stacks
         providers = self.settings.get("providers", {})
@@ -214,67 +172,22 @@ class ReaperJob(AbstractJob):
                         "error_msg"
                     ])
 
-                    try:
-                        self.delete_stack(stack)
-                    except Exception as e:
-                        error_msg = "Error deleting zombie stack [%s]: %s" % (
-                            stack.name, str(e))
-                        self.log(error_msg)
-                        stack.status = DELETE_FAILED_STATE
-                        stack.error_msg = error_msg
-                        stack.save(update_fields=["status", "error_msg"])
+                    self.delete_stack(stack)
 
     def delete_stack(self, stack):
         """
-        Delete the stack.
+        Start an asynchronous delete task with no expiration and ignoring
+        results.
 
         """
-        timeouts = self.settings.get('task_timeouts', {})
-        sleep = timeouts.get('sleep', 10)
-        retries = timeouts.get('retries', 90)
-        attempts = self.settings.get('delete_attempts', 3)
-        provider = Provider.init(stack.provider)
-
-        def update_stack_status():
-            provider_stack = provider.get_stack(stack.name)
-            stack.status = provider_stack["status"]
-            stack.save(update_fields=["status"])
-
-        update_stack_status()
-        retry = 0
-        attempt = 0
-        while (stack.status != DELETED_STATE and
-               retry < retries and
-               attempt <= attempts):
-
-            if retry:
-                time.sleep(sleep)
-                update_stack_status()
-
-            retry += 1
-
-            if stack.status == DELETED_STATE:
-                self.log("Stack [%s] deleted successfully." % stack.name)
-            elif retry >= retries:
-                error_msg = "Stack [%s] deletion attempt [%d] failed." % (
-                    stack.name, attempt)
-                self.log(error_msg)
-                stack.error_msg = error_msg
-                stack.status = DELETE_FAILED_STATE
-                stack.save(update_fields=["status", "error_msg"])
-            elif stack.status != DELETE_IN_PROGRESS_STATE:
-                attempt += 1
-
-                if attempt > attempts:
-                    error_msg = ("Stack [%s] deletion retries exceeded after "
-                                 "[%d] attempts." % (stack.name, attempts))
-                    self.log(error_msg)
-                    stack.error_msg = error_msg
-                    stack.status = DELETE_FAILED_STATE
-                    stack.save(update_fields=["status", "error_msg"])
-                else:
-                    self.log("Attempt [%d] to delete stack [%s]." % (
-                        attempt, stack.name))
-                    provider.delete_stack(stack.name, False)
-                    stack.status = DELETE_IN_PROGRESS_STATE
-                    stack.save(update_fields=["status"])
+        soft_time_limit = self.settings.get("delete_task_timeout", 900)
+        hard_time_limit = soft_time_limit + 30
+        kwargs = {
+            "stack_id": stack.id
+        }
+        DeleteStackTask().apply_async(
+            kwargs=kwargs,
+            soft_time_limit=soft_time_limit,
+            time_limit=hard_time_limit,
+            ignore_result=True
+        )

@@ -3,13 +3,16 @@ import json
 import textwrap
 from hastexo.models import Stack
 from hastexo.hastexo import HastexoXBlock
-from hastexo.common import (DEFAULT_SETTINGS, get_stack, update_stack,
-                            get_xblock_settings)
+from hastexo.common import (
+    DEFAULT_SETTINGS,
+    get_stack,
+    update_stack_fields,
+    get_xblock_settings
+)
 
 from mock import Mock, patch, DEFAULT
 from webob import Request
 from django.test import TestCase
-from django.utils import timezone
 from workbench.runtime import WorkbenchRuntime
 from xblock.fields import ScopeIds
 from xblock.runtime import KvsFieldData, DictKeyValueStore
@@ -155,19 +158,20 @@ class TestHastexoXBlock(TestCase):
     Basic unit tests for the Hastexo XBlock.
 
     """
-    def call_handler(self,
-                     handler_name,
-                     data=None,
-                     expect_json=True,
-                     method='POST'):
-        response = self.block.handle(handler_name,
-                                     make_request(data, method=method))
-        if expect_json:
-            self.assertEqual(response.status_code, 200)
-            return json.loads(response.body)
-        return response
+    def setUp(self):
+        block_type = 'hastexo'
+        key_store = DictKeyValueStore()
+        field_data = KvsFieldData(key_store)
+        runtime = WorkbenchRuntime()
+        def_id = runtime.id_generator.create_definition(block_type)
+        usage_id = runtime.id_generator.create_usage(def_id)
+        scope_ids = ScopeIds('user', block_type, def_id, usage_id)
 
-    def init_block(self):
+        self.block = HastexoXBlock(runtime,
+                                   field_data,
+                                   scope_ids=scope_ids)
+
+    def init_block(self, create_stack=True):
         # Block settings
         self.block.stack_template_path = "bogus_template_path"
         self.block.stack_user_name = "bogus_user"
@@ -200,32 +204,39 @@ class TestHastexoXBlock(TestCase):
         Stack.objects.all().delete()
 
         # Create stack
+        if create_stack:
+            self.create_stack()
+
+    def create_stack(self):
         course_id, student_id = self.block.get_block_ids()
-        stack, _ = Stack.objects.get_or_create(
-            student_id=student_id,
-            course_id=course_id,
-            name=self.block.stack_name)
-
-    def setUp(self):
-        block_type = 'hastexo'
-        key_store = DictKeyValueStore()
-        field_data = KvsFieldData(key_store)
-        runtime = WorkbenchRuntime()
-        def_id = runtime.id_generator.create_definition(block_type)
-        usage_id = runtime.id_generator.create_usage(def_id)
-        scope_ids = ScopeIds('user', block_type, def_id, usage_id)
-
-        self.block = HastexoXBlock(runtime,
-                                   field_data,
-                                   scope_ids=scope_ids)
+        settings = get_xblock_settings()
+        return self.block.create_stack(settings, course_id, student_id)
 
     def update_stack(self, data):
         course_id, student_id = self.block.get_block_ids()
-        update_stack(self.block.stack_name, course_id, student_id, data)
+        stack = Stack.objects.get(
+            student_id=student_id,
+            course_id=course_id,
+            name=self.block.stack_name
+        )
+        update_stack_fields(stack, data)
+        stack.save(update_fields=list(data.keys()))
 
     def get_stack(self, prop=None):
         course_id, student_id = self.block.get_block_ids()
         return get_stack(self.block.stack_name, course_id, student_id, prop)
+
+    def call_handler(self,
+                     handler_name,
+                     data=None,
+                     expect_json=True,
+                     method='POST'):
+        response = self.block.handle(handler_name,
+                                     make_request(data, method=method))
+        if expect_json:
+            self.assertEqual(response.status_code, 200)
+            return json.loads(response.body)
+        return response
 
     def test_get_launch_timeout(self):
         self.init_block()
@@ -236,458 +247,474 @@ class TestHastexoXBlock(TestCase):
         self.assertEqual(self.block.get_launch_timeout(settings),
                          self.block.launch_timeout)
 
-    def test_get_user_stack_status_fails_if_template_not_provided(self):
-        self.init_block()
+    def test_create_stack_fails_if_template_not_provided(self):
+        self.init_block(False)
         self.block.stack_template_path = None
+        self.block.providers[0]["template"] = None
+        with self.assertRaises(Exception):
+            self.create_stack()
 
-        data = {
-            "initialize": True,
-            "reset": False
-        }
-        result = self.call_handler("get_user_stack_status", data)
+    def test_create_stack_fails_if_fallback_template_not_provided(self):
+        self.init_block(False)
+        self.block.stack_template_path = None
+        self.block.providers = []
+        self.block.provider = "bogus"
+        with self.assertRaises(Exception):
+            self.create_stack()
 
-        self.assertEqual(result["status"], "LAUNCH_ERROR")
+    def test_create_stack_with_no_per_provider_template(self):
+        self.init_block(False)
+        self.block.providers = [{
+            "name": "provider1",
+            "capacity": 1,
+            "environment": "bogus_content"
+        }]
+        self.create_stack()
+        stack = self.get_stack()
+        self.assertEqual(stack.providers[0]["template"],
+                         self.block.stack_template_path)
 
-    def test_get_user_stack_status_fails_if_template_not_found(self):
-        self.init_block()
-        mock_read_from_contentstore = Mock(
-            side_effect=[None]
-        )
+    def test_create_stack_with_deprecated_provider(self):
+        self.init_block(False)
+        self.block.providers = []
+        self.block.provider = "deprecated"
+        self.create_stack()
+        stack = self.get_stack()
+        self.assertEqual(stack.providers[0]["template"],
+                         self.block.stack_template_path)
 
-        with patch.multiple(
-                self.block,
-                read_from_contentstore=mock_read_from_contentstore):
-            data = {
-                "initialize": True,
-                "reset": False
-            }
-            result = self.call_handler("get_user_stack_status", data)
+    def test_create_stack_with_default_provider(self):
+        self.init_block(False)
+        self.block.providers = []
+        providers = {"providers": {"default": {}}}
+        with patch.dict(DEFAULT_SETTINGS, providers):
+            self.create_stack()
+        stack = self.get_stack()
+        self.assertEqual(stack.providers[0]["name"], "default")
 
-        self.assertEqual(result["status"], "LAUNCH_ERROR")
+    def test_create_stack_without_default_provider(self):
+        self.init_block(False)
+        self.block.providers = []
+        providers = {"providers": {"notdefault": {}}}
+        with patch.dict(DEFAULT_SETTINGS, providers):
+            self.create_stack()
+        stack = self.get_stack()
+        self.assertEqual(stack.providers[0]["name"], "notdefault")
 
-    def test_get_user_stack_status_fails_if_env_file_not_found(self):
-        self.init_block()
-        mock_read_from_contentstore = Mock(
-            side_effect=['bogus_content', None]
-        )
+    def test_create_stack_without_providers(self):
+        self.init_block(False)
+        self.block.providers = []
+        providers = {"providers": {}}
+        with patch.dict(DEFAULT_SETTINGS, providers):
+            with self.assertRaises(Exception):
+                self.create_stack()
 
-        with patch.multiple(
-                self.block,
-                read_from_contentstore=mock_read_from_contentstore):
-            data = {
-                "initialize": True,
-                "reset": False
-            }
-            result = self.call_handler("get_user_stack_status", data)
-
-        self.assertEqual(result["status"], "LAUNCH_ERROR")
-
-    def test_get_user_stack_status_first_time(self):
-        self.init_block()
+    def test_get_user_stack_status_first(self):
+        self.init_block(False)
+        stack = self.create_stack()
 
         mock_result = Mock()
-        mock_result.id = 'bogus_task_id'
-        mock_result.ready.return_value = True
-        mock_result.successful.return_value = True
-        mock_result.result = {"status": "CREATE_COMPLETE"}
+        mock_result.id = "bogus_task_id"
+        mock_result.ready.return_value = False
         mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
 
         with patch.multiple(
                 self.block,
-                launch_stack_task=mock_launch_stack_task,
-                read_from_contentstore=mock_read_from_contentstore):
+                launch_stack_task=mock_launch_stack_task):
             data = {
                 "initialize": True,
                 "reset": False
             }
-            result = self.call_handler("get_user_stack_status", data)
+            response = self.call_handler("get_user_stack_status", data)
 
-        self.assertEqual(result, mock_result.result)
         mock_launch_stack_task.assert_called_with(
-            900, {'providers': self.block.providers,
-                  'stack_name': self.block.stack_name,
-                  'stack_run': '',
-                  'port': None,
-                  'course_id': 'all',
-                  'stack_user_name': self.block.stack_user_name,
-                  'student_id': 'user',
-                  'protocol': 'ssh',
-                  'reset': False})
+            get_xblock_settings(),
+            {"stack_id": stack.id, "reset": False}
+        )
+        self.assertEqual(response["status"], "LAUNCH_PENDING")
 
-    def test_get_user_stack_status_with_no_per_provider_template(self):
+    def test_get_user_stack_status_resume(self):
         self.init_block()
-        self.block.providers = [
-            {"name": "provider1",
-             "capacity": 1,
-             "environment": "bogus_content"}
-        ]
-
-        mock_result = Mock()
-        mock_result.id = 'bogus_task_id'
-        mock_result.ready.return_value = True
-        mock_result.successful.return_value = True
-        mock_result.result = {"status": "CREATE_COMPLETE"}
-        mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_read_from_contentstore = Mock(return_value=("bogus_content"))
-
-        with patch.multiple(
-                self.block,
-                launch_stack_task=mock_launch_stack_task,
-                read_from_contentstore=mock_read_from_contentstore):
-            data = {
-                "initialize": True,
-                "reset": False
-            }
-            result = self.call_handler("get_user_stack_status", data)
-
-        self.assertEqual(result, mock_result.result)
-        mock_launch_stack_task.assert_called_with(
-            900, {'providers': [{"name": "provider1",
-                                 "capacity": 1,
-                                 "template": "bogus_content",
-                                 "environment": "bogus_content"}],
-                  'stack_name': self.block.stack_name,
-                  'stack_run': '',
-                  'port': None,
-                  'course_id': 'all',
-                  'stack_user_name': self.block.stack_user_name,
-                  'student_id': 'user',
-                  'protocol': 'ssh',
-                  'reset': False})
-
-    def test_get_user_stack_status_with_no_templates(self):
-        self.init_block()
-        self.block.providers = [
-            {"name": "provider1",
-             "capacity": 1,
-             "environment": "bogus_content"}
-        ]
-        self.block.stack_template_path = ""
-
-        mock_result = Mock()
-        mock_result.id = 'bogus_task_id'
-        mock_result.ready.return_value = True
-        mock_result.successful.return_value = True
-        mock_result.result = {"status": "LAUNCH_ERROR"}
-        mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_read_from_contentstore = Mock(return_value=("bogus_content"))
-
-        with patch.multiple(
-                self.block,
-                launch_stack_task=mock_launch_stack_task,
-                read_from_contentstore=mock_read_from_contentstore):
-            data = {
-                "initialize": True,
-                "reset": False
-            }
-            result = self.call_handler("get_user_stack_status", data)
-
-        self.assertEqual(result["status"], mock_result.result["status"])
-        mock_launch_stack_task.assert_not_called()
-
-    def test_get_user_stack_status_pending(self):
-        self.init_block()
+        self.update_stack({"status": "SUSPEND_COMPLETE"})
 
         mock_result = Mock()
         mock_result.id = 'bogus_task_id'
         mock_result.ready.return_value = False
-        mock_launch_stack_task_result = Mock(return_value=mock_result)
-        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
-        self.update_stack({
-            "status": 'LAUNCH_PENDING',
-            "launch_task_id": 'bogus_task_id'
-        })
-
-        with patch.multiple(
-                self.block,
-                launch_stack_task_result=mock_launch_stack_task_result,
-                read_from_contentstore=mock_read_from_contentstore):
-            data = {
-                "initialize": False,
-                "reset": False
-            }
-            result = self.call_handler("get_user_stack_status", data)
-
-        self.assertEqual(result, {"status": "LAUNCH_PENDING"})
-        self.assertTrue(mock_launch_stack_task_result.called)
-
-    def test_launch_task_id_cleared_on_task_success(self):
-        self.init_block()
-
-        mock_result = Mock()
-        mock_result.id = 'bogus_task_id'
-        mock_result.ready.return_value = True
-        mock_result.successful.return_value = True
-        mock_result.result = {"status": "CREATE_COMPLETE"}
         mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
 
         with patch.multiple(
                 self.block,
-                launch_stack_task=mock_launch_stack_task,
-                read_from_contentstore=mock_read_from_contentstore):
+                launch_stack_task=mock_launch_stack_task):
             data = {
                 "initialize": True,
                 "reset": False
             }
-            self.call_handler("get_user_stack_status", data)
+            response = self.call_handler("get_user_stack_status", data)
 
-        self.assertEqual(self.get_stack("launch_task_id"), "")
+        self.assertTrue(mock_launch_stack_task.called)
+        self.assertEqual(response["status"], "LAUNCH_PENDING")
 
-    def test_launch_task_id_cleared_on_task_failure(self):
+    def test_get_user_stack_status_delete(self):
         self.init_block()
+        self.update_stack({"status": "DELETE_COMPLETE"})
+
+        mock_result = Mock()
+        mock_result.id = 'bogus_task_id'
+        mock_result.ready.return_value = False
+        mock_launch_stack_task = Mock(return_value=mock_result)
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task):
+            data = {
+                "initialize": True,
+                "reset": False
+            }
+            response = self.call_handler("get_user_stack_status", data)
+
+        self.assertTrue(mock_launch_stack_task.called)
+        self.assertEqual(response["status"], "LAUNCH_PENDING")
+
+    def test_get_user_stack_status_launch_failure(self):
+        self.init_block()
+
+        mock_result = Mock()
+        mock_result.id = "bogus_task_id"
+        mock_result.ready.return_value = True
+        mock_result.successful.return_value = False
+        mock_launch_stack_task = Mock(return_value=mock_result)
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task):
+            data = {
+                "initialize": True,
+                "reset": False
+            }
+            response = self.call_handler("get_user_stack_status", data)
+
+        self.assertTrue(mock_launch_stack_task.called)
+        self.assertEqual(response["status"], "LAUNCH_ERROR")
+
+    def test_get_user_stack_status_up(self):
+        # Initialize block
+        self.init_block()
+        self.update_stack({"status": "CREATE_COMPLETE"})
+
+        # Async result mock
+        mock_launch_stack_task = Mock()
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task):
+            data = {
+                "initialize": True,
+                "reset": False
+            }
+            response = self.call_handler("get_user_stack_status", data)
+
+        self.assertFalse(mock_launch_stack_task.called)
+        self.assertEqual(response["status"], "CREATE_COMPLETE")
+
+    def test_get_user_stack_status_up_reset(self):
+        self.init_block()
+        self.update_stack({"status": "RESUME_COMPLETE"})
+
+        mock_result = Mock()
+        mock_result.id = 'bogus_task_id'
+        mock_result.ready.return_value = False
+        mock_launch_stack_task = Mock(return_value=mock_result)
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task):
+            data = {
+                "initialize": True,
+                "reset": True
+            }
+            response = self.call_handler("get_user_stack_status", data)
+
+        self.assertTrue(mock_launch_stack_task.called)
+        self.assertEqual(response["status"], "LAUNCH_PENDING")
+
+    def test_get_user_stack_status_up_reset_failure(self):
+        self.init_block()
+        self.update_stack({"status": "RESUME_COMPLETE"})
 
         mock_result = Mock()
         mock_result.id = 'bogus_task_id'
         mock_result.ready.return_value = True
         mock_result.successful.return_value = False
         mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
 
         with patch.multiple(
                 self.block,
+                launch_stack_task=mock_launch_stack_task):
+            data = {
+                "initialize": True,
+                "reset": True
+            }
+            response = self.call_handler("get_user_stack_status", data)
+
+        self.assertTrue(mock_launch_stack_task.called)
+        self.assertEqual(response["status"], "LAUNCH_ERROR")
+
+    def test_get_user_stack_status_launch_pending(self):
+        self.init_block()
+        self.update_stack({
+            "status": "LAUNCH_PENDING",
+            "launch_task_id": "bogus_task_id"
+        })
+
+        mock_result = Mock()
+        mock_result.id = "bogus_task_id"
+        mock_result.ready.return_value = False
+        mock_launch_stack_task_result = Mock(return_value=mock_result)
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task_result=mock_launch_stack_task_result):
+            data = {
+                "initialize": False,
+                "reset": False
+            }
+            response = self.call_handler("get_user_stack_status", data)
+
+        self.assertTrue(mock_launch_stack_task_result.called)
+        self.assertEqual(response["status"], "LAUNCH_PENDING")
+
+    def test_get_user_stack_status_launch_pending_failure(self):
+        self.init_block()
+        self.update_stack({
+            "status": "LAUNCH_PENDING",
+            "launch_task_id": "bogus_task_id"
+        })
+
+        mock_result = Mock()
+        mock_result.id = "bogus_task_id"
+        mock_result.ready.return_value = True
+        mock_result.successful.return_value = False
+        mock_launch_stack_task_result = Mock(return_value=mock_result)
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task_result=mock_launch_stack_task_result):
+            data = {
+                "initialize": False,
+                "reset": False
+            }
+            response = self.call_handler("get_user_stack_status", data)
+
+        self.assertTrue(mock_launch_stack_task_result.called)
+        self.assertEqual(response["status"], "LAUNCH_ERROR")
+
+    def test_get_user_stack_status_launch_pending_timeout(self):
+        self.init_block()
+        self.update_stack({
+            "status": "LAUNCH_PENDING",
+            "launch_task_id": "bogus_task_id"
+        })
+
+        mock_result = Mock()
+        mock_result.id = "bogus_task_id"
+        mock_result.ready.return_value = False
+        mock_launch_stack_task_result = Mock(return_value=mock_result)
+
+        self.block.launch_timeout = -1
+        with patch.multiple(
+                self.block,
+                launch_stack_task_result=mock_launch_stack_task_result):
+            data = {
+                "initialize": False,
+                "reset": False
+            }
+            response = self.call_handler("get_user_stack_status", data)
+
+        self.assertTrue(mock_launch_stack_task_result.called)
+        self.assertEqual(response["status"], "LAUNCH_ERROR")
+
+    def test_get_user_stack_status_launch_pending_timeout_initialize(self):
+        self.init_block()
+        self.update_stack({
+            "status": "LAUNCH_PENDING",
+            "launch_task_id": "bogus_task_id"
+        })
+
+        mock_result = Mock()
+        mock_result.id = "bogus_task_id"
+        mock_result.ready.return_value = False
+        mock_launch_stack_task_result = Mock(return_value=mock_result)
+        mock_launch_stack_task = Mock(return_value=mock_result)
+
+        self.block.launch_timeout = -1
+        with patch.multiple(
+                self.block,
                 launch_stack_task=mock_launch_stack_task,
-                read_from_contentstore=mock_read_from_contentstore):
+                launch_stack_task_result=mock_launch_stack_task_result):
             data = {
                 "initialize": True,
                 "reset": False
             }
-            self.call_handler("get_user_stack_status", data)
+            response = self.call_handler("get_user_stack_status", data)
 
-        self.assertEqual(self.get_stack("launch_task_id"), "")
+        self.assertTrue(mock_launch_stack_task_result.called)
+        self.assertTrue(mock_launch_stack_task.called)
+        self.assertEqual(response["status"], "LAUNCH_PENDING")
 
-    def test_launch_task_id_not_cleared_on_pending_task(self):
+    def test_get_user_stack_status_launch_pending_timeout_reset(self):
         self.init_block()
+        self.update_stack({
+            "status": "LAUNCH_PENDING",
+            "launch_task_id": "bogus_task_id"
+        })
+
+        mock_result = Mock()
+        mock_result.id = "bogus_task_id"
+        mock_result.ready.return_value = False
+        mock_launch_stack_task_result = Mock(return_value=mock_result)
+        mock_launch_stack_task = Mock(return_value=mock_result)
+
+        self.block.launch_timeout = -1
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task,
+                launch_stack_task_result=mock_launch_stack_task_result):
+            data = {
+                "initialize": False,
+                "reset": True
+            }
+            response = self.call_handler("get_user_stack_status", data)
+
+        self.assertTrue(mock_launch_stack_task_result.called)
+        self.assertTrue(mock_launch_stack_task.called)
+        self.assertEqual(response["status"], "LAUNCH_PENDING")
+
+    def test_get_user_stack_status_launch_pending_timeout_reset_failure(self):
+        self.init_block()
+        self.update_stack({
+            "status": "LAUNCH_PENDING",
+            "launch_task_id": "bogus_task_id"
+        })
+
+        mock_result = Mock()
+        mock_result.id = "bogus_task_id"
+        mock_result.ready.side_effect = [False, True]
+        mock_result.successful.return_value = False
+        mock_launch_stack_task_result = Mock(return_value=mock_result)
+        mock_launch_stack_task = Mock(return_value=mock_result)
+
+        self.block.launch_timeout = -1
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task,
+                launch_stack_task_result=mock_launch_stack_task_result):
+            data = {
+                "initialize": False,
+                "reset": True
+            }
+            response = self.call_handler("get_user_stack_status", data)
+
+        self.assertTrue(mock_launch_stack_task_result.called)
+        self.assertTrue(mock_launch_stack_task.called)
+        self.assertEqual(response["status"], "LAUNCH_ERROR")
+
+    def test_get_user_stack_status_pending(self):
+        self.init_block()
+        self.update_stack({"status": "SUSPEND_PENDING"})
+        mock_launch_stack_task = Mock()
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task):
+            data = {
+                "initialize": True,
+                "reset": True
+            }
+            response = self.call_handler("get_user_stack_status", data)
+
+        self.assertFalse(mock_launch_stack_task.called)
+        self.assertEqual(response["status"], "SUSPEND_PENDING")
+
+    def test_get_user_stack_status_initialize(self):
+        self.init_block()
+        self.update_stack({"status": "RESUME_FAILED"})
 
         mock_result = Mock()
         mock_result.id = 'bogus_task_id'
         mock_result.ready.return_value = False
         mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
 
         with patch.multiple(
                 self.block,
-                launch_stack_task=mock_launch_stack_task,
-                read_from_contentstore=mock_read_from_contentstore):
+                launch_stack_task=mock_launch_stack_task):
             data = {
                 "initialize": True,
                 "reset": False
             }
-            self.call_handler("get_user_stack_status", data)
+            response = self.call_handler("get_user_stack_status", data)
 
-        self.assertNotEqual(self.get_stack("launch_task_id"), "")
+        self.assertTrue(mock_launch_stack_task.called)
+        self.assertEqual(response["status"], "LAUNCH_PENDING")
 
-    def test_get_user_stack_status_with_deprecated_provider(self):
+    def test_get_user_stack_status_reset(self):
         self.init_block()
-        self.block.provider = "deprecated"
-        self.block.providers = []
+        self.update_stack({"status": "RESUME_FAILED"})
 
         mock_result = Mock()
         mock_result.id = 'bogus_task_id'
-        mock_result.ready.return_value = True
-        mock_result.successful.return_value = True
-        mock_result.result = {"status": "CREATE_COMPLETE"}
+        mock_result.ready.return_value = False
         mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
 
         with patch.multiple(
                 self.block,
-                launch_stack_task=mock_launch_stack_task,
-                read_from_contentstore=mock_read_from_contentstore):
+                launch_stack_task=mock_launch_stack_task):
             data = {
-                "initialize": True,
-                "reset": False
+                "initialize": False,
+                "reset": True
             }
-            result = self.call_handler("get_user_stack_status", data)
+            response = self.call_handler("get_user_stack_status", data)
 
-        self.assertEqual(result, mock_result.result)
         self.assertTrue(mock_launch_stack_task.called)
+        self.assertEqual(response["status"], "LAUNCH_PENDING")
 
-    def test_get_user_stack_status_with_default_provider(self):
+    def test_get_user_stack_status_reset_failure(self):
         self.init_block()
-        self.block.provider = ""
-        self.block.providers = []
-        providers = {"default": {}}
+        self.update_stack({"status": "RESUME_FAILED"})
 
         mock_result = Mock()
         mock_result.id = 'bogus_task_id'
         mock_result.ready.return_value = True
-        mock_result.successful.return_value = True
-        mock_result.result = {"status": "CREATE_COMPLETE"}
+        mock_result.successful.return_value = False
         mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
 
         with patch.multiple(
                 self.block,
-                launch_stack_task=mock_launch_stack_task,
-                read_from_contentstore=mock_read_from_contentstore):
-            with patch.dict(DEFAULT_SETTINGS,
-                            {'providers': providers}):
-                data = {
-                    "initialize": True,
-                    "reset": False
-                }
-                result = self.call_handler("get_user_stack_status", data)
-
-        self.assertEqual(result, mock_result.result)
-        self.assertTrue(mock_launch_stack_task.called)
-
-    def test_get_user_stack_status_without_default_provider(self):
-        self.init_block()
-        self.block.provider = ""
-        self.block.providers = []
-        providers = {"provider": {}}
-
-        mock_result = Mock()
-        mock_result.id = 'bogus_task_id'
-        mock_result.ready.return_value = True
-        mock_result.successful.return_value = True
-        mock_result.result = {"status": "CREATE_COMPLETE"}
-        mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
-
-        with patch.multiple(
-                self.block,
-                launch_stack_task=mock_launch_stack_task,
-                read_from_contentstore=mock_read_from_contentstore):
-            with patch.dict(DEFAULT_SETTINGS,
-                            {'providers': providers}):
-                data = {
-                    "initialize": True,
-                    "reset": False
-                }
-                result = self.call_handler("get_user_stack_status", data)
-
-        self.assertEqual(result, mock_result.result)
-        self.assertTrue(mock_launch_stack_task.called)
-
-    def test_get_user_stack_status_with_no_providers(self):
-        self.init_block()
-        self.block.provider = ""
-        self.block.providers = []
-        providers = {}
-
-        mock_result = Mock()
-        mock_result.id = 'bogus_task_id'
-        mock_result.ready.return_value = True
-        mock_result.successful.return_value = True
-        mock_result.result = {"status": "LAUNCH_ERROR"}
-        mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
-
-        with patch.multiple(
-                self.block,
-                launch_stack_task=mock_launch_stack_task,
-                read_from_contentstore=mock_read_from_contentstore):
-            with patch.dict(DEFAULT_SETTINGS,
-                            {'providers': providers}):
-                data = {
-                    "initialize": True,
-                    "reset": False
-                }
-                result = self.call_handler("get_user_stack_status", data)
-
-        self.assertEqual(result["status"], mock_result.result["status"])
-        self.assertFalse(mock_launch_stack_task.called)
-
-    def test_get_user_stack_status_resume_after_suspend(self):
-        self.init_block()
-
-        suspend_timeout = DEFAULT_SETTINGS.get("suspend_timeout")
-        timedelta = timezone.timedelta(seconds=suspend_timeout)
-        suspend_timestamp = timezone.now() - timedelta
-        self.update_stack({
-            "suspend_timestamp": suspend_timestamp,
-            "status": 'CREATE_COMPLETE'
-        })
-
-        mock_result = Mock()
-        mock_result.id = 'bogus_task_id'
-        mock_result.ready.return_value = True
-        mock_result.successful.return_value = True
-        mock_result.result = {"status": "RESUME_COMPLETE"}
-        mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
-
-        with patch.multiple(
-                self.block,
-                launch_stack_task=mock_launch_stack_task,
-                read_from_contentstore=mock_read_from_contentstore):
-            data = {
-                "initialize": True,
-                "reset": False
-            }
-            result = self.call_handler("get_user_stack_status", data)
-
-        self.assertEqual(result, mock_result.result)
-        self.assertTrue(mock_launch_stack_task.called)
-
-    def test_get_user_stack_status_dont_resume_before_suspend(self):
-        # Initialize block
-        self.init_block()
-
-        suspend_timeout = DEFAULT_SETTINGS.get("suspend_timeout")
-        timedelta = timezone.timedelta(seconds=(suspend_timeout - 1))
-        suspend_timestamp = timezone.now() - timedelta
-        self.update_stack({
-            "suspend_timestamp": suspend_timestamp,
-            "status": 'CREATE_COMPLETE'
-        })
-
-        # Async result mock
-        mock_result = Mock()
-        mock_result.id = 'bogus_task_id'
-        mock_result.ready.return_value = True
-        mock_result.successful.return_value = True
-        mock_result.result = {"status": "RESUME_COMPLETE"}
-        mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
-
-        with patch.multiple(
-                self.block,
-                launch_stack_task=mock_launch_stack_task,
-                read_from_contentstore=mock_read_from_contentstore):
-            data = {
-                "initialize": True,
-                "reset": False
-            }
-            result = self.call_handler("get_user_stack_status", data)
-
-        self.assertNotEqual(result, mock_result.result)
-        self.assertFalse(mock_launch_stack_task.called)
-
-    def test_get_user_stack_status_reset_before_suspend(self):
-        self.init_block()
-
-        suspend_timeout = DEFAULT_SETTINGS.get("suspend_timeout")
-        timedelta = timezone.timedelta(seconds=(suspend_timeout - 1))
-        suspend_timestamp = timezone.now() - timedelta
-        self.update_stack({
-            "suspend_timestamp": suspend_timestamp,
-            "status": 'RESUME_COMPLETE'
-        })
-
-        mock_result = Mock()
-        mock_result.id = 'bogus_task_id'
-        mock_result.ready.return_value = True
-        mock_result.successful.return_value = True
-        mock_result.result = {"status": "CREATE_COMPLETE"}
-        mock_launch_stack_task = Mock(return_value=mock_result)
-        mock_read_from_contentstore = Mock(return_value=('bogus_content'))
-
-        with patch.multiple(
-                self.block,
-                launch_stack_task=mock_launch_stack_task,
-                read_from_contentstore=mock_read_from_contentstore):
+                launch_stack_task=mock_launch_stack_task):
             data = {
                 "initialize": True,
                 "reset": True
             }
-            result = self.call_handler("get_user_stack_status", data)
+            response = self.call_handler("get_user_stack_status", data)
 
-        self.assertEqual(result, mock_result.result)
         self.assertTrue(mock_launch_stack_task.called)
+        self.assertEqual(response["status"], "LAUNCH_ERROR")
+
+    def test_get_user_stack_status_failure(self):
+        self.init_block()
+        self.update_stack({"status": "RESUME_FAILED"})
+        mock_launch_stack_task = Mock()
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task):
+            data = {
+                "initialize": False,
+                "reset": False
+            }
+            response = self.call_handler("get_user_stack_status", data)
+
+        self.assertFalse(mock_launch_stack_task.called)
+        self.assertEqual(response["status"], "RESUME_FAILED")
 
     def test_get_check_status(self):
         self.init_block()

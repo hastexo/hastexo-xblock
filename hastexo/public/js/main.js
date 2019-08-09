@@ -373,6 +373,25 @@ function HastexoXBlock(runtime, element, configuration) {
                 get_user_stack_status,
                 fuzz_timeout(configuration.timeouts['status'])
             );
+        } else if (stack.status == 'SUSPEND_PENDING' || stack.status == 'DELETE_PENDING') {
+            /* Stack is pending.  Display retry message. */
+            if (keepalive_timer) clearTimeout(keepalive_timer);
+            if (idle_timer) clearTimeout(idle_timer);
+            var dialog = $('#launch_error');
+            var dialog_msg = "Your lab environment is undergoing maintenance";
+            var error_msg =
+                "Your lab environment is undergoing automatic maintenance. " +
+                "Please try again in a few minutes.";
+            dialog.find('.message').html(dialog_msg);
+            dialog.find('.error_msg').html(error_msg);
+            dialog.find('input.ok').one('click', function() {
+                $.dialog.close();
+            });
+            dialog.find('input.retry').one('click', function() {
+                $.dialog.close();
+                location.reload();
+            });
+            dialog.dialog(element);
         } else {
             /* Unexpected status.  Display error message. */
             if (keepalive_timer) clearTimeout(keepalive_timer);

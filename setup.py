@@ -67,6 +67,7 @@ setup(
         'python-novaclient==7.1.2',
         'paramiko==2.1.6',
         'apscheduler==3.5.1',
+        'jsonfield==2.0.2',
         'google-api-python-client==1.7.7',
     ],
     entry_points={

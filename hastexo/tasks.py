@@ -1,8 +1,5 @@
-import errno
 import time
 import os
-import uuid
-import paramiko
 import traceback
 import socket
 
@@ -10,14 +7,25 @@ from django.db import transaction
 from celery import Task
 from celery.utils.log import get_task_logger
 from celery.exceptions import SoftTimeLimitExceeded
-from io import StringIO
-from paramiko.ssh_exception import (AuthenticationException,
-                                    SSHException,
-                                    NoValidConnectionsError)
 
 from .models import Stack
 from .provider import Provider, ProviderException
-from .common import (OCCUPANCY_STATES, get_xblock_settings, update_stack)
+from .common import (
+    UP_STATES,
+    OCCUPANCY_STATES,
+    SUSPENDED_STATE,
+    SUSPEND_FAILED_STATE,
+    DELETED_STATE,
+    DELETE_IN_PROGRESS_STATE,
+    DELETE_FAILED_STATE,
+    get_xblock_settings,
+    update_stack_fields,
+    ssh_to,
+    read_from_contentstore,
+    remote_exec,
+    RemoteExecException,
+    RemoteExecTimeout,
+)
 
 logger = get_task_logger(__name__)
 
@@ -47,7 +55,25 @@ class LaunchStackFailed(Exception):
             self.delete = True
 
 
-class LaunchStackTask(Task):
+class HastexoTask(Task):
+    """
+    Abstract task.
+
+    """
+    sleep_timeout = None
+
+    def get_sleep_timeout(self):
+        if self.sleep_timeout is None:
+            settings = get_xblock_settings()
+            self.sleep_timeout = settings.get("sleep_timeout", 10)
+
+        return self.sleep_timeout
+
+    def sleep(self):
+        time.sleep(self.get_sleep_timeout())
+
+
+class LaunchStackTask(HastexoTask):
     """
     Launch, or if it already exists and is suspended, resume a stack for the
     user.
@@ -59,32 +85,56 @@ class LaunchStackTask(Task):
         Run the celery task.
 
         """
+        # Set the arguments.
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+        # Get the stack
+        stack = Stack.objects.get(id=self.stack_id)
+
+        # Initialize parameters
+        self.protocol = stack.protocol
+        self.port = stack.port
+        self.stack_run = stack.run
+        self.stack_name = stack.name
+        self.stack_user_name = stack.user
+        self.course_id = stack.course_id
+        self.student_id = stack.student_id
+        self.hook_events = stack.hook_events
+
+        # Initialize hook script
+        self.hook_script = None
+        if stack.hook_script:
+            self.hook_script = read_from_contentstore(
+                stack.course_id,
+                stack.hook_script
+            )
+
         # Initialize providers
         self.providers = []
-        for provider in kwargs.get("providers", []):
+        for provider in stack.providers:
             p = Provider.init(provider["name"])
             p.set_capacity(provider["capacity"])
-            p.set_template(provider["template"])
 
-            environment = provider.get("environment")
-            if environment:
+            template = read_from_contentstore(
+                stack.course_id,
+                provider["template"]
+            )
+            p.set_template(template)
+
+            environment_path = provider.get("environment")
+            if environment_path:
+                environment = read_from_contentstore(
+                    stack.course_id,
+                    environment_path
+                )
                 p.set_environment(environment)
 
             self.providers.append(p)
 
-        # Set the rest of the arguments.
-        for key, value in kwargs.items():
-            if key == "providers":
-                continue
-            setattr(self, key, value)
-
-        self.settings = get_xblock_settings()
-        task_timeouts = self.settings.get('task_timeouts', {})
-        self.sleep_seconds = task_timeouts.get('sleep', 5)
-
         try:
             # Launch the stack and wait for it to complete.
-            stack_data = self.launch_stack()
+            stack_data = self.launch_stack(stack.provider)
         except LaunchStackFailed as e:
             logger.error(e.error_msg)
 
@@ -107,16 +157,15 @@ class LaunchStackTask(Task):
             # Roll back in case of failure
             self.cleanup_stack(e)
 
-        return stack_data
+        # Don't wait for the user to check results.  Update the database
+        # immediately.
+        self.update_stack(stack_data)
 
+    @transaction.atomic
     def update_stack(self, data):
-        return update_stack(self.stack_name,
-                            self.course_id,
-                            self.student_id,
-                            data)
-
-    def sleep(self):
-        time.sleep(self.sleep_seconds)
+        stack = Stack.objects.select_for_update().get(id=self.stack_id)
+        update_stack_fields(stack, data)
+        stack.save(update_fields=list(data.keys()))
 
     def get_provider(self, name):
         try:
@@ -126,7 +175,7 @@ class LaunchStackTask(Task):
 
         return provider
 
-    def launch_stack(self):
+    def launch_stack(self, provider_name=None):
         """
         Launch the user stack, either by creating or resuming it.  If a reset
         is requested, delete the stack and recreate it.
@@ -134,17 +183,8 @@ class LaunchStackTask(Task):
         """
         logger.info("Launching stack [%s]." % self.stack_name)
 
-        # Fetch stack information from the database, but do so atomically to
-        # make sure the original request had a chance to commit.
-        with transaction.atomic():
-            stack = Stack.objects.select_for_update().get(
-                student_id=self.student_id,
-                course_id=self.course_id,
-                name=self.stack_name
-            )
-
-        if stack.provider:
-            provider = self.get_provider(stack.provider)
+        if provider_name:
+            provider = self.get_provider(provider_name)
             if self.reset:
                 self.try_provider(provider, True)
 
@@ -378,90 +418,32 @@ class LaunchStackTask(Task):
                                      self.stack_name, e))
 
     def wait_for_ping(self, stack_ip):
-        ping_command = PING_COMMAND % (self.sleep_seconds, stack_ip)
+        ping_command = PING_COMMAND % (self.get_sleep_timeout(), stack_ip)
         while os.system(ping_command) != 0:
             self.sleep()
 
-    def setup_ssh(self, stack_key):
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        pkey = paramiko.RSAKey.from_private_key(StringIO(stack_key))
-
-        return (ssh, pkey)
-
     def wait_for_ssh(self, stack_key, stack_ip, was_resumed, provider):
-        ssh, pkey = self.setup_ssh(stack_key)
-        connected = False
-        while not connected:
-            try:
-                try:
-                    ssh.connect(stack_ip, username=self.stack_user_name,
-                                pkey=pkey)
-                except EnvironmentError as enve:
-                    if enve.errno in (errno.EAGAIN,
-                                      errno.ENETDOWN,
-                                      errno.ENETUNREACH,
-                                      errno.ENETRESET,
-                                      errno.ECONNABORTED,
-                                      errno.ECONNRESET,
-                                      errno.ENOTCONN,
-                                      errno.EHOSTDOWN):
-                        # Be more persistent than Paramiko normally
-                        # is, and keep retrying.
-                        logger.debug("Got errno %s during SSH connection"
-                                     "to stack [%s] (%s), "
-                                     "retrying." % (enve.errno,
-                                                    self.stack_name,
-                                                    stack_ip))
-                        self.sleep()
-                    elif enve.errno in (errno.ECONNREFUSED,
-                                        errno.EHOSTUNREACH):
-                        # Paramiko should catch and wrap
-                        # these. They should never bubble
-                        # up. Still, continue being more
-                        # persistent, and retry.
-                        logger.warning("Got errno %s during SSH connection"
-                                       "to stack [%s] (%s). "
-                                       "Paramiko bug? "
-                                       "Retrying." % (enve.errno,
-                                                      self.stack_name,
-                                                      stack_ip))
-                        self.sleep()
-                    else:
-                        # Anything else is an unexpected error.
-                        raise
-            except (EOFError,
-                    AuthenticationException,
-                    SSHException,
-                    NoValidConnectionsError) as e:
-                # Be more persistent than Paramiko normally
-                # is, and keep retrying.
-                logger.debug("Got %s during SSH connection"
-                             "to stack [%s] (%s), "
-                             "retrying." % (e.__class__.__name__,
-                                            self.stack_name,
-                                            stack_ip))
-                self.sleep()
-            except SoftTimeLimitExceeded:
-                raise
-            except Exception:
-                if was_resumed:
-                    error_status = 'RESUME_FAILED'
-                    cleanup = CLEANUP_SUSPEND
-                else:
-                    error_status = 'CREATE_FAILED'
-                    cleanup = CLEANUP_DELETE
-
-                logger.error("Exception when checking SSH connection to stack "
-                             "[%s]: %s" % (self.stack_name,
-                                           traceback.format_exc()))
-                error_msg = ("Could not connect to your lab environment "
-                             "[%s]." % self.stack_name)
-                raise LaunchStackFailed(provider, error_status, error_msg,
-                                        cleanup)
+        try:
+            ssh = ssh_to(self.stack_user_name, stack_ip, stack_key)
+        except SoftTimeLimitExceeded:
+            raise
+        except Exception:
+            if was_resumed:
+                error_status = 'RESUME_FAILED'
+                cleanup = CLEANUP_SUSPEND
             else:
-                ssh.close()
-                connected = True
+                error_status = 'CREATE_FAILED'
+                cleanup = CLEANUP_DELETE
+
+            logger.error("Exception when checking SSH connection to stack "
+                         "[%s]: %s" % (self.stack_name,
+                                       traceback.format_exc()))
+            error_msg = ("Could not connect to your lab environment "
+                         "[%s]." % self.stack_name)
+            raise LaunchStackFailed(provider, error_status, error_msg,
+                                    cleanup)
+
+        return ssh
 
     def wait_for_rdp(self, stack_ip):
         port = getattr(self, 'port', None)
@@ -470,7 +452,7 @@ class LaunchStackTask(Task):
 
         connected = False
         s = socket.socket()
-        s.settimeout(self.sleep_seconds)
+        s.settimeout(self.get_sleep_timeout())
         while not connected:
             try:
                 s.connect((stack_ip, port))
@@ -525,7 +507,24 @@ class LaunchStackTask(Task):
         # access to the training user while provisioning is going on.
         logger.info("Checking SSH connection "
                     "for stack [%s] at [%s]" % (self.stack_name, stack_ip))
-        self.wait_for_ssh(stack_key, stack_ip, was_resumed, provider)
+        ssh = self.wait_for_ssh(stack_key, stack_ip, was_resumed, provider)
+
+        try:
+            # If we're resuming and there's a resume hook, execute it.
+            if (was_resumed and
+                    self.hook_events.get("resume", False) and
+                    self.hook_script):
+                logger.info("Executing post-resume hook for stack [%s] "
+                            "at [%s]" % (self.stack_name, stack_ip))
+                try:
+                    remote_exec(ssh, self.hook_script, params="resume")
+                except Exception as e:
+                    # We don't fail, as the user may have inadvertently broken
+                    # the stack.
+                    logger.error("Error running resume hook script on stack "
+                                 "[%s]: %s" % (self.stack_name, str(e)))
+        finally:
+            ssh.close()
 
         # If the protocol is RDP, wait for xrdp to come up.
         protocol = getattr(self, 'protocol', None)
@@ -543,7 +542,178 @@ class LaunchStackTask(Task):
         return check_data
 
 
-class CheckStudentProgressTask(Task):
+class SuspendStackTask(HastexoTask):
+    """
+    Suspends a stack.
+
+    """
+    def run(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+        stack = Stack.objects.get(id=self.stack_id)
+        try:
+            status = self.suspend_stack(stack)
+        except Exception as e:
+            error_msg = "Error suspending stack [%s]: %s" % (stack.name,
+                                                             str(e))
+            logger.error(error_msg)
+            status = SUSPEND_FAILED_STATE
+        else:
+            error_msg = ""
+
+        # The suspender doesn't check task results, so just save status in the
+        # database.
+        stack.error_msg = error_msg
+        stack.status = status
+        stack.save(update_fields=["status", "error_msg"])
+
+    def suspend_stack(self, stack):
+        provider = Provider.init(stack.provider)
+        provider_stack = provider.get_stack(stack.name)
+
+        if provider_stack["status"] in UP_STATES + (SUSPEND_FAILED_STATE,):
+            if (stack.hook_script and
+                    stack.hook_events.get("suspend", False)):
+                logger.info("Executing pre-suspend hook for stack [%s] "
+                            "at [%s]." % (stack.name, stack.ip))
+
+                try:
+                    # If there's a suspend hook, execute it.
+                    script = read_from_contentstore(stack.course_id,
+                                                    stack.hook_script)
+                    ssh = ssh_to(stack.user, stack.ip, stack.key)
+                    remote_exec(ssh, script, params="suspend")
+                except Exception as e:
+                    # We don't fail, as the user may have inadvertently broken
+                    # the stack.
+                    error_msg = str(e)
+                    logger.error("Error running pre-suspend hook for stack "
+                                 "[%s]: %s" % (stack.name, error_msg))
+                finally:
+                    ssh.close()
+
+            logger.info("Suspending stack [%s]." % stack.name)
+
+            # Suspend stack
+            provider_stack = provider.suspend_stack(stack.name)
+        else:
+            logger.error("Cannot suspend stack with status [%s]." %
+                         provider_stack["status"])
+
+        return provider_stack["status"]
+
+
+class DeleteStackTask(HastexoTask):
+    """
+    Deletes a stack.
+
+    """
+    def run(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+        stack = Stack.objects.get(id=self.stack_id)
+        try:
+            status = self.delete_stack(stack)
+        except Exception as e:
+            status = DELETE_FAILED_STATE
+            provider = stack.provider
+            error_msg = "Error deleting stack [%s]: %s" % (
+                stack.name, str(e))
+            logger.error(error_msg)
+        else:
+            provider = ""
+            error_msg = ""
+
+        # The reaper doesn't check task results, so just save status in the
+        # database.
+        stack.status = status
+        stack.provider = provider
+        stack.error_msg = error_msg
+        stack.save(update_fields=["status", "provider", "error_msg"])
+
+    def delete_stack(self, stack):
+        """
+        Delete the stack.
+
+        """
+        settings = get_xblock_settings()
+        attempts = settings.get("delete_attempts", 3)
+        provider = Provider.init(stack.provider)
+        provider_stack = provider.get_stack(stack.name)
+        attempt = 0
+
+        while (provider_stack["status"] != DELETED_STATE and
+               attempt < attempts):
+            if attempt:
+                self.sleep()
+
+            if provider_stack["status"] == DELETED_STATE:
+                logger.info("Stack [%s] deleted successfully." % stack.name)
+            elif provider_stack["status"] != DELETE_IN_PROGRESS_STATE:
+                logger.info("Attempt [%d] to delete stack [%s]." % (
+                    attempt, stack.name))
+
+                # Execute the pre-delete hook.
+                if (stack.hook_script and
+                        stack.hook_events.get("delete", False)):
+                    try:
+                        # We need the stack to be up in order to execute the
+                        # pre-delete hook.
+                        if provider_stack["status"] == SUSPENDED_STATE:
+                            provider_stack = provider.resume_stack(
+                                stack.name)
+                        elif provider_stack["status"] not in UP_STATES:
+                            raise Exception("Invalid stack status [%s]." %
+                                            provider_stack["status"])
+                    except Exception as e:
+                        # We don't fail, as deleting the stack is more
+                        # important than running the pre-delete hook
+                        # successfully.
+                        logger.error("Could not resume stack [%s] for "
+                                     "pre-delete hook: %s" % (stack.name,
+                                                              str(e)))
+                    else:
+                        logger.info("Executing pre-delete hook for stack [%s] "
+                                    "at [%s]." % (stack.name, stack.ip))
+
+                        try:
+                            script = read_from_contentstore(stack.course_id,
+                                                            stack.hook_script)
+                            ssh = ssh_to(stack.user, stack.ip, stack.key)
+                            remote_exec(ssh, script, params="delete")
+                        except Exception as e:
+                            # Again, we don't fail, as deleting the stack is
+                            # paramount.
+                            logger.error("Could not execute pre-delete hook "
+                                         "for stack [%s]: %s" %
+                                         (stack.name, str(e)))
+                        finally:
+                            ssh.close()
+
+                try:
+                    provider_stack = provider.delete_stack(stack.name)
+                except SoftTimeLimitExceeded:
+                    # Retry on any exception except a timeout.
+                    raise
+                except Exception as e:
+                    logger.error("Failed to delete stack [%s]: %s" %
+                                 (stack.name, str(e)))
+                else:
+                    break
+
+            attempt += 1
+
+        if attempt == attempts:
+            error_msg = ("Failed to delete stack in [%d] attempts." %
+                         attempts)
+            raise Exception(error_msg)
+
+        return provider_stack["status"]
+
+
+class CheckStudentProgressTask(HastexoTask):
     """
     Check student progress by running a set of scripts via SSH.
 
@@ -559,11 +729,13 @@ class CheckStudentProgressTask(Task):
 
         try:
             # Open SSH connection to the public facing node
-            ssh = self.open_ssh_connection()
+            ssh = ssh_to(self.stack_user_name,
+                         self.stack_ip,
+                         self.stack_key)
 
             # Run tests on the stack
             res = self.run_tests(ssh)
-        except SoftTimeLimitExceeded:
+        except (RemoteExecTimeout, SoftTimeLimitExceeded):
             res = {
                 'status': 'CHECK_PROGRESS_TIMEOUT',
                 'error': True
@@ -581,27 +753,16 @@ class CheckStudentProgressTask(Task):
         score = 0
         errors = []
         for test in self.tests:
-            # Generate a temporary filename
-            script = '/tmp/.%s' % uuid.uuid4()
-
-            # Open the file remotely and write the script out to it.
-            f = sftp.open(script, 'w')
-            f.write(test)
-            f.close()
-
-            # Make it executable and run it.
-            sftp.chmod(script, 0o775)
-            _, stdout, stderr = ssh.exec_command(script)
-            retval = stdout.channel.recv_exit_status()
-            if retval == 0:
-                score += 1
+            try:
+                remote_exec(ssh, test, reuse_sftp=sftp)
+            except RemoteExecException as e:
+                error_msg = str(e)
+                if error_msg:
+                    errors.append(error_msg)
             else:
-                error = stderr.read()
-                if error:
-                    errors.append(error)
+                score += 1
 
-            # Remove the script
-            sftp.remove(script)
+        sftp.close()
 
         return {
             'status': 'CHECK_PROGRESS_COMPLETE',
@@ -609,11 +770,3 @@ class CheckStudentProgressTask(Task):
             'total': len(self.tests),
             'errors': errors
         }
-
-    def open_ssh_connection(self):
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        pkey = paramiko.RSAKey.from_private_key(StringIO(self.stack_key))
-        ssh.connect(self.stack_ip, username=self.stack_user_name, pkey=pkey)
-
-        return ssh

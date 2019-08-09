@@ -1,4 +1,5 @@
 from django.db import models
+from jsonfield.fields import JSONField
 
 
 class StackCommon(models.Model):
@@ -12,7 +13,11 @@ class StackCommon(models.Model):
     name = models.CharField(max_length=64, db_index=True)
     student_id = models.CharField(max_length=40, db_index=True)
     course_id = models.CharField(max_length=50, db_index=True)
+    run = models.CharField(max_length=50, blank=True)
     provider = models.CharField(max_length=32, blank=True)
+    providers = JSONField(default=None)
+    hook_script = models.CharField(max_length=256, null=True)
+    hook_events = JSONField(default=None)
     protocol = models.CharField(max_length=32, blank=True)
     port = models.IntegerField(null=True)
     status = models.CharField(max_length=32, blank=True, db_index=True)

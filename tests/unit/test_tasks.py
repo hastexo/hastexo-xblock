@@ -1,5 +1,3 @@
-import ddt
-import errno
 import socket
 
 from unittest import TestCase
@@ -7,49 +5,23 @@ from mock import Mock, patch
 
 from hastexo.models import Stack
 from hastexo.provider import ProviderException
-from hastexo.common import get_stack, update_stack, update_stack_fields
-from hastexo.tasks import (LaunchStackTask, CheckStudentProgressTask,
-                           PING_COMMAND)
+from hastexo.common import (
+    get_stack,
+    update_stack,
+    update_stack_fields,
+    RemoteExecException,
+)
+from hastexo.tasks import (
+    PING_COMMAND,
+    LaunchStackTask,
+    SuspendStackTask,
+    DeleteStackTask,
+    CheckStudentProgressTask,
+)
 from celery.exceptions import SoftTimeLimitExceeded
 
 
-RETRY_SOCKET_ERRNOS = [
-    errno.EAGAIN,
-    errno.ENETDOWN,
-    errno.ENETUNREACH,
-    errno.ENETRESET,
-    errno.ECONNABORTED,
-    errno.ECONNRESET,
-    errno.ENOTCONN,
-    errno.ECONNREFUSED,
-    errno.EHOSTDOWN,
-    errno.EHOSTUNREACH
-]
-
-
-@ddt.ddt
-class TestHastexoTasks(TestCase):
-    def get_ssh_client_mock(self):
-        return self.mocks["paramiko"].SSHClient.return_value
-
-    def get_socket_mock(self):
-        return self.mocks["socket"].socket.return_value
-
-    def get_stack(self, prop=None):
-        return get_stack(self.stack_name, self.course_id, self.student_id,
-                         prop)
-
-    def update_stack(self, data):
-        update_stack(self.stack_name, self.course_id, self.student_id, data)
-
-    def create_stack(self, name, course_id, student_id, data):
-        stack, _ = Stack.objects.get_or_create(
-            student_id=student_id,
-            course_id=course_id,
-            name=name)
-        update_stack_fields(stack, data)
-        stack.save()
-
+class HastexoTestCase(TestCase):
     def setUp(self):
         self.stack_name = "bogus_stack_name"
         self.stack_user_name = "bogus_stack_user_name"
@@ -61,6 +33,33 @@ class TestHastexoTasks(TestCase):
         self.stack_run = "bogus_run"
         self.course_id = "bogus_course_id"
         self.student_id = "bogus_student_id"
+        self.providers = [
+            {"name": "provider1",
+             "capacity": 1,
+             "template": "tmpl1",
+             "environment": "env1"},
+            {"name": "provider2",
+             "capacity": 2,
+             "template": "tmpl2",
+             "environment": "env2"},
+            {"name": "provider3",
+             "capacity": -1,
+             "template": "tmpl3",
+             "environment": "env3"}
+        ]
+        self.hook_script = "bogus_hook_script"
+        self.hook_events = {
+            "suspend": True,
+            "resume": True,
+            "delete": True
+        }
+        self.read_from_contentstore = "bogus_content"
+
+        # Mock settings
+        self.settings = {
+            "sleep_timeout": 0,
+            "delete_attempts": 2,
+        }
 
         # Create a set of mock stacks to be returned by the provider mock.
         self.stacks = {}
@@ -89,40 +88,6 @@ class TestHastexoTasks(TestCase):
                 }
             }
 
-        # Mock settings
-        self.settings = {
-            "task_timeouts": {
-                "sleep": 0
-            }
-        }
-
-        self.providers = [
-            {"name": "provider1",
-             "capacity": 1,
-             "template": "tmpl1",
-             "environment": "env1"},
-            {"name": "provider2",
-             "capacity": 2,
-             "template": "tmpl2",
-             "environment": "env2"},
-            {"name": "provider3",
-             "capacity": -1,
-             "template": "tmpl3",
-             "environment": "env3"}
-        ]
-
-        self.kwargs = {
-            "providers": self.providers,
-            "protocol": self.protocol,
-            "port": self.port,
-            "stack_run": self.stack_run,
-            "stack_name": self.stack_name,
-            "stack_user_name": self.stack_user_name,
-            "course_id": self.course_id,
-            "student_id": self.student_id,
-            "reset": False
-        }
-
         # Clear database
         Stack.objects.all().delete()
 
@@ -131,19 +96,34 @@ class TestHastexoTasks(TestCase):
             student_id=self.student_id,
             course_id=self.course_id,
             name=self.stack_name,
+            status="LAUNCH_PENDING",
             protocol=self.protocol,
-            port=self.port
+            port=self.port,
+            run=self.stack_run,
+            user=self.stack_user_name,
+            providers=self.providers,
+            hook_script=self.hook_script,
+            hook_events=self.hook_events,
         )
         stack.save()
+
+        # Run kwargs
+        self.kwargs = {
+            "stack_id": stack.id,
+            "reset": False
+        }
 
         # Patchers
         patchers = {
             "os": patch("hastexo.tasks.os"),
-            "paramiko": patch("hastexo.tasks.paramiko"),
             "socket": patch("hastexo.tasks.socket"),
             "Provider": patch("hastexo.tasks.Provider"),
             "settings": patch.dict("hastexo.common.DEFAULT_SETTINGS",
                                    self.settings),
+            "ssh_to": patch("hastexo.tasks.ssh_to"),
+            "read_from_contentstore": patch(
+                "hastexo.tasks.read_from_contentstore"),
+            "remote_exec": patch("hastexo.tasks.remote_exec"),
         }
         self.mocks = {}
         for mock_name, patcher in patchers.items():
@@ -151,9 +131,11 @@ class TestHastexoTasks(TestCase):
             self.addCleanup(patcher.stop)
 
         self.mocks["os"].system.return_value = 0
-        self.mocks["paramiko"].RSAKey.from_private_key.return_value = \
-            self.stack_key
+        self.mocks["read_from_contentstore"].return_value = \
+            self.read_from_contentstore
+        self.mocks["remote_exec"].return_value = 0
 
+        # Set up mock providers
         self.mock_providers = []
         for p in self.providers:
             m = Mock()
@@ -164,6 +146,29 @@ class TestHastexoTasks(TestCase):
             self.mock_providers.append(m)
         self.mocks["Provider"].init.side_effect = self.mock_providers
 
+    def get_ssh_to_mock(self):
+        return self.mocks["ssh_to"]
+
+    def get_socket_mock(self):
+        return self.mocks["socket"].socket.return_value
+
+    def get_stack(self, prop=None):
+        return get_stack(self.stack_name, self.course_id, self.student_id,
+                         prop)
+
+    def update_stack(self, data):
+        update_stack(self.stack_name, self.course_id, self.student_id, data)
+
+    def create_stack(self, name, course_id, student_id, data):
+        stack, _ = Stack.objects.get_or_create(
+            student_id=student_id,
+            course_id=course_id,
+            name=name)
+        update_stack_fields(stack, data)
+        stack.save()
+
+
+class TestLaunchStackTask(HastexoTestCase):
     def test_create_stack(self):
         # Setup
         provider = self.mock_providers[0]
@@ -175,23 +180,27 @@ class TestHastexoTasks(TestCase):
         ]
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "CREATE_COMPLETE")
-        self.assertEqual(res["provider"], self.providers[0]["name"])
-        self.assertEqual(self.get_stack("provider"), self.providers[0]["name"])
-        self.assertNotEqual(res["error_msg"], None)
+        self.assertEqual(stack.status, "CREATE_COMPLETE")
+        self.assertEqual(stack.provider, self.providers[0]["name"])
+        self.assertEqual(stack.error_msg, u"")
         provider.create_stack.assert_called_with(
             self.stack_name,
             self.stack_run
         )
         ping_command = PING_COMMAND % (0, self.stack_ip)
         self.mocks["os"].system.assert_called_with(ping_command)
-        ssh = self.get_ssh_client_mock()
-        ssh.connect.assert_called_with(self.stack_ip,
-                                       username=self.stack_user_name,
-                                       pkey=self.stack_key)
+        self.mocks["ssh_to"].assert_called_with(
+            self.stack_user_name,
+            self.stack_ip,
+            self.stack_key
+        )
+        self.assertFalse(self.mocks["remote_exec"].called)
 
     def test_provider_error_on_first_provider(self):
         # Setup
@@ -208,13 +217,15 @@ class TestHastexoTasks(TestCase):
         ]
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "CREATE_COMPLETE")
-        self.assertEqual(res["provider"], self.providers[1]["name"])
-        self.assertEqual(self.get_stack("provider"), self.providers[1]["name"])
-        self.assertEqual(res["error_msg"], "")
+        self.assertEqual(stack.status, "CREATE_COMPLETE")
+        self.assertEqual(stack.provider, self.providers[1]["name"])
+        self.assertEqual(stack.error_msg, u"")
 
     def test_provider_error_on_all_providers(self):
         # Setup
@@ -224,11 +235,14 @@ class TestHastexoTasks(TestCase):
             ]
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "CREATE_FAILED")
-        self.assertNotEqual(res["error_msg"], "")
+        self.assertEqual(stack.status, "CREATE_FAILED")
+        self.assertNotEqual(stack.error_msg, u"")
 
     def test_provider_error_on_create(self):
         # Setup
@@ -248,13 +262,15 @@ class TestHastexoTasks(TestCase):
         ]
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "CREATE_COMPLETE")
-        self.assertEqual(res["provider"], self.providers[1]["name"])
-        self.assertEqual(self.get_stack("provider"), self.providers[1]["name"])
-        self.assertEqual(res["error_msg"], "")
+        self.assertEqual(stack.status, "CREATE_COMPLETE")
+        self.assertEqual(stack.provider, self.providers[1]["name"])
+        self.assertEqual(stack.error_msg, u"")
 
     def test_provider_error_on_reset(self):
         # Setup
@@ -268,11 +284,14 @@ class TestHastexoTasks(TestCase):
         self.kwargs["reset"] = True
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "CREATE_FAILED")
-        self.assertNotEqual(res["error_msg"], "")
+        self.assertEqual(stack.status, "CREATE_FAILED")
+        self.assertNotEqual(stack.error_msg, u"")
 
     def test_provider_error_on_resume(self):
         # Setup
@@ -285,16 +304,18 @@ class TestHastexoTasks(TestCase):
         ]
         self.update_stack({
             "provider": self.providers[1]["name"],
-            "status": "SUSPEND_ISSUED"
+            "status": "SUSPEND_COMPLETE"
         })
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "RESUME_FAILED")
-        self.assertEqual(res["provider"], self.providers[1]["name"])
-        self.assertEqual(self.get_stack("provider"), self.providers[1]["name"])
+        self.assertEqual(stack.status, "RESUME_FAILED")
+        self.assertEqual(stack.provider, self.providers[1]["name"])
         provider.resume_stack.assert_called()
 
     def test_provider_error_on_cleanup_delete(self):
@@ -318,13 +339,15 @@ class TestHastexoTasks(TestCase):
         ]
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "CREATE_COMPLETE")
-        self.assertEqual(res["provider"], self.providers[1]["name"])
-        self.assertEqual(self.get_stack("provider"), self.providers[1]["name"])
-        self.assertEqual(res["error_msg"], "")
+        self.assertEqual(stack.status, "CREATE_COMPLETE")
+        self.assertEqual(stack.provider, self.providers[1]["name"])
+        self.assertEqual(stack.error_msg, u"")
         provider1.delete_stack.assert_called()
 
     def test_provider_error_on_cleanup_resume(self):
@@ -341,16 +364,18 @@ class TestHastexoTasks(TestCase):
         ]
         self.update_stack({
             "provider": self.providers[1]["name"],
-            "status": "SUSPEND_ISSUED"
+            "status": "SUSPEND_COMPLETE"
         })
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "RESUME_FAILED")
-        self.assertEqual(res["provider"], self.providers[1]["name"])
-        self.assertEqual(self.get_stack("provider"), self.providers[1]["name"])
+        self.assertEqual(stack.status, "RESUME_FAILED")
+        self.assertEqual(stack.provider, self.providers[1]["name"])
         provider.suspend_stack.assert_called()
 
     def test_infinite_capacity(self):
@@ -363,7 +388,7 @@ class TestHastexoTasks(TestCase):
             self.stacks["CREATE_COMPLETE"]
         ]
         self.providers[0]["capacity"] = -1
-        self.kwargs["providers"] = self.providers
+        self.update_stack({"providers": self.providers})
         provider.capacity = -1
         data = {
             "provider": self.providers[0]["name"],
@@ -375,13 +400,15 @@ class TestHastexoTasks(TestCase):
             self.create_stack(name, self.course_id, student_id, data)
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "CREATE_COMPLETE")
-        self.assertEqual(res["provider"], self.providers[0]["name"])
-        self.assertEqual(self.get_stack("provider"), self.providers[0]["name"])
-        self.assertEqual(res["error_msg"], "")
+        self.assertEqual(stack.status, "CREATE_COMPLETE")
+        self.assertEqual(stack.provider, self.providers[0]["name"])
+        self.assertEqual(stack.error_msg, u"")
         provider.create_stack.assert_called_with(
             self.stack_name,
             self.stack_run
@@ -390,7 +417,7 @@ class TestHastexoTasks(TestCase):
     def test_use_next_provider_if_first_is_disabled(self):
         # Setup
         self.providers[0]["capacity"] = 0
-        self.kwargs["providers"] = self.providers
+        self.update_stack({"providers": self.providers})
         provider1 = self.mock_providers[0]
         provider1.capacity = 0
         provider2 = self.mock_providers[1]
@@ -402,13 +429,15 @@ class TestHastexoTasks(TestCase):
         ]
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "CREATE_COMPLETE")
-        self.assertEqual(res["provider"], self.providers[1]["name"])
-        self.assertEqual(self.get_stack("provider"), self.providers[1]["name"])
-        self.assertEqual(res["error_msg"], "")
+        self.assertEqual(stack.status, "CREATE_COMPLETE")
+        self.assertEqual(stack.provider, self.providers[1]["name"])
+        self.assertEqual(stack.error_msg, u"")
         provider2.create_stack.assert_called_with(
             self.stack_name,
             self.stack_run
@@ -418,7 +447,7 @@ class TestHastexoTasks(TestCase):
         # Setup
         capacity = 2
         self.providers[0]["capacity"] = capacity
-        self.kwargs["providers"] = self.providers
+        self.update_stack({"providers": self.providers})
         provider1 = self.mock_providers[0]
         provider1.capacity = capacity
         provider2 = self.mock_providers[1]
@@ -438,13 +467,15 @@ class TestHastexoTasks(TestCase):
             self.create_stack(name, self.course_id, student_id, data)
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "CREATE_COMPLETE")
-        self.assertEqual(res["provider"], self.providers[1]["name"])
-        self.assertEqual(self.get_stack("provider"), self.providers[1]["name"])
-        self.assertEqual(res["error_msg"], "")
+        self.assertEqual(stack.status, "CREATE_COMPLETE")
+        self.assertEqual(stack.provider, self.providers[1]["name"])
+        self.assertEqual(stack.error_msg, u"")
         provider2.create_stack.assert_called_with(
             self.stack_name,
             self.stack_run
@@ -464,15 +495,17 @@ class TestHastexoTasks(TestCase):
                 name = "stack_%d_%d" % (i, j)
                 student_id = "student_%d_%d" % (i, j)
                 self.create_stack(name, self.course_id, student_id, data)
-        self.kwargs["providers"] = self.providers
+        self.update_stack({"providers": self.providers})
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "CREATE_FAILED")
-        self.assertEqual(res["provider"], "")
-        self.assertEqual(self.get_stack("provider"), "")
+        self.assertEqual(stack.status, "CREATE_FAILED")
+        self.assertEqual(stack.provider, "")
         for m in self.mock_providers:
             m.create_stack.assert_not_called()
 
@@ -494,13 +527,15 @@ class TestHastexoTasks(TestCase):
         ]
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "CREATE_COMPLETE")
-        self.assertEqual(res["provider"], self.providers[1]["name"])
-        self.assertEqual(self.get_stack("provider"), self.providers[1]["name"])
-        self.assertNotEqual(res["error_msg"], None)
+        self.assertEqual(stack.status, "CREATE_COMPLETE")
+        self.assertEqual(stack.provider, self.providers[1]["name"])
+        self.assertEqual(stack.error_msg, u"")
         provider1.create_stack.assert_called_with(
             self.stack_name,
             self.stack_run
@@ -521,12 +556,14 @@ class TestHastexoTasks(TestCase):
         ]
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "LAUNCH_TIMEOUT")
-        self.assertEqual(res["provider"], "")
-        self.assertEqual(self.get_stack("provider"), "")
+        self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
+        self.assertEqual(stack.provider, "")
 
     def test_create_failure_on_all_providers(self):
         # Setup
@@ -539,13 +576,15 @@ class TestHastexoTasks(TestCase):
             ]
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "CREATE_FAILED")
-        self.assertNotEqual(res["error_msg"], "")
-        self.assertEqual(res["provider"], "")
-        self.assertEqual(self.get_stack("provider"), "")
+        self.assertEqual(stack.status, "CREATE_FAILED")
+        self.assertNotEqual(stack.error_msg, u"")
+        self.assertEqual(stack.provider, u"")
         for m in self.mock_providers:
             m.create_stack.assert_called_with(
                 self.stack_name,
@@ -572,14 +611,17 @@ class TestHastexoTasks(TestCase):
         self.kwargs["reset"] = True
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
         provider.delete_stack.assert_called_with(
             self.stack_name
         )
         provider.create_stack.assert_called()
-        self.assertEqual(res["status"], "CREATE_COMPLETE")
+        self.assertEqual(stack.status, "CREATE_COMPLETE")
 
     def test_dont_reset_new_stack(self):
         # Setup
@@ -593,12 +635,15 @@ class TestHastexoTasks(TestCase):
         self.kwargs["reset"] = True
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
         provider.delete_stack.assert_not_called()
         provider.create_stack.assert_called()
-        self.assertEqual(res["status"], "CREATE_COMPLETE")
+        self.assertEqual(stack.status, "CREATE_COMPLETE")
 
     def test_resume_suspended_stack(self):
         # Setup
@@ -611,19 +656,75 @@ class TestHastexoTasks(TestCase):
         ]
         self.update_stack({
             "provider": self.providers[1]["name"],
-            "status": "SUSPEND_ISSUED"
+            "status": "SUSPEND_COMPLETE"
         })
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "RESUME_COMPLETE")
-        self.assertEqual(res["provider"], self.providers[1]["name"])
-        self.assertEqual(self.get_stack("provider"), self.providers[1]["name"])
-        provider.resume_stack.assert_called_with(
-            self.stack_name
+        self.assertEqual(stack.status, "RESUME_COMPLETE")
+        self.assertEqual(stack.provider, self.providers[1]["name"])
+        self.mocks["remote_exec"].assert_called_with(
+            self.mocks["ssh_to"].return_value,
+            self.read_from_contentstore,
+            params="resume"
         )
+
+    def test_resume_hook_exception(self):
+        # Setup
+        provider = self.mock_providers[1]
+        provider.get_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+        provider.resume_stack.side_effect = [
+            self.stacks["RESUME_COMPLETE"]
+        ]
+        self.update_stack({
+            "provider": self.providers[1]["name"],
+            "status": "SUSPEND_COMPLETE"
+        })
+        self.mocks["remote_exec"].side_effect = Exception()
+
+        # Run
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "RESUME_COMPLETE")
+        self.assertEqual(stack.provider, self.providers[1]["name"])
+        self.assertTrue(self.mocks["remote_exec"].called)
+
+    def test_resume_hook_failure(self):
+        # Setup
+        provider = self.mock_providers[1]
+        provider.get_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+        provider.resume_stack.side_effect = [
+            self.stacks["RESUME_COMPLETE"]
+        ]
+        self.update_stack({
+            "provider": self.providers[1]["name"],
+            "status": "SUSPEND_COMPLETE"
+        })
+        self.mocks["remote_exec"].side_effect = RemoteExecException
+
+        # Run
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "RESUME_COMPLETE")
+        self.assertEqual(stack.provider, self.providers[1]["name"])
+        self.assertTrue(self.mocks["remote_exec"].called)
 
     def test_resume_suspending_stack(self):
         # Setup
@@ -638,16 +739,18 @@ class TestHastexoTasks(TestCase):
         ]
         self.update_stack({
             "provider": self.providers[2]["name"],
-            "status": "SUSPEND_ISSUED"
+            "status": "SUSPEND_COMPLETE"
         })
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "RESUME_COMPLETE")
-        self.assertEqual(res["provider"], self.providers[2]["name"])
-        self.assertEqual(self.get_stack("provider"), self.providers[2]["name"])
+        self.assertEqual(stack.status, "RESUME_COMPLETE")
+        self.assertEqual(stack.provider, self.providers[2]["name"])
         provider.resume_stack.assert_called_with(
             self.stack_name
         )
@@ -662,13 +765,16 @@ class TestHastexoTasks(TestCase):
             ProviderException()
         ]
         self.providers = [self.providers[0]]
-        self.kwargs["providers"] = self.providers
+        self.update_stack({"providers": self.providers})
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "CREATE_FAILED")
+        self.assertEqual(stack.status, "CREATE_FAILED")
         provider.delete_stack.assert_called_with(
             self.stack_name, False
         )
@@ -679,18 +785,17 @@ class TestHastexoTasks(TestCase):
         provider.get_stack.side_effect = [
             self.stacks["RESUME_COMPLETE"]
         ]
-        ssh = self.get_ssh_client_mock()
-        ssh.connect.side_effect = Exception()
-        self.update_stack({
-            "provider": self.providers[0]["name"],
-            "status": "LAUNCH_PENDING"
-        })
+        self.mocks["ssh_to"].side_effect = Exception()
+        self.update_stack({"provider": self.providers[0]["name"]})
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "RESUME_FAILED")
+        self.assertEqual(stack.status, "RESUME_FAILED")
         provider.delete_stack.assert_not_called()
 
     def test_eoferror_does_not_constitute_verify_failure(self):
@@ -699,63 +804,21 @@ class TestHastexoTasks(TestCase):
         provider.get_stack.side_effect = [
             self.stacks["CREATE_COMPLETE"]
         ]
-        ssh = self.get_ssh_client_mock()
+        ssh = self.mocks["ssh_to"]
         ssh.connect.side_effect = [
             EOFError,
             True
         ]
-        self.update_stack({
-            "provider": self.providers[0]["name"],
-            "status": "LAUNCH_PENDING"
-        })
+        self.update_stack({"provider": self.providers[0]["name"]})
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "CREATE_COMPLETE")
-
-    @ddt.data(*RETRY_SOCKET_ERRNOS)
-    def test_some_socket_errors_do_not_constitute_verify_failure(self, errno):
-        # Setup
-        provider = self.mock_providers[0]
-        provider.get_stack.side_effect = [
-            self.stacks["CREATE_COMPLETE"]
-        ]
-        ssh = self.get_ssh_client_mock()
-        ssh.connect.side_effect = [
-            EnvironmentError(errno, ''),
-            True
-        ]
-        self.update_stack({
-            "provider": self.providers[0]["name"],
-            "status": "LAUNCH_PENDING"
-        })
-
-        # Run
-        res = LaunchStackTask().run(**self.kwargs)
-
-        # Assertions
-        self.assertEqual(res["status"], "CREATE_COMPLETE")
-
-    def test_other_socket_errors_constitute_verify_failure(self):
-        # Setup
-        provider = self.mock_providers[0]
-        provider.get_stack.side_effect = [
-            self.stacks["CREATE_COMPLETE"]
-        ]
-        ssh = self.get_ssh_client_mock()
-        ssh.connect.side_effect = EnvironmentError(errno.ENOTSOCK, '')
-        self.update_stack({
-            "provider": self.providers[0]["name"],
-            "status": "LAUNCH_PENDING"
-        })
-
-        # Run
-        res = LaunchStackTask().run(**self.kwargs)
-
-        # Assertions
-        self.assertEqual(res["status"], "CREATE_FAILED")
+        self.assertEqual(stack.status, "CREATE_COMPLETE")
 
     def test_ssh_bombs_out(self):
         # Setup
@@ -763,18 +826,17 @@ class TestHastexoTasks(TestCase):
         provider.get_stack.side_effect = [
             self.stacks["CREATE_COMPLETE"]
         ]
-        ssh = self.get_ssh_client_mock()
-        ssh.connect.side_effect = Exception()
-        self.update_stack({
-            "provider": self.providers[0]["name"],
-            "status": "LAUNCH_PENDING"
-        })
+        self.mocks["ssh_to"].side_effect = Exception()
+        self.update_stack({"provider": self.providers[0]["name"]})
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "CREATE_FAILED")
+        self.assertEqual(stack.status, "CREATE_FAILED")
 
     def test_dont_wait_forever_for_ping(self):
         # Setup
@@ -784,17 +846,17 @@ class TestHastexoTasks(TestCase):
         ]
         system = self.mocks["os"].system
         system.side_effect = SoftTimeLimitExceeded
-        self.update_stack({
-            "provider": self.providers[0]["name"],
-            "status": "LAUNCH_PENDING"
-        })
+        self.update_stack({"provider": self.providers[0]["name"]})
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
         system.assert_called()
-        self.assertEqual(res["status"], "LAUNCH_TIMEOUT")
+        self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
 
     def test_dont_wait_forever_for_ssh(self):
         # Setup
@@ -802,19 +864,18 @@ class TestHastexoTasks(TestCase):
         provider.get_stack.side_effect = [
             self.stacks["CREATE_COMPLETE"]
         ]
-        ssh = self.get_ssh_client_mock()
-        ssh.connect.side_effect = SoftTimeLimitExceeded
-        self.update_stack({
-            "provider": self.providers[0]["name"],
-            "status": "LAUNCH_PENDING"
-        })
+        self.mocks["ssh_to"].side_effect = SoftTimeLimitExceeded
+        self.update_stack({"provider": self.providers[0]["name"]})
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        ssh.connect.assert_called()
-        self.assertEqual(res["status"], "LAUNCH_TIMEOUT")
+        self.assertTrue(self.mocks["ssh_to"].called)
+        self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
 
     def test_dont_wait_forever_for_rdp(self):
         # Setup
@@ -829,19 +890,19 @@ class TestHastexoTasks(TestCase):
             socket.timeout,
             SoftTimeLimitExceeded
         ]
-        self.update_stack({
-            "provider": self.providers[0]["name"],
-            "status": "LAUNCH_PENDING"
-        })
+        self.update_stack({"provider": self.providers[0]["name"]})
         self.protocol = "rdp"
-        self.kwargs["protocol"] = self.protocol
+        self.update_stack({"protocol": self.protocol})
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
         s.connect.assert_called_with((self.stack_ip, 3389))
-        self.assertEqual(res["status"], "LAUNCH_TIMEOUT")
+        self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
 
     def test_dont_wait_forever_for_rdp_on_custom_port(self):
         # Setup
@@ -856,21 +917,23 @@ class TestHastexoTasks(TestCase):
             socket.timeout,
             SoftTimeLimitExceeded
         ]
-        self.update_stack({
-            "provider": self.providers[0]["name"],
-            "status": "LAUNCH_PENDING"
-        })
         self.protocol = "rdp"
         self.port = 3390
-        self.kwargs["protocol"] = self.protocol
-        self.kwargs["port"] = self.port
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "protocol": self.protocol,
+            "port": self.port,
+        })
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
         s.connect.assert_called_with((self.stack_ip, self.port))
-        self.assertEqual(res["status"], "LAUNCH_TIMEOUT")
+        self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
 
     def test_dont_wait_forever_for_suspension(self):
         # Setup
@@ -882,14 +945,17 @@ class TestHastexoTasks(TestCase):
         ]
         self.update_stack({
             "provider": self.providers[0]["name"],
-            "status": "SUSPEND_ISSUED"
+            "status": "SUSPEND_COMPLETE"
         })
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "LAUNCH_TIMEOUT")
+        self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
         provider.delete_stack.assert_not_called()
 
     def test_cleanup_on_timeout(self):
@@ -903,13 +969,16 @@ class TestHastexoTasks(TestCase):
         ]
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
         provider.delete_stack.assert_called_with(
             self.stack_name, False
         )
-        self.assertEqual(res["status"], "LAUNCH_TIMEOUT")
+        self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
 
     def test_resume_failed(self):
         # Setup
@@ -922,33 +991,523 @@ class TestHastexoTasks(TestCase):
         ]
         self.update_stack({
             "provider": self.providers[0]["name"],
-            "status": "SUSPEND_ISSUED"
+            "status": "SUSPEND_COMPLETE"
         })
 
         # Run
-        res = LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
 
         # Assertions
-        self.assertEqual(res["status"], "RESUME_FAILED")
+        self.assertEqual(stack.status, "RESUME_FAILED")
 
+
+class TestSuspendStackTask(HastexoTestCase):
+    def test_suspend_up_stack(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "SUSPEND_PENDING"
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["RESUME_COMPLETE"]
+        ]
+        provider.suspend_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+
+        # Run
+        SuspendStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "SUSPEND_COMPLETE")
+        self.assertEqual(stack.error_msg, u"")
+        self.assertEqual(stack.provider, self.providers[0]["name"])
+        self.mocks["remote_exec"].assert_called_with(
+            self.mocks["ssh_to"].return_value,
+            self.read_from_contentstore,
+            params="suspend"
+        )
+
+    def test_suspend_suspend_failed_stack(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "SUSPEND_PENDING"
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["SUSPEND_FAILED"]
+        ]
+        provider.suspend_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+
+        # Run
+        SuspendStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "SUSPEND_COMPLETE")
+        self.assertEqual(stack.error_msg, u"")
+        self.assertEqual(stack.provider, self.providers[0]["name"])
+        self.mocks["remote_exec"].assert_called_with(
+            self.mocks["ssh_to"].return_value,
+            self.read_from_contentstore,
+            params="suspend"
+        )
+
+    def test_suspend_even_if_hook_fails(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "SUSPEND_PENDING"
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["RESUME_COMPLETE"]
+        ]
+        self.mocks["remote_exec"].side_effect = [
+            RemoteExecException("error message")
+        ]
+        provider.suspend_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+
+        # Run
+        SuspendStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "SUSPEND_COMPLETE")
+        self.assertEqual(stack.error_msg, u"")
+        self.assertEqual(stack.provider, self.providers[0]["name"])
+        self.mocks["remote_exec"].assert_called_with(
+            self.mocks["ssh_to"].return_value,
+            self.read_from_contentstore,
+            params="suspend"
+        )
+
+    def test_suspend_even_if_hook_exception(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "SUSPEND_PENDING"
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["RESUME_COMPLETE"]
+        ]
+        self.mocks["remote_exec"].side_effect = Exception("")
+        provider.suspend_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+
+        # Run
+        SuspendStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "SUSPEND_COMPLETE")
+        self.assertEqual(stack.error_msg, u"")
+        self.assertEqual(stack.provider, self.providers[0]["name"])
+        self.mocks["remote_exec"].assert_called_with(
+            self.mocks["ssh_to"].return_value,
+            self.read_from_contentstore,
+            params="suspend"
+        )
+
+    def test_dont_suspend_deleted_stack(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "SUSPEND_PENDING"
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["DELETE_COMPLETE"]
+        ]
+
+        # Run
+        SuspendStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "DELETE_COMPLETE")
+        self.assertEqual(stack.error_msg, u"")
+        provider.suspend_stack.assert_not_called()
+        self.mocks["remote_exec"].assert_not_called()
+
+    def test_dont_suspend_failed_stack(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "SUSPEND_PENDING"
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["RESUME_FAILED"]
+        ]
+
+        # Run
+        SuspendStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "RESUME_FAILED")
+        self.assertEqual(stack.error_msg, u"")
+        provider.suspend_stack.assert_not_called()
+        self.mocks["remote_exec"].assert_not_called()
+
+    def test_mark_failed_on_exception(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "SUSPEND_PENDING"
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = Exception()
+
+        # Run
+        SuspendStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "SUSPEND_FAILED")
+        self.assertNotEqual(stack.error_msg, u"")
+
+    def dont_wait_for_suspension_forever(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "SUSPEND_PENDING"
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["RESUME_COMPLETE"]
+        ]
+        provider.suspend_stack.side_effect = SoftTimeLimitExceeded
+
+        # Run
+        SuspendStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "SUSPEND_FAILED")
+        self.assertNotEqual(stack.error_msg, u"")
+
+
+class TestDeleteStackTask(HastexoTestCase):
+    def test_delete_suspended_stack(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "DELETE_PENDING"
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+        provider.resume_stack.side_effect = [
+            self.stacks["RESUME_COMPLETE"]
+        ]
+        provider.delete_stack.side_effect = [
+            self.stacks["DELETE_COMPLETE"]
+        ]
+
+        # Run
+        DeleteStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "DELETE_COMPLETE")
+        self.assertEqual(stack.error_msg, u"")
+        self.assertEqual(stack.provider, u"")
+        provider.resume_stack.assert_called()
+        self.mocks["remote_exec"].assert_called_with(
+            self.mocks["ssh_to"].return_value,
+            self.read_from_contentstore,
+            params="delete"
+        )
+        provider.delete_stack.assert_called()
+
+    def test_delete_up_stack(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "DELETE_PENDING"
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["CREATE_COMPLETE"]
+        ]
+        provider.delete_stack.side_effect = [
+            self.stacks["DELETE_COMPLETE"]
+        ]
+
+        # Run
+        DeleteStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "DELETE_COMPLETE")
+        self.assertEqual(stack.error_msg, u"")
+        self.assertEqual(stack.provider, u"")
+        provider.resume_stack.assert_not_called()
+        provider.delete_stack.assert_called()
+        self.mocks["remote_exec"].assert_called_with(
+            self.mocks["ssh_to"].return_value,
+            self.read_from_contentstore,
+            params="delete"
+        )
+
+    def test_delete_failed_stack(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "DELETE_PENDING"
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["DELETE_FAILED"]
+        ]
+        provider.delete_stack.side_effect = [
+            self.stacks["DELETE_COMPLETE"]
+        ]
+
+        # Run
+        DeleteStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "DELETE_COMPLETE")
+        self.assertEqual(stack.error_msg, u"")
+        self.assertEqual(stack.provider, u"")
+        provider.resume_stack.assert_not_called()
+        self.mocks["remote_exec"].assert_not_called()
+        provider.delete_stack.assert_called()
+
+    def test_delete_suspended_stack_even_if_resume_fails(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "DELETE_PENDING"
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+        provider.resume_stack.side_effect = Exception()
+        provider.delete_stack.side_effect = [
+            self.stacks["DELETE_COMPLETE"]
+        ]
+
+        # Run
+        DeleteStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "DELETE_COMPLETE")
+        self.assertEqual(stack.error_msg, u"")
+        self.assertEqual(stack.provider, u"")
+        provider.resume_stack.assert_called()
+        provider.delete_stack.assert_called()
+        self.mocks["remote_exec"].assert_not_called()
+
+    def test_delete_suspended_stack_even_if_hook_fails(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "DELETE_PENDING"
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+        provider.resume_stack.side_effect = [
+            self.stacks["RESUME_COMPLETE"]
+        ]
+        self.mocks["remote_exec"].side_effect = [
+            RemoteExecException("error message")
+        ]
+        provider.delete_stack.side_effect = [
+            self.stacks["DELETE_COMPLETE"]
+        ]
+
+        # Run
+        DeleteStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "DELETE_COMPLETE")
+        self.assertEqual(stack.error_msg, u"")
+        self.assertEqual(stack.provider, u"")
+        provider.resume_stack.assert_called()
+        self.mocks["remote_exec"].assert_called()
+        provider.delete_stack.assert_called()
+
+    def test_delete_suspended_stack_even_if_hook_exception(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "DELETE_PENDING"
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+        provider.resume_stack.side_effect = [
+            self.stacks["RESUME_COMPLETE"]
+        ]
+        self.mocks["remote_exec"].side_effect = Exception("")
+        provider.delete_stack.side_effect = [
+            self.stacks["DELETE_COMPLETE"]
+        ]
+
+        # Run
+        DeleteStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "DELETE_COMPLETE")
+        self.assertEqual(stack.error_msg, u"")
+        self.assertEqual(stack.provider, u"")
+        provider.resume_stack.assert_called()
+        self.mocks["remote_exec"].assert_called()
+        provider.delete_stack.assert_called()
+
+    def test_retry_on_exception(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "DELETE_PENDING"
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"],
+            self.stacks["SUSPEND_COMPLETE"],
+        ]
+        provider.resume_stack.side_effect = [
+            self.stacks["RESUME_COMPLETE"],
+            self.stacks["RESUME_COMPLETE"],
+        ]
+        provider.delete_stack.side_effect = [
+            Exception(""),
+            self.stacks["DELETE_COMPLETE"],
+        ]
+
+        # Run
+        DeleteStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "DELETE_COMPLETE")
+        self.assertEqual(stack.error_msg, u"")
+        self.assertEqual(stack.provider, u"")
+
+    def test_mark_failed_after_attempts(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "DELETE_PENDING"
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"],
+            self.stacks["SUSPEND_COMPLETE"],
+        ]
+        provider.resume_stack.side_effect = [
+            self.stacks["RESUME_COMPLETE"],
+            self.stacks["RESUME_COMPLETE"],
+        ]
+        provider.delete_stack.side_effect = [
+            Exception(""),
+            Exception(""),
+        ]
+
+        # Run
+        DeleteStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "DELETE_FAILED")
+        self.assertNotEqual(stack.error_msg, u"")
+        self.assertEqual(stack.provider, self.providers[0]["name"])
+
+    def test_dont_wait_forever_for_deletion(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "DELETE_PENDING"
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"],
+        ]
+        provider.resume_stack.side_effect = [
+            self.stacks["RESUME_COMPLETE"],
+        ]
+        provider.delete_stack.side_effect = SoftTimeLimitExceeded
+
+        # Run
+        DeleteStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "DELETE_FAILED")
+        self.assertNotEqual(stack.error_msg, u"")
+        self.assertEqual(stack.provider, self.providers[0]["name"])
+
+
+class TestCheckStudentProgressTask(HastexoTestCase):
     def test_check_student_progress_failure(self):
         # Setup
-        stdout_pass = Mock()
-        stdout_pass.channel.recv_exit_status.return_value = 0
-        stdout_fail = Mock()
-        stdout_fail.channel.recv_exit_status.return_value = 1
-        stderr_fail_1 = Mock()
-        stderr_fail_1.read = Mock(return_value="single line")
-        stderr_fail_2 = Mock()
-        stderr_fail_2.read = Mock(return_value="line 1\nline 2")
-        stderr_fail_3 = Mock()
-        stderr_fail_3.read = Mock(return_value="")
-        ssh = self.get_ssh_client_mock()
-        ssh.exec_command.side_effect = [
-            (None, stdout_pass, None),
-            (None, stdout_fail, stderr_fail_1),
-            (None, stdout_fail, stderr_fail_2),
-            (None, stdout_fail, stderr_fail_3)
+        stderr_fail_1 = "single line"
+        stderr_fail_2 = "line 1\nline 2"
+        stderr_fail_3 = ""
+        self.mocks["remote_exec"].side_effect = [
+            0,
+            RemoteExecException(stderr_fail_1),
+            RemoteExecException(stderr_fail_2),
+            RemoteExecException(stderr_fail_3),
         ]
         tests = [
             "test pass",
@@ -974,14 +1533,7 @@ class TestHastexoTasks(TestCase):
 
     def test_check_student_progress_success(self):
         # Setup
-        stdout_pass = Mock()
-        stdout_pass.channel.recv_exit_status.return_value = 0
-        ssh = self.get_ssh_client_mock()
-        ssh.exec_command.side_effect = [
-            (None, stdout_pass, None),
-            (None, stdout_pass, None),
-            (None, stdout_pass, None)
-        ]
+        self.mocks["remote_exec"].return_value = 0
         tests = [
             "test pass",
             "test pass",

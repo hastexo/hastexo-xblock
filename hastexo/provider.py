@@ -18,9 +18,16 @@ from novaclient.exceptions import ClientException
 from googleapiclient.errors import Error as GcloudApiError
 from googleapiclient.errors import HttpError as GcloudApiHttpError
 
-from .common import (b, get_xblock_settings,
-                     DELETED_STATE, DELETE_IN_PROGRESS_STATE,
-                     RESUME_STATE, RESUME_IN_PROGRESS_STATE)
+from .common import (
+    b,
+    get_xblock_settings,
+    DELETED_STATE,
+    DELETE_IN_PROGRESS_STATE,
+    RESUME_STATE,
+    RESUME_IN_PROGRESS_STATE,
+    SUSPENDED_STATE,
+    SUSPEND_IN_PROGRESS_STATE
+)
 from .openstack import HeatWrapper, NovaWrapper
 from .gcloud import GcloudDeploymentManager, GcloudComputeEngine
 
@@ -45,8 +52,7 @@ class Provider(object):
     @staticmethod
     def init(name):
         settings = get_xblock_settings()
-        task_timeouts = settings.get('task_timeouts', {})
-        sleep_seconds = task_timeouts.get('sleep', 5)
+        sleep_seconds = settings.get("sleep_timeout", 10)
         providers = settings.get("providers")
         config = providers.get(name)
         if config and isinstance(config, dict):
@@ -303,29 +309,35 @@ class OpenstackProvider(Provider):
         return {"status": status,
                 "outputs": outputs}
 
-    def suspend_stack(self, name):
-        stack = self.get_stack(name)
-
-        # Heat fails to suspend a stack when any of its servers are being
-        # rebooted, so let's try and prevent this.
-        reboot_on_resume = stack["outputs"].get("reboot_on_resume")
-        if (reboot_on_resume is not None and
-                isinstance(reboot_on_resume, list)):
-            for server in reboot_on_resume:
-                try:
-                    nova_server = self.nova_c.servers.get(server)
-                except ClientException as e:
-                    raise ProviderException(e)
-
-                task_state = getattr(nova_server, 'OS-EXT-STS:task_state')
-                if task_state == 'rebooting_hard':
-                    raise ProviderException("Cannot suspend stack with "
-                                            "a rebooting server.")
-
+    def suspend_stack(self, name, wait=True):
         try:
             self.heat_c.actions.suspend(stack_id=name)
         except (HTTPException, HttpError) as e:
             raise ProviderException(e)
+
+        status = SUSPEND_IN_PROGRESS_STATE
+
+        # Wait until suspend finishes.
+        if wait:
+            while ('FAILED' not in status and
+                   status != DELETED_STATE and
+                   status != SUSPENDED_STATE):
+                self.sleep()
+
+                try:
+                    heat_stack = self.heat_c.stacks.get(
+                        stack_id=name)
+                except HTTPNotFound:
+                    status = DELETED_STATE
+                except (HTTPException, HttpError) as e:
+                    raise ProviderException(e)
+                else:
+                    status = heat_stack.stack_status
+
+            if 'FAILED' in status:
+                raise ProviderException("Failure suspending stack.")
+
+        return {"status": status}
 
     def delete_stack(self, name, wait=True):
         try:
@@ -505,11 +517,11 @@ class GcloudProvider(Provider):
             servers = self._get_deployment_servers(deployment_name)
             if servers:
                 if any(s.get("status") == "STOPPING" for s in servers):
-                    status = "SUSPEND_IN_PROGRESS"
+                    status = SUSPEND_IN_PROGRESS_STATE
                 elif any(s.get("status") == "STAGING" for s in servers):
-                    status = "RESUME_IN_PROGRESS"
+                    status = RESUME_IN_PROGRESS_STATE
                 elif all(s.get("status") == "TERMINATED" for s in servers):
-                    status = "SUSPEND_COMPLETE"
+                    status = SUSPENDED_STATE
 
         return status
 
@@ -712,7 +724,7 @@ class GcloudProvider(Provider):
 
         return {"status": status}
 
-    def suspend_stack(self, name):
+    def suspend_stack(self, name, wait=True):
         deployment_name = self._encode_name(name)
 
         # Get servers
@@ -734,6 +746,19 @@ class GcloudProvider(Provider):
                 raise ProviderException("Cannot not stop server %s with status"
                                         " %s" % (server["name"],
                                                  server["status"]))
+
+        status = SUSPEND_IN_PROGRESS_STATE
+
+        # Wait until suspend finishes.
+        if wait:
+            while True:
+                self.sleep()
+                servers = self._get_deployment_servers(deployment_name)
+                if all(s.get("status") == "TERMINATED" for s in servers):
+                    status = SUSPENDED_STATE
+                    break
+
+        return {"status": status}
 
     def resume_stack(self, name):
         deployment_name = self._encode_name(name)

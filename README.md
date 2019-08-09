@@ -92,18 +92,17 @@ To deploy the hastexo XBlock:
         "hastexo": {
             "terminal_url": "/hastexo-xblock/",
             "launch_timeout": 900,
+            "remote_exec_timeout": 300,
             "suspend_timeout": 120,
             "suspend_interval": 60,
             "suspend_concurrency": 4,
-            "suspend_in_parallel": true,
+            "suspend_task_timeout": 900,
             "check_timeout": 120,
             "delete_interval": 86400,
             "delete_age": 14,
             "delete_attempts": 3,
-            "task_timeouts": {
-                "sleep": 10,
-                "retries": 90
-            },
+            "delete_task_timeout": 900,
+            "sleep_timeout": 10,
             "js_timeouts": {
                 "status": 15000,
                 "keepalive": 30000,
@@ -193,6 +192,9 @@ This is a brief explanation of each:
 * `launch_timeout`: How long to wait for a stack to be launched, in seconds.
   (Default: `900`)
 
+* `remote_exec_timeout`: How long to wait for a command to be executed remotely
+  over SSH, in seconds.  (Default: `300`)
+
 * `suspend_timeout`: How long to wait before suspending a stack, after the last
   keepalive was received from the browser, in seconds.  (Default: `120`)
 
@@ -201,7 +203,8 @@ This is a brief explanation of each:
 * `suspend_concurrency`: How many stacks to suspend on each job run. (Default:
   `4`)
 
-* `suspend_in_parallel`: Whether to suspend stacks in parallel. (Default: true)
+* `suspend_task_timeout`: How long to wait for a stack to be suspended, in
+  seconds.  (Default: `900`)
 
 * `check_timeout`: How long to wait before a check progress task fails.
   (Default: `120`)
@@ -215,13 +218,8 @@ This is a brief explanation of each:
 * `delete_attempts`: How many times to insist on deletion after a failure.
   (Default: `3`)
 
-* `task_timeouts`:
-
-    * `sleep`: How long to wait between stack checks, such as pings and SSH
-      attempts, in seconds. (Default: `10`)
-
-    * `retries`: How many times to retry stack checks, such as pings and SSH
-      attempts. (Default: `90`)
+* `delete_task_timeout`: How long to wait for a stack to be deleted, in
+  seconds.  (Default: `900`)
 
 * `js_timeouts`:
 
@@ -332,7 +330,7 @@ To ensure your template has the required configuration:
 5. Provide the following outputs with these exact names:
 
     * `public_ip`: The publically accessible instance.
-    
+
     * `private_key`: The generated passphrase-less SSH private key.
 
     * `password`: The generated password. (OPTIONAL)
@@ -340,7 +338,7 @@ To ensure your template has the required configuration:
     * `reboot_on_resume`: A list of servers to be rebooted upon resume.  This
       is meant primarily as a workaround to resurrect servers that use nested
       KVM, as the latter does not support a managed save and subsequent
-      restart. (OPTIONAL)
+      restart. (OPTIONAL, DEPRECATED)
 
 6. Upload the template to the content store and make a note of its static asset
    file name.
