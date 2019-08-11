@@ -595,43 +595,19 @@ environment they were working with before, in the *same state* they left it in.
 It is possible to use this XBlock in devstack.  To do so, however, requires
 tweaking a few settings.
 
-First, due to the fact that in a devstack, by default all Celery calls are
-synchronous, scheduled tasks are executed immediately.  This means that with
-default settings, tasks will be immediately suspended.  To fix this, suspension
-must be disabled.  In addition, since Ajax calls from the browser are also
-synchronous in devstack (i.e., the connection remains open until the task is
-complete), the Javascript timeouts don't make sense.
-
-Also, devstacks don't install nginx.  Therefore, the Guacamole app is only
+First, devstacks don't install nginx.  Therefore, the Guacamole app is only
 reachable directly at its configured port.  This means that `terminal_url` in
-the XBlock settings must be set to that port (by default, 8080).
-
-These are the recommended devstack settings for `/edx/app/edxapp/lms.env.json`
-(OpenStack providers have been omitted):
+the XBlock settings must be set to that port (by default, 8080):
 
     ```
     "XBLOCK_SETTINGS": {
         "hastexo": {
             "terminal_url": ":8080/hastexo-xblock/"
-            "launch_timeout": 0,
-            "suspend_timeout": 0,
-            "task_timeouts": {
-                "sleep": 10,
-                "retries": 90
-            },
-            "js_timeouts": {
-                "status": 0,
-                "keepalive": 0,
-                "idle": 0,
-                "check": 0
-            },
         }
     }
     ```
 
-However, it is also possible to run this XBlock asynchronously in a devstack.  To do
-so, keep the XBlock settings at their defaults (i.e., with non-zero timeouts),
-open three terminal windows, and run each of the following concurrently:
+Next, open three terminal windows, and run each of the following concurrently:
 
     ```
     paver devstack lms --settings=devstack_with_worker
