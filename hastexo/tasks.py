@@ -1,3 +1,4 @@
+import errno
 import time
 import os
 import uuid
@@ -393,11 +394,53 @@ class LaunchStackTask(Task):
         connected = False
         while not connected:
             try:
-                ssh.connect(stack_ip, username=self.stack_user_name, pkey=pkey)
+                try:
+                    ssh.connect(stack_ip, username=self.stack_user_name,
+                                pkey=pkey)
+                except EnvironmentError as enve:
+                    if enve.errno in (errno.EAGAIN,
+                                      errno.ENETDOWN,
+                                      errno.ENETUNREACH,
+                                      errno.ENETRESET,
+                                      errno.ECONNABORTED,
+                                      errno.ECONNRESET,
+                                      errno.ENOTCONN,
+                                      errno.EHOSTDOWN):
+                        # Be more persistent than Paramiko normally
+                        # is, and keep retrying.
+                        logger.debug("Got errno %s during SSH connection"
+                                     "to stack [%s] (%s), "
+                                     "retrying." % (enve.errno,
+                                                    self.stack_name,
+                                                    stack_ip))
+                        self.sleep()
+                    elif enve.errno in (errno.ECONNREFUSED,
+                                        errno.EHOSTUNREACH):
+                        # Paramiko should catch and wrap
+                        # these. They should never bubble
+                        # up. Still, continue being more
+                        # persistent, and retry.
+                        logger.warning("Got errno %s during SSH connection"
+                                       "to stack [%s] (%s). "
+                                       "Paramiko bug? "
+                                       "Retrying." % (enve.errno,
+                                                      self.stack_name,
+                                                      stack_ip))
+                        self.sleep()
+                    else:
+                        # Anything else is an unexpected error.
+                        raise
             except (EOFError,
                     AuthenticationException,
                     SSHException,
-                    NoValidConnectionsError):
+                    NoValidConnectionsError) as e:
+                # Be more persistent than Paramiko normally
+                # is, and keep retrying.
+                logger.debug("Got %s during SSH connection"
+                             "to stack [%s] (%s), "
+                             "retrying." % (e.__class__.__name__,
+                                            self.stack_name,
+                                            stack_ip))
                 self.sleep()
             except SoftTimeLimitExceeded:
                 raise
