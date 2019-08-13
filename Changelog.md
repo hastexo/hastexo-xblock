@@ -1,4 +1,4 @@
-Unreleased
+Version 3.2.0 (2019-08-13)
 ---------------------------
 
 * [Enhancement] tox: Bump xblock12 env to XBlock 1.2.3
