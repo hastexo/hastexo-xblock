@@ -1,3 +1,17 @@
+Unreleased
+---------------------------
+
+* [Enhancement] tox: Bump xblock12 env to XBlock 1.2.3
+* [Enhancement] Add Python 3.7 to Travis configuration
+* [Enhancement] tasks.py: continue on specific EnvironmentErrors during SSH connection
+* [Enhancement] Update devstack documentation
+* [Enhancement] Task hooks
+* [DEPRECATION] `reboot_on_resume` will be removed in a future release, as its
+  intended purpose is now better served by task hooks.
+* [CONFIGURATION] The `suspend_in_parallel` configuration option is now a NOOP,
+  as suspension now always happens in parallel via simultaneously running
+  Celery tasks.
+
 Version 3.1.1 (2019-08-02)
 ---------------------------
 
