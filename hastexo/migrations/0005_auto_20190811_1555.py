@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='stack',
             name='hook_events',
-            field=jsonfield.fields.JSONField(default=None),
+            field=jsonfield.fields.JSONField(default="null"),
         ),
         migrations.AddField(
             model_name='stack',
@@ -26,7 +26,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='stack',
             name='providers',
-            field=jsonfield.fields.JSONField(default=None),
+            field=jsonfield.fields.JSONField(default="null"),
         ),
         migrations.AddField(
             model_name='stack',
@@ -36,7 +36,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='stacklog',
             name='hook_events',
-            field=jsonfield.fields.JSONField(default=None),
+            field=jsonfield.fields.JSONField(default="null"),
         ),
         migrations.AddField(
             model_name='stacklog',
@@ -46,7 +46,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='stacklog',
             name='providers',
-            field=jsonfield.fields.JSONField(default=None),
+            field=jsonfield.fields.JSONField(default="null"),
         ),
         migrations.AddField(
             model_name='stacklog',
