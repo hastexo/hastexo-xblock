@@ -1,3 +1,9 @@
+Unreleased
+---------------------------
+
+* [Bug fix] Fix JSONField model and migration
+* [Bug fix] Handle null `hook_events` properly
+
 Version 3.2.0 (2019-08-13)
 ---------------------------
 
