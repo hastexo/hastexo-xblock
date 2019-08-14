@@ -512,8 +512,10 @@ class LaunchStackTask(HastexoTask):
         try:
             # If we're resuming and there's a resume hook, execute it.
             if (was_resumed and
-                    self.hook_events.get("resume", False) and
-                    self.hook_script):
+                    self.hook_script and
+                    self.hook_events and
+                    isinstance(self.hook_events, dict) and
+                    self.hook_events.get("resume", False)):
                 logger.info("Executing post-resume hook for stack [%s] "
                             "at [%s]" % (self.stack_name, stack_ip))
                 try:
@@ -574,6 +576,8 @@ class SuspendStackTask(HastexoTask):
 
         if provider_stack["status"] in UP_STATES + (SUSPEND_FAILED_STATE,):
             if (stack.hook_script and
+                    stack.hook_events and
+                    isinstance(stack.hook_events, dict) and
                     stack.hook_events.get("suspend", False)):
                 logger.info("Executing pre-suspend hook for stack [%s] "
                             "at [%s]." % (stack.name, stack.ip))
@@ -657,6 +661,8 @@ class DeleteStackTask(HastexoTask):
 
                 # Execute the pre-delete hook.
                 if (stack.hook_script and
+                        stack.hook_events and
+                        isinstance(stack.hook_events, dict) and
                         stack.hook_events.get("delete", False)):
                     try:
                         # We need the stack to be up in order to execute the

@@ -674,6 +674,32 @@ class TestLaunchStackTask(HastexoTestCase):
             params="resume"
         )
 
+    def test_resume_hook_null(self):
+        # Setup
+        provider = self.mock_providers[1]
+        provider.get_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+        provider.resume_stack.side_effect = [
+            self.stacks["RESUME_COMPLETE"]
+        ]
+        self.update_stack({
+            "provider": self.providers[1]["name"],
+            "status": "SUSPEND_COMPLETE",
+            "hook_events": "null",
+        })
+
+        # Run
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "RESUME_COMPLETE")
+        self.assertEqual(stack.provider, self.providers[1]["name"])
+        self.assertFalse(self.mocks["remote_exec"].called)
+
     def test_resume_hook_exception(self):
         # Setup
         provider = self.mock_providers[1]
@@ -1065,6 +1091,33 @@ class TestSuspendStackTask(HastexoTestCase):
             params="suspend"
         )
 
+    def test_suspend_hook_null(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "SUSPEND_PENDING",
+            "hook_events": "null",
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["RESUME_COMPLETE"]
+        ]
+        provider.suspend_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+
+        # Run
+        SuspendStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "SUSPEND_COMPLETE")
+        self.assertEqual(stack.error_msg, u"")
+        self.assertEqual(stack.provider, self.providers[0]["name"])
+        self.mocks["remote_exec"].assert_not_called()
+
     def test_suspend_even_if_hook_fails(self):
         # Setup
         self.update_stack({
@@ -1341,6 +1394,35 @@ class TestDeleteStackTask(HastexoTestCase):
         provider.resume_stack.assert_called()
         provider.delete_stack.assert_called()
         self.mocks["remote_exec"].assert_not_called()
+
+    def test_delete_hook_null(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "DELETE_PENDING",
+            "hook_events": "null",
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+        provider.delete_stack.side_effect = [
+            self.stacks["DELETE_COMPLETE"]
+        ]
+
+        # Run
+        DeleteStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "DELETE_COMPLETE")
+        self.assertEqual(stack.error_msg, u"")
+        self.assertEqual(stack.provider, u"")
+        provider.resume_stack.assert_not_called()
+        self.mocks["remote_exec"].assert_not_called()
+        provider.delete_stack.assert_called()
 
     def test_delete_suspended_stack_even_if_hook_fails(self):
         # Setup
