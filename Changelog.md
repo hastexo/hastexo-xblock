@@ -1,4 +1,4 @@
-Unreleased
+Version 3.2.1 (2019-08-14)
 ---------------------------
 
 * [Bug fix] Fix JSONField model and migration
