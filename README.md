@@ -185,9 +185,12 @@ cloud you will be using.  All other variables can be left at their defaults.
 
 This is a brief explanation of each:
 
-* `terminal_url`: The URL path to the Guacamole web app.  It can be an absolute
-  path, or start with a ":"-prefixed port (such as ":8080/hastexo-xblock/", for
-  use in devstacks). (Default: `/hastexo-xblock/`)
+* `terminal_url`: URL to the Guacamole web app.  If it is defined with a fully
+  qualified domain, it must include the protocol (`http://` or `https://`).  If
+  not, it is assumed to be an absolute path based on the current
+  `window.location`.  (It is possible to define it with a ":"-prefixed port,
+  such as ":8080/hastexo-xblock/", for use in devstacks). (Default:
+  `/hastexo-xblock/`)
 
 * `launch_timeout`: How long to wait for a stack to be launched, in seconds.
   (Default: `900`)

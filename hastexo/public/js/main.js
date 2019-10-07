@@ -92,15 +92,22 @@ function HastexoXBlock(runtime, element, configuration) {
         }
 
         /* Process terminal URL. */
-        var prot_map = {
-            "http:":  "ws:",
-            "https:": "wss:"
-        };
-        var terminal_http_url = location.protocol + '//' + location.hostname + configuration.terminal_url;
-        var terminal_ws_url = prot_map[location.protocol] + '//' + location.hostname + configuration.terminal_url;
+        var terminal_http_url;
+        var terminal_ws_url;
+        if (configuration.terminal_url.startsWith('http')) {
+          terminal_http_url = configuration.terminal_url;
+          terminal_ws_url = configuration.terminal_url.replace('http', 'ws');
+        } else {
+          var prot_map = {
+              "http:":  "ws:",
+              "https:": "wss:"
+          };
+          terminal_http_url = location.protocol + '//' + location.hostname + configuration.terminal_url;
+          terminal_ws_url = prot_map[location.protocol] + '//' + location.hostname + configuration.terminal_url;
+        }
 
         /* Load app dynamically. */
-        $.cachedScript(terminal_http_url + '/guacamole-common-js/all.min.js').done(function() {
+        $.cachedScript(terminal_http_url + 'guacamole-common-js/all.min.js').done(function() {
             terminal_client = new Guacamole.Client(
                 new Guacamole.WebSocketTunnel(terminal_ws_url + "websocket-tunnel")
             );
