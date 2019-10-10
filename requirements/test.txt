@@ -1,6 +1,10 @@
 -r base.txt
 django>=1.11,<2.0
+celery>=3.1.25,<4.0
 -e git://github.com/edx/xblock-sdk.git@master#egg=xblock-sdk==master
+xblock-utils
+jsonfield
+six
 lazy
 nose
 mock

@@ -1,3 +1,8 @@
+Unreleased
+---------------------------
+
+* [Enhancement] Relax dependency constraints
+
 Version 3.2.1 (2019-08-14)
 ---------------------------
 
