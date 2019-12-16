@@ -579,14 +579,17 @@ class SuspendStackTask(HastexoTask):
                     stack.hook_events and
                     isinstance(stack.hook_events, dict) and
                     stack.hook_events.get("suspend", False)):
-                logger.info("Executing pre-suspend hook for stack [%s] "
-                            "at [%s]." % (stack.name, stack.ip))
-
                 try:
                     # If there's a suspend hook, execute it.
+                    logger.info("Fetching pre-suspend hook [%s] for stack "
+                                "[%s]." % (stack.hook_script, stack.ip))
                     script = read_from_contentstore(stack.course_id,
                                                     stack.hook_script)
+                    logger.info("SSHing into stack [%s] at [%s]."
+                                % (stack.name, stack.ip))
                     ssh = ssh_to(stack.user, stack.ip, stack.key)
+                    logger.info("Executing pre-suspend hook for stack [%s]."
+                                % stack.name)
                     remote_exec(ssh, script, params="suspend")
                 except Exception as e:
                     # We don't fail, as the user may have inadvertently broken
@@ -595,11 +598,13 @@ class SuspendStackTask(HastexoTask):
                     logger.error("Error running pre-suspend hook for stack "
                                  "[%s]: %s" % (stack.name, error_msg))
                 finally:
-                    ssh.close()
-
-            logger.info("Suspending stack [%s]." % stack.name)
+                    try:
+                        ssh.close()
+                    except Exception:
+                        pass
 
             # Suspend stack
+            logger.info("Suspending stack [%s]." % stack.name)
             provider_stack = provider.suspend_stack(stack.name)
         else:
             logger.error("Cannot suspend stack with status [%s]." %

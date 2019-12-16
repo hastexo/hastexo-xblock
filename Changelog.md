@@ -1,3 +1,8 @@
+Unreleased
+---------------------------
+
+* [Bug fix] Avoid unhandled exception on SSH close
+
 Version 3.3.0 (2019-10-15)
 ---------------------------
 
