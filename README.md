@@ -591,6 +591,58 @@ environment they were working with before, in the *same state* they left it in.
 (The process of suspension works just like in a home computer.)
 
 
+## Django admin page
+
+To facilitate management of stack states without direct access to the database,
+a Django admin page is provided as a frontend for the `hastexo_stack` table.
+To access it, go to the following as a superuser:
+
+https://lms.example.com/admin/hastexo/stack
+
+The following features are currently implemented:
+
+* Searching: Search for a stack's name, course ID, status, and provider.
+
+* Filtering: On the filter tab to the right, it is possible to select from a
+  preset list of three filters: `course_id`, `status`, and `provider`.  The
+  preset values are generated on the fly from existing records.
+
+* On-list editing: modify multiple stack's states or providers directly from
+  the main list.
+
+* Marking stacks as deleted in bulk: to quickly change multiple stack states to
+  `DELETE_COMPLETE`, and to reset their providers to "", select multiple stacks
+  and use the "Mark selected stacks as DELETE_COMPLETE" action from the action
+  dropdown.
+
+* Displaying owner's email: when opening a stack's edit form (by clicking on
+  its name), the owner's email is displayed.
+
+When changing providers, only the ones enabled by the author for the course in
+question are displayed.  If none are present, then the list is expanded with
+the full set of providers configured in the platform.
+
+The list of states is similarly limited to a known set of possibilities, but no
+further validation is made.
+
+Furthermore, the following are not currently possible:
+
+* Displaying the owner's email on the main list
+
+* Searching for a stack owner's email
+
+* Adding a stack record
+
+Note that making changes to the `hastexo_stack` table does not affect the
+stacks themselves.  In other words, deleting an existing stack here will merely
+delete its database record: not only will the stack itself continue to exist,
+but the XBlock will cease to handle it automatically (such as suspending or
+deleting it) until such time as the learner relaunches it.  The admin page is
+only offered as a convenient way to manually synchronize the database with
+actual stack states in case of failure.  It should not be necessary to do so in
+day-to-day usage of the XBlock.
+
+
 ## Usage in devstack
 
 It is possible to use this XBlock in devstack.  To do so, however, requires

@@ -36,9 +36,15 @@ if __name__ == "__main__":
         # The var dir may already exist.
         pass
 
+    # Add fake package to path.  Useful for duplicating modules the tests need
+    # to import, but we don't want to install and can't easily mock (such as
+    # `student.models.AnonymousUserId` from edx-platform).
+    fake_package = os.path.join(os.path.dirname(__file__), 'fake')
+    sys.path.insert(0, fake_package)
+
     from django.conf import settings
     settings.DEBUG = True
-    settings.INSTALLED_APPS += ("hastexo", )
+    settings.INSTALLED_APPS += ("hastexo", "student", )
 
     from django.core.management import execute_from_command_line
     args = sys.argv[1:]
