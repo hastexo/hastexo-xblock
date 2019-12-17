@@ -1,4 +1,4 @@
-Unreleased
+Version 3.4.0 (2019-12-17)
 ---------------------------
 
 * [Enhancement] Create admin page for stacks
