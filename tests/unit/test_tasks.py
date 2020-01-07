@@ -674,7 +674,7 @@ class TestLaunchStackTask(HastexoTestCase):
             params="resume"
         )
 
-    def test_resume_hook_null(self):
+    def test_resume_hook_empty(self):
         # Setup
         provider = self.mock_providers[1]
         provider.get_stack.side_effect = [
@@ -686,7 +686,7 @@ class TestLaunchStackTask(HastexoTestCase):
         self.update_stack({
             "provider": self.providers[1]["name"],
             "status": "SUSPEND_COMPLETE",
-            "hook_events": "null",
+            "hook_events": {},
         })
 
         # Run
@@ -1091,12 +1091,12 @@ class TestSuspendStackTask(HastexoTestCase):
             params="suspend"
         )
 
-    def test_suspend_hook_null(self):
+    def test_suspend_hook_empty(self):
         # Setup
         self.update_stack({
             "provider": self.providers[0]["name"],
             "status": "SUSPEND_PENDING",
-            "hook_events": "null",
+            "hook_events": {},
         })
         provider = self.mock_providers[0]
         provider.get_stack.side_effect = [
@@ -1395,12 +1395,12 @@ class TestDeleteStackTask(HastexoTestCase):
         provider.delete_stack.assert_called()
         self.mocks["remote_exec"].assert_not_called()
 
-    def test_delete_hook_null(self):
+    def test_delete_hook_empty(self):
         # Setup
         self.update_stack({
             "provider": self.providers[0]["name"],
             "status": "DELETE_PENDING",
-            "hook_events": "null",
+            "hook_events": {},
         })
         provider = self.mock_providers[0]
         provider.get_stack.side_effect = [

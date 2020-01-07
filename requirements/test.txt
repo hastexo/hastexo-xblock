@@ -13,3 +13,4 @@ coverage
 django-pyfs
 mako
 ddt
+sqlparse
