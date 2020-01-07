@@ -1,4 +1,4 @@
-Unreleased
+Version 3.4.1 (2020-01-07)
 ---------------------------
 
 * [Bug fix] Use empty JSONFields instead of "null"
