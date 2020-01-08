@@ -2,6 +2,7 @@ Unreleased
 ---------------------------
 
 * [Bug fix] Use empty JSONFields instead of "null"
+* [Enhancement] Refactor stack state variables
 
 Version 3.4.0 (2019-12-17)
 ---------------------------

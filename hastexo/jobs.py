@@ -10,12 +10,12 @@ from .provider import Provider
 from .tasks import DeleteStackTask, SuspendStackTask
 from .common import (
     UP_STATES,
-    SUSPEND_STATE,
-    SUSPEND_RETRY_STATE,
-    SUSPEND_FAILED_STATE,
-    DELETED_STATE,
-    DELETE_IN_PROGRESS_STATE,
-    DELETE_STATE,
+    SUSPEND_PENDING,
+    SUSPEND_RETRY,
+    SUSPEND_FAILED,
+    DELETE_COMPLETE,
+    DELETE_IN_PROGRESS,
+    DELETE_PENDING,
 )
 
 
@@ -56,9 +56,9 @@ class SuspenderJob(AbstractJob):
         timedelta = timezone.timedelta(seconds=timeout)
         cutoff = timezone.now() - timedelta
 
-        # SUSPEND_RETRY_STATE is no longer needed: we always retry on a suspend
+        # SUSPEND_RETRY is no longer needed: we always retry on a suspend
         # failure.  It is, thus, deprecated.
-        states = list(UP_STATES) + [SUSPEND_RETRY_STATE, SUSPEND_FAILED_STATE]
+        states = list(UP_STATES) + [SUSPEND_RETRY, SUSPEND_FAILED]
 
         self.refresh_db()
 
@@ -75,7 +75,7 @@ class SuspenderJob(AbstractJob):
             ).order_by('suspend_timestamp')[:concurrency]
 
             for stack in stacks:
-                stack.status = SUSPEND_STATE
+                stack.status = SUSPEND_PENDING
                 stack.save(update_fields=["status"])
 
         # Suspend them
@@ -113,9 +113,9 @@ class ReaperJob(AbstractJob):
 
         timedelta = timezone.timedelta(days=age)
         cutoff = timezone.now() - timedelta
-        dont_delete = [DELETE_STATE,
-                       DELETED_STATE,
-                       DELETE_IN_PROGRESS_STATE]
+        dont_delete = [DELETE_PENDING,
+                       DELETE_COMPLETE,
+                       DELETE_IN_PROGRESS]
 
         self.refresh_db()
 
@@ -132,7 +132,7 @@ class ReaperJob(AbstractJob):
             ).order_by('suspend_timestamp')
 
             for stack in stacks:
-                stack.status = DELETE_STATE
+                stack.status = DELETE_PENDING
                 stack.save(update_fields=["status"])
 
         # Delete them
@@ -159,12 +159,12 @@ class ReaperJob(AbstractJob):
                 except Stack.DoesNotExist:
                     continue
 
-                if stack.status == DELETED_STATE:
+                if stack.status == DELETE_COMPLETE:
                     error_msg = ("Zombie stack [%s] detected at provider [%s]"
                                  % (stack_name, provider_name))
                     self.log(error_msg)
                     stack.provider = provider_name
-                    stack.status = DELETE_STATE
+                    stack.status = DELETE_PENDING
                     stack.error_msg = error_msg
                     stack.save(update_fields=[
                         "provider",

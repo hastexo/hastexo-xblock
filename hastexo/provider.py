@@ -21,12 +21,15 @@ from googleapiclient.errors import HttpError as GcloudApiHttpError
 from .common import (
     b,
     get_xblock_settings,
-    DELETED_STATE,
-    DELETE_IN_PROGRESS_STATE,
-    RESUME_STATE,
-    RESUME_IN_PROGRESS_STATE,
-    SUSPENDED_STATE,
-    SUSPEND_IN_PROGRESS_STATE
+    IN_PROGRESS,
+    FAILED,
+    CREATE_COMPLETE,
+    DELETE_COMPLETE,
+    DELETE_IN_PROGRESS,
+    RESUME_COMPLETE,
+    RESUME_IN_PROGRESS,
+    SUSPEND_COMPLETE,
+    SUSPEND_IN_PROGRESS
 )
 from .openstack import HeatWrapper, NovaWrapper
 from .gcloud import GcloudDeploymentManager, GcloudComputeEngine
@@ -211,7 +214,7 @@ class OpenstackProvider(Provider):
         try:
             heat_stack = self.heat_c.stacks.get(stack_id=name)
         except HTTPNotFound:
-            status = DELETED_STATE
+            status = DELETE_COMPLETE
             outputs = {}
         except (HTTPException, HttpError) as e:
             raise ProviderException(e)
@@ -250,7 +253,7 @@ class OpenstackProvider(Provider):
         status = heat_stack.stack_status
 
         # Wait for stack creation
-        while 'IN_PROGRESS' in status:
+        while IN_PROGRESS in status:
             self.sleep()
 
             try:
@@ -262,7 +265,7 @@ class OpenstackProvider(Provider):
 
             status = heat_stack.stack_status
 
-        if 'FAILED' in status:
+        if FAILED in status:
             raise ProviderException("Failure creating stack.")
 
         return {"status": status,
@@ -274,11 +277,11 @@ class OpenstackProvider(Provider):
         except (HTTPException, HttpError) as e:
             raise ProviderException(e)
 
-        status = RESUME_IN_PROGRESS_STATE
+        status = RESUME_IN_PROGRESS
 
         # Wait until resume finishes.
-        while ('FAILED' not in status and
-               status != RESUME_STATE):
+        while (FAILED not in status and
+               status != RESUME_COMPLETE):
             self.sleep()
 
             try:
@@ -291,7 +294,7 @@ class OpenstackProvider(Provider):
             else:
                 status = heat_stack.stack_status
 
-        if 'FAILED' in status:
+        if FAILED in status:
             raise ProviderException("Failure resuming stack")
 
         outputs = self._get_stack_outputs(heat_stack)
@@ -315,26 +318,26 @@ class OpenstackProvider(Provider):
         except (HTTPException, HttpError) as e:
             raise ProviderException(e)
 
-        status = SUSPEND_IN_PROGRESS_STATE
+        status = SUSPEND_IN_PROGRESS
 
         # Wait until suspend finishes.
         if wait:
-            while ('FAILED' not in status and
-                   status != DELETED_STATE and
-                   status != SUSPENDED_STATE):
+            while (FAILED not in status and
+                   status != DELETE_COMPLETE and
+                   status != SUSPEND_COMPLETE):
                 self.sleep()
 
                 try:
                     heat_stack = self.heat_c.stacks.get(
                         stack_id=name)
                 except HTTPNotFound:
-                    status = DELETED_STATE
+                    status = DELETE_COMPLETE
                 except (HTTPException, HttpError) as e:
                     raise ProviderException(e)
                 else:
                     status = heat_stack.stack_status
 
-            if 'FAILED' in status:
+            if FAILED in status:
                 raise ProviderException("Failure suspending stack.")
 
         return {"status": status}
@@ -345,25 +348,25 @@ class OpenstackProvider(Provider):
         except (HTTPException, HttpError) as e:
             raise ProviderException(e)
 
-        status = DELETE_IN_PROGRESS_STATE
+        status = DELETE_IN_PROGRESS
 
         # Wait until delete finishes.
         if wait:
-            while ('FAILED' not in status and
-                   status != DELETED_STATE):
+            while (FAILED not in status and
+                   status != DELETE_COMPLETE):
                 self.sleep()
 
                 try:
                     heat_stack = self.heat_c.stacks.get(
                         stack_id=name)
                 except HTTPNotFound:
-                    status = DELETED_STATE
+                    status = DELETE_COMPLETE
                 except (HTTPException, HttpError) as e:
                     raise ProviderException(e)
                 else:
                     status = heat_stack.stack_status
 
-            if 'FAILED' in status:
+            if FAILED in status:
                 raise ProviderException("Failure deleting stack.")
 
         return {"status": status}
@@ -506,22 +509,22 @@ class GcloudProvider(Provider):
         if opstatus == "DONE":
             opstatus = "COMPLETE"
         elif opstatus == "PENDING" or opstatus == "RUNNING":
-            opstatus = "IN_PROGRESS"
+            opstatus = IN_PROGRESS
         else:
             raise ProviderException("Unknown operation status %s" % opstatus)
 
         status = "%s_%s" % (optype, opstatus)
 
         # Calculate suspend status
-        if status == "CREATE_COMPLETE":
+        if status == CREATE_COMPLETE:
             servers = self._get_deployment_servers(deployment_name)
             if servers:
                 if any(s.get("status") == "STOPPING" for s in servers):
-                    status = SUSPEND_IN_PROGRESS_STATE
+                    status = SUSPEND_IN_PROGRESS
                 elif any(s.get("status") == "STAGING" for s in servers):
-                    status = RESUME_IN_PROGRESS_STATE
+                    status = RESUME_IN_PROGRESS
                 elif all(s.get("status") == "TERMINATED" for s in servers):
-                    status = SUSPENDED_STATE
+                    status = SUSPEND_COMPLETE
 
         return status
 
@@ -575,7 +578,7 @@ class GcloudProvider(Provider):
             ).execute()
         except GcloudApiHttpError as e:
             if e.resp.status == 404:
-                status = DELETED_STATE
+                status = DELETE_COMPLETE
                 outputs = {}
             else:
                 raise ProviderException(e)
@@ -689,7 +692,7 @@ class GcloudProvider(Provider):
         except GcloudApiError as e:
             raise ProviderException(e)
 
-        status = DELETE_IN_PROGRESS_STATE
+        status = DELETE_IN_PROGRESS
 
         # Wait until delete finishes.
         if wait:
@@ -709,11 +712,11 @@ class GcloudProvider(Provider):
                                 message = "Error in operation."
                             raise ProviderException(message)
 
-                        status = DELETED_STATE
+                        status = DELETE_COMPLETE
                         break
                 except GcloudApiHttpError as e:
                     if e.resp.status == 404:
-                        status = DELETED_STATE
+                        status = DELETE_COMPLETE
                         break
                     else:
                         raise ProviderException(e)
@@ -747,7 +750,7 @@ class GcloudProvider(Provider):
                                         " %s" % (server["name"],
                                                  server["status"]))
 
-        status = SUSPEND_IN_PROGRESS_STATE
+        status = SUSPEND_IN_PROGRESS
 
         # Wait until suspend finishes.
         if wait:
@@ -755,7 +758,7 @@ class GcloudProvider(Provider):
                 self.sleep()
                 servers = self._get_deployment_servers(deployment_name)
                 if all(s.get("status") == "TERMINATED" for s in servers):
-                    status = SUSPENDED_STATE
+                    status = SUSPEND_COMPLETE
                     break
 
         return {"status": status}

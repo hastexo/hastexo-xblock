@@ -18,8 +18,8 @@ from .common import (
     UP_STATES,
     DOWN_STATES,
     PENDING_STATES,
-    LAUNCH_STATE,
-    LAUNCH_ERROR_STATE,
+    LAUNCH_PENDING,
+    LAUNCH_ERROR,
     SETTINGS_KEY,
     get_xblock_settings,
     get_stack,
@@ -466,7 +466,7 @@ class HastexoXBlock(XBlock,
             })
 
             # Update stack
-            stack.status = LAUNCH_STATE
+            stack.status = LAUNCH_PENDING
             stack.error_msg = ""
             stack.launch_task_id = result.id
             stack.launch_timestamp = timezone.now()
@@ -488,7 +488,7 @@ class HastexoXBlock(XBlock,
             try:
                 _check_result(_launch_stack(reset))
             except LaunchError as e:
-                stack.status = LAUNCH_ERROR_STATE
+                stack.status = LAUNCH_ERROR
                 stack.error_msg = e.error_msg
         elif stack.status in UP_STATES:
             # The stack is up.  Reset it, if requested.
@@ -498,21 +498,21 @@ class HastexoXBlock(XBlock,
                 try:
                     _check_result(_launch_stack(reset))
                 except LaunchError as e:
-                    stack.status = LAUNCH_ERROR_STATE
+                    stack.status = LAUNCH_ERROR
                     stack.error_msg = e.error_msg
 
             else:
                 logger.info("Successful launch detected for [%s], "
                             "with status [%s]" %
                             (self.stack_name, stack.status))
-        elif stack.status == LAUNCH_STATE:
+        elif stack.status == LAUNCH_PENDING:
             # The stack is pending launch.
             try:
                 # Check if the Celery task hasn't blown up.
                 task_id = stack.launch_task_id
                 _check_result(self.launch_stack_task_result(task_id))
             except LaunchError as e:
-                stack.status = LAUNCH_ERROR_STATE
+                stack.status = LAUNCH_ERROR
                 stack.error_msg = e.error_msg
             else:
                 # Calculate time since launch
@@ -541,7 +541,7 @@ class HastexoXBlock(XBlock,
                     try:
                         _check_result(_launch_stack(reset))
                     except LaunchError as e:
-                        stack.status = LAUNCH_ERROR_STATE
+                        stack.status = LAUNCH_ERROR
                         stack.error_msg = e.error_msg
                 else:
                     # Timeout reached.  Consider the task a failure and let the
@@ -549,7 +549,7 @@ class HastexoXBlock(XBlock,
                     logger.error("Launch timeout reached for [%s] "
                                  "after %s seconds" % (self.stack_name,
                                                        time_since_launch))
-                    stack.status = LAUNCH_ERROR_STATE
+                    stack.status = LAUNCH_ERROR
                     stack.error_msg = "Timeout when launching stack."
         elif stack.status in PENDING_STATES:
             # The stack is otherwise pending.  Report and let the user retry
@@ -569,7 +569,7 @@ class HastexoXBlock(XBlock,
             try:
                 _check_result(_launch_stack(reset))
             except LaunchError as e:
-                stack.status = LAUNCH_ERROR_STATE
+                stack.status = LAUNCH_ERROR
                 stack.error_msg = e.error_msg
         else:
             # Detected a failed stack.  Report the error and let the user retry
