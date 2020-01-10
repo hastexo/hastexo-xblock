@@ -87,6 +87,7 @@ VALID_STATES = (
     DELETE_PENDING,  # noqa: F821
     LAUNCH_ERROR,  # noqa: F821
     LAUNCH_PENDING,  # noqa: F821
+    LAUNCH_TIMEOUT,  # noqa: F821
     RESTORE_COMPLETE,  # noqa: F821
     RESTORE_FAILED,  # noqa: F821
     RESTORE_IN_PROGRESS,  # noqa: F821
