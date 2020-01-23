@@ -4,6 +4,7 @@ Unreleased
 * [Bug fix] Use empty JSONFields instead of "null"
 * [Enhancement] Refactor stack state variables
 * [Bug fix] Add missing valid state, LAUNCH_TIMEOUT
+* [Enhancement] Show coverage report at test end
 
 Version 3.4.0 (2019-12-17)
 ---------------------------

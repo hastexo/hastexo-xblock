@@ -60,3 +60,4 @@ if __name__ == "__main__":
     c.start()
     execute_from_command_line([sys.argv[0], "test"] + paths + options)
     c.stop()
+    c.report(show_missing=True)
