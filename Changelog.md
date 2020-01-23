@@ -1,4 +1,4 @@
-Unreleased
+Version 3.4.2 (2020-01-23)
 ---------------------------
 
 * [Security fix] test: Require django>=1.11.27 (CVE-2019-19844)
