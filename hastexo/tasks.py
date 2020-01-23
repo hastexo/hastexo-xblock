@@ -11,6 +11,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 from .models import Stack
 from .provider import Provider, ProviderException
 from .common import (
+    DELETE,
     IN_PROGRESS,
     UP_STATES,
     OCCUPANCY_STATES,
@@ -305,8 +306,12 @@ class LaunchStackTask(HastexoTask):
                 except ProviderException as e:
                     error_msg = ("Error waiting for stack [%s] to change "
                                  "state: %s" % (self.stack_name, e))
-                    raise LaunchStackFailed(provider, CREATE_FAILED,
-                                            error_msg)
+                    if DELETE in provider_stack["status"]:
+                        raise LaunchStackFailed(provider, CREATE_FAILED,
+                                                error_msg)
+                    else:
+                        raise LaunchStackFailed(provider, RESUME_FAILED,
+                                                error_msg, CLEANUP_SUSPEND)
         except SoftTimeLimitExceeded:
             error_msg = "Timeout waiting for stack [%s] state change." % (
                 self.stack_name)
@@ -663,9 +668,7 @@ class DeleteStackTask(HastexoTask):
             if attempt:
                 self.sleep()
 
-            if provider_stack["status"] == DELETE_COMPLETE:
-                logger.info("Stack [%s] deleted successfully." % stack.name)
-            elif provider_stack["status"] != DELETE_IN_PROGRESS:
+            if provider_stack["status"] != DELETE_IN_PROGRESS:
                 logger.info("Attempt [%d] to delete stack [%s]." % (
                     attempt, stack.name))
 

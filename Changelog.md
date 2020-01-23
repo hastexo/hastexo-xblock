@@ -5,6 +5,7 @@ Unreleased
 * [Enhancement] Refactor stack state variables
 * [Bug fix] Add missing valid state, LAUNCH_TIMEOUT
 * [Enhancement] Show coverage report at test end
+* [Bug fix] Fix error handling when waiting for state change
 
 Version 3.4.0 (2019-12-17)
 ---------------------------
