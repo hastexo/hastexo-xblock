@@ -5,7 +5,7 @@ from django import forms
 from django.contrib import admin
 from student.models import AnonymousUserId
 
-from .common import STATES, get_xblock_settings
+from .common import DELETE_COMPLETE, VALID_STATES, get_xblock_settings
 from .models import Stack
 
 
@@ -14,7 +14,7 @@ def mark_deleted(modeladmin, request, queryset):
     Mark selected stacks as deleted, and reset the provider.
 
     """
-    queryset.update(status="DELETE_COMPLETE", provider="")
+    queryset.update(status=DELETE_COMPLETE, provider="")
 
 
 mark_deleted.short_description = "Mark selected stacks as DELETE_COMPLETE"
@@ -74,7 +74,8 @@ class StackAdminForm(forms.ModelForm):
             provider_choices = [""] + list(providers)
 
         self.fields["provider"].choices = [(i, i) for i in provider_choices]
-        self.fields["status"].choices = [(i, i) for i in STATES]
+        self.fields["status"].choices = [("", "")] + \
+                                        [(i, i) for i in VALID_STATES]
 
 
 class StackAdmin(admin.ModelAdmin):

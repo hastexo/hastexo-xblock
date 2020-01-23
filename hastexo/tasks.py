@@ -11,13 +11,19 @@ from celery.exceptions import SoftTimeLimitExceeded
 from .models import Stack
 from .provider import Provider, ProviderException
 from .common import (
+    DELETE,
+    IN_PROGRESS,
     UP_STATES,
     OCCUPANCY_STATES,
-    SUSPENDED_STATE,
-    SUSPEND_FAILED_STATE,
-    DELETED_STATE,
-    DELETE_IN_PROGRESS_STATE,
-    DELETE_FAILED_STATE,
+    RESUME_COMPLETE,
+    RESUME_FAILED,
+    SUSPEND_COMPLETE,
+    SUSPEND_FAILED,
+    CREATE_FAILED,
+    DELETE_COMPLETE,
+    DELETE_IN_PROGRESS,
+    DELETE_FAILED,
+    LAUNCH_TIMEOUT,
     get_xblock_settings,
     update_stack_fields,
     ssh_to,
@@ -236,7 +242,7 @@ class LaunchStackTask(HastexoTask):
                 # If this is the last provider, or it was a timeout, re-raise
                 # the exception and let the parent clean up.
                 if (index == (len(self.providers) - 1) or
-                   e.status == "LAUNCH_TIMEOUT"):
+                   e.status == LAUNCH_TIMEOUT):
                     raise
                 else:
                     logger.error(e.error_msg)
@@ -247,7 +253,7 @@ class LaunchStackTask(HastexoTask):
                     except SoftTimeLimitExceeded:
                         error_msg = "Timeout cleaning up stack [%s]." % (
                             self.stack_name)
-                        raise LaunchStackFailed(e.provider, "LAUNCH_TIMEOUT",
+                        raise LaunchStackFailed(e.provider, LAUNCH_TIMEOUT,
                                                 error_msg)
 
         if stack_data is None:
@@ -255,7 +261,7 @@ class LaunchStackTask(HastexoTask):
                          (self.stack_name))
             error_msg = ("There are no providers available to launch your "
                          "environment in.")
-            raise LaunchStackFailed("", "CREATE_FAILED", error_msg)
+            raise LaunchStackFailed("", CREATE_FAILED, error_msg)
 
         return stack_data
 
@@ -282,16 +288,16 @@ class LaunchStackTask(HastexoTask):
         except ProviderException as e:
             error_msg = ("Error retrieving [%s] stack information: %s" %
                          (self.stack_name, e))
-            raise LaunchStackFailed(provider, "CREATE_FAILED", error_msg)
+            raise LaunchStackFailed(provider, CREATE_FAILED, error_msg)
         except SoftTimeLimitExceeded:
             error_msg = "Timeout fetching stack [%s] information." % (
                 self.stack_name)
-            raise LaunchStackFailed(provider, "LAUNCH_TIMEOUT", error_msg)
+            raise LaunchStackFailed(provider, LAUNCH_TIMEOUT, error_msg)
 
         # If stack is undergoing a change of state, wait until it
         # finishes.
         try:
-            while 'IN_PROGRESS' in provider_stack["status"]:
+            while IN_PROGRESS in provider_stack["status"]:
                 try:
                     # Sleep to avoid throttling.
                     self.sleep()
@@ -300,17 +306,21 @@ class LaunchStackTask(HastexoTask):
                 except ProviderException as e:
                     error_msg = ("Error waiting for stack [%s] to change "
                                  "state: %s" % (self.stack_name, e))
-                    raise LaunchStackFailed(provider, "CREATE_FAILED",
-                                            error_msg)
+                    if DELETE in provider_stack["status"]:
+                        raise LaunchStackFailed(provider, CREATE_FAILED,
+                                                error_msg)
+                    else:
+                        raise LaunchStackFailed(provider, RESUME_FAILED,
+                                                error_msg, CLEANUP_SUSPEND)
         except SoftTimeLimitExceeded:
             error_msg = "Timeout waiting for stack [%s] state change." % (
                 self.stack_name)
-            raise LaunchStackFailed(provider, "LAUNCH_TIMEOUT", error_msg)
+            raise LaunchStackFailed(provider, LAUNCH_TIMEOUT, error_msg)
 
         # Reset the stack, if necessary
         if reset:
             try:
-                if provider_stack["status"] != 'DELETE_COMPLETE':
+                if provider_stack["status"] != DELETE_COMPLETE:
                     # Sleep to avoid throttling.
                     self.sleep()
 
@@ -319,14 +329,14 @@ class LaunchStackTask(HastexoTask):
             except ProviderException as e:
                 error_msg = ("Error deleting stack [%s]: %s" %
                              (self.stack_name, e))
-                raise LaunchStackFailed(provider, "CREATE_FAILED", error_msg)
+                raise LaunchStackFailed(provider, CREATE_FAILED, error_msg)
             except SoftTimeLimitExceeded:
                 error_msg = "Timeout resetting stack [%s]." % self.stack_name
-                raise LaunchStackFailed(provider, "LAUNCH_TIMEOUT", error_msg)
+                raise LaunchStackFailed(provider, LAUNCH_TIMEOUT, error_msg)
         else:
             # Create the stack if it doesn't exist
             try:
-                if provider_stack["status"] == 'DELETE_COMPLETE':
+                if provider_stack["status"] == DELETE_COMPLETE:
                     # Sleep to avoid throttling.
                     self.sleep()
 
@@ -336,20 +346,20 @@ class LaunchStackTask(HastexoTask):
             except ProviderException as e:
                 error_msg = ("Error creating stack [%s]: %s" %
                              (self.stack_name, e))
-                raise LaunchStackFailed(provider, "CREATE_FAILED", error_msg,
+                raise LaunchStackFailed(provider, CREATE_FAILED, error_msg,
                                         CLEANUP_DELETE)
             except SoftTimeLimitExceeded:
                 error_msg = "Timeout creating stack [%s]." % self.stack_name
-                raise LaunchStackFailed(provider, "LAUNCH_TIMEOUT", error_msg,
+                raise LaunchStackFailed(provider, LAUNCH_TIMEOUT, error_msg,
                                         CLEANUP_DELETE)
             # If stack is suspended, resume it.
             try:
-                if provider_stack["status"] == 'SUSPEND_COMPLETE' or \
-                        provider_stack["status"] == 'RESUME_COMPLETE':
+                if provider_stack["status"] == SUSPEND_COMPLETE or \
+                        provider_stack["status"] == RESUME_COMPLETE:
                     # Store the fact the stack was resumed
                     was_resumed = True
 
-                if provider_stack["status"] == 'SUSPEND_COMPLETE':
+                if provider_stack["status"] == SUSPEND_COMPLETE:
                     # Sleep to avoid throttling.
                     self.sleep()
 
@@ -358,11 +368,11 @@ class LaunchStackTask(HastexoTask):
             except ProviderException as e:
                 error_msg = ("Error resuming stack [%s]: %s" %
                              (self.stack_name, e))
-                raise LaunchStackFailed(provider, "RESUME_FAILED", error_msg,
+                raise LaunchStackFailed(provider, RESUME_FAILED, error_msg,
                                         CLEANUP_SUSPEND)
             except SoftTimeLimitExceeded:
                 error_msg = "Timeout resuming stack [%s]." % self.stack_name
-                raise LaunchStackFailed(provider, "LAUNCH_TIMEOUT", error_msg,
+                raise LaunchStackFailed(provider, LAUNCH_TIMEOUT, error_msg,
                                         CLEANUP_SUSPEND)
 
             # Launch completed successfully.  Wait for provisioning, collect
@@ -377,7 +387,7 @@ class LaunchStackTask(HastexoTask):
                     cleanup = CLEANUP_DELETE
 
                 error_msg = "Timeout verifying stack [%s]." % self.stack_name
-                raise LaunchStackFailed(provider, "LAUNCH_TIMEOUT", error_msg,
+                raise LaunchStackFailed(provider, LAUNCH_TIMEOUT, error_msg,
                                         cleanup)
 
             stack_data = {
@@ -429,10 +439,10 @@ class LaunchStackTask(HastexoTask):
             raise
         except Exception:
             if was_resumed:
-                error_status = 'RESUME_FAILED'
+                error_status = RESUME_FAILED
                 cleanup = CLEANUP_SUSPEND
             else:
-                error_status = 'CREATE_FAILED'
+                error_status = CREATE_FAILED
                 cleanup = CLEANUP_DELETE
 
             logger.error("Exception when checking SSH connection to stack "
@@ -486,10 +496,10 @@ class LaunchStackTask(HastexoTask):
 
         if stack_ip is None or not stack_key:
             if was_resumed:
-                error_status = 'RESUME_FAILED'
+                error_status = RESUME_FAILED
                 cleanup = CLEANUP_SUSPEND
             else:
-                error_status = 'CREATE_FAILED'
+                error_status = CREATE_FAILED
                 cleanup = CLEANUP_DELETE
 
             error_msg = ("Stack [%s] did not provide "
@@ -560,7 +570,7 @@ class SuspendStackTask(HastexoTask):
             error_msg = "Error suspending stack [%s]: %s" % (stack.name,
                                                              str(e))
             logger.error(error_msg)
-            status = SUSPEND_FAILED_STATE
+            status = SUSPEND_FAILED
         else:
             error_msg = ""
 
@@ -574,7 +584,7 @@ class SuspendStackTask(HastexoTask):
         provider = Provider.init(stack.provider)
         provider_stack = provider.get_stack(stack.name)
 
-        if provider_stack["status"] in UP_STATES + (SUSPEND_FAILED_STATE,):
+        if provider_stack["status"] in UP_STATES + (SUSPEND_FAILED,):
             if (stack.hook_script and
                     stack.hook_events and
                     isinstance(stack.hook_events, dict) and
@@ -626,7 +636,7 @@ class DeleteStackTask(HastexoTask):
         try:
             status = self.delete_stack(stack)
         except Exception as e:
-            status = DELETE_FAILED_STATE
+            status = DELETE_FAILED
             provider = stack.provider
             error_msg = "Error deleting stack [%s]: %s" % (
                 stack.name, str(e))
@@ -653,14 +663,12 @@ class DeleteStackTask(HastexoTask):
         provider_stack = provider.get_stack(stack.name)
         attempt = 0
 
-        while (provider_stack["status"] != DELETED_STATE and
+        while (provider_stack["status"] != DELETE_COMPLETE and
                attempt < attempts):
             if attempt:
                 self.sleep()
 
-            if provider_stack["status"] == DELETED_STATE:
-                logger.info("Stack [%s] deleted successfully." % stack.name)
-            elif provider_stack["status"] != DELETE_IN_PROGRESS_STATE:
+            if provider_stack["status"] != DELETE_IN_PROGRESS:
                 logger.info("Attempt [%d] to delete stack [%s]." % (
                     attempt, stack.name))
 
@@ -672,7 +680,7 @@ class DeleteStackTask(HastexoTask):
                     try:
                         # We need the stack to be up in order to execute the
                         # pre-delete hook.
-                        if provider_stack["status"] == SUSPENDED_STATE:
+                        if provider_stack["status"] == SUSPEND_COMPLETE:
                             provider_stack = provider.resume_stack(
                                 stack.name)
                         elif provider_stack["status"] not in UP_STATES:

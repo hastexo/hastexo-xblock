@@ -1,3 +1,4 @@
+import copy
 import socket
 
 from unittest import TestCase
@@ -202,6 +203,36 @@ class TestLaunchStackTask(HastexoTestCase):
         )
         self.assertFalse(self.mocks["remote_exec"].called)
 
+    def test_create_stack_has_no_ip(self):
+        # Setup
+        provider1 = self.mock_providers[0]
+        provider1.get_stack.side_effect = [
+            self.stacks["DELETE_COMPLETE"]
+        ]
+        create_complete_stack = copy.deepcopy(self.stacks["CREATE_COMPLETE"])
+        create_complete_stack["outputs"]["public_ip"] = None
+        provider1.create_stack.side_effect = [
+            create_complete_stack
+        ]
+        provider2 = self.mock_providers[1]
+        provider2.get_stack.side_effect = [
+            self.stacks["DELETE_COMPLETE"]
+        ]
+        provider2.create_stack.side_effect = [
+            self.stacks["CREATE_COMPLETE"]
+        ]
+
+        # Run
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "CREATE_COMPLETE")
+        self.assertEqual(stack.provider, self.providers[1]["name"])
+        provider1.delete_stack.assert_called()
+
     def test_provider_error_on_first_provider(self):
         # Setup
         provider1 = self.mock_providers[0]
@@ -348,6 +379,30 @@ class TestLaunchStackTask(HastexoTestCase):
         self.assertEqual(stack.status, "CREATE_COMPLETE")
         self.assertEqual(stack.provider, self.providers[1]["name"])
         self.assertEqual(stack.error_msg, u"")
+        provider1.delete_stack.assert_called()
+
+    def test_timeout_on_cleanup_delete(self):
+        # Setup
+        provider1 = self.mock_providers[0]
+        provider1.get_stack.side_effect = [
+            self.stacks["DELETE_COMPLETE"]
+        ]
+        provider1.create_stack.side_effect = [
+            ProviderException()
+        ]
+        provider1.delete_stack.side_effect = [
+            SoftTimeLimitExceeded()
+        ]
+
+        # Run
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
+        self.assertEqual(stack.provider, "")
         provider1.delete_stack.assert_called()
 
     def test_provider_error_on_cleanup_resume(self):
@@ -565,6 +620,23 @@ class TestLaunchStackTask(HastexoTestCase):
         self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
         self.assertEqual(stack.provider, "")
 
+    def test_timeout_on_get_stack(self):
+        # Setup
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            SoftTimeLimitExceeded
+        ]
+
+        # Run
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
+        self.assertEqual(stack.provider, "")
+
     def test_create_failure_on_all_providers(self):
         # Setup
         for m in self.mock_providers:
@@ -645,6 +717,31 @@ class TestLaunchStackTask(HastexoTestCase):
         provider.create_stack.assert_called()
         self.assertEqual(stack.status, "CREATE_COMPLETE")
 
+    def test_reset_timeout_on_delete(self):
+        # Setup
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["CREATE_FAILED"],
+        ]
+        provider.delete_stack.side_effect = [
+            SoftTimeLimitExceeded
+        ]
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "CREATE_FAILED"
+        })
+        self.kwargs["reset"] = True
+
+        # Run
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
+        self.assertEqual(stack.provider, "")
+
     def test_resume_suspended_stack(self):
         # Setup
         provider = self.mock_providers[1]
@@ -674,7 +771,58 @@ class TestLaunchStackTask(HastexoTestCase):
             params="resume"
         )
 
-    def test_resume_hook_null(self):
+    def test_resumed_stack_has_no_ip(self):
+        # Setup
+        provider = self.mock_providers[1]
+        provider.get_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+        resume_complete_stack = copy.deepcopy(self.stacks["RESUME_COMPLETE"])
+        resume_complete_stack["outputs"]["public_ip"] = None
+        provider.resume_stack.side_effect = [
+            resume_complete_stack
+        ]
+        self.update_stack({
+            "provider": self.providers[1]["name"],
+            "status": "SUSPEND_COMPLETE"
+        })
+
+        # Run
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "RESUME_FAILED")
+        self.assertEqual(stack.provider, self.providers[1]["name"])
+        provider.suspend_stack.assert_called()
+
+    def test_timeout_resuming_stack(self):
+        # Setup
+        provider = self.mock_providers[1]
+        provider.get_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+        provider.resume_stack.side_effect = [
+            SoftTimeLimitExceeded
+        ]
+        self.update_stack({
+            "provider": self.providers[1]["name"],
+            "status": "SUSPEND_COMPLETE"
+        })
+
+        # Run
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
+        self.assertEqual(stack.provider, self.providers[1]["name"])
+
+    def test_resume_hook_empty(self):
         # Setup
         provider = self.mock_providers[1]
         provider.get_stack.side_effect = [
@@ -686,7 +834,7 @@ class TestLaunchStackTask(HastexoTestCase):
         self.update_stack({
             "provider": self.providers[1]["name"],
             "status": "SUSPEND_COMPLETE",
-            "hook_events": "null",
+            "hook_events": {},
         })
 
         # Run
@@ -752,6 +900,50 @@ class TestLaunchStackTask(HastexoTestCase):
         self.assertEqual(stack.provider, self.providers[1]["name"])
         self.assertTrue(self.mocks["remote_exec"].called)
 
+    def test_error_waiting_for_stack_to_change_state_on_resume(self):
+        # Setup
+        provider = self.mock_providers[2]
+        provider.get_stack.side_effect = [
+            self.stacks["RESUME_IN_PROGRESS"],
+            ProviderException()
+        ]
+        self.update_stack({
+            "provider": self.providers[2]["name"],
+            "status": "SUSPEND_COMPLETE"
+        })
+
+        # Run
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "RESUME_FAILED")
+        self.assertEqual(stack.provider, self.providers[2]["name"])
+
+    def test_error_waiting_for_stack_to_change_state_on_create(self):
+        # Setup
+        provider = self.mock_providers[2]
+        provider.get_stack.side_effect = [
+            self.stacks["DELETE_IN_PROGRESS"],
+            ProviderException()
+        ]
+        self.update_stack({
+            "provider": self.providers[2]["name"],
+            "status": "SUSPEND_COMPLETE"
+        })
+
+        # Run
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "CREATE_FAILED")
+        self.assertEqual(stack.provider, "")
+
     def test_resume_suspending_stack(self):
         # Setup
         provider = self.mock_providers[2]
@@ -782,6 +974,30 @@ class TestLaunchStackTask(HastexoTestCase):
         )
 
     def test_delete_stack_on_create_failed(self):
+        # Setup
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["DELETE_COMPLETE"]
+        ]
+        provider.create_stack.side_effect = [
+            ProviderException()
+        ]
+        self.providers = [self.providers[0]]
+        self.update_stack({"providers": self.providers})
+
+        # Run
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "CREATE_FAILED")
+        provider.delete_stack.assert_called_with(
+            self.stack_name, False
+        )
+
+    def test_cleanup_timeout_on_create_failed(self):
         # Setup
         provider = self.mock_providers[0]
         provider.get_stack.side_effect = [
@@ -1091,12 +1307,12 @@ class TestSuspendStackTask(HastexoTestCase):
             params="suspend"
         )
 
-    def test_suspend_hook_null(self):
+    def test_suspend_hook_empty(self):
         # Setup
         self.update_stack({
             "provider": self.providers[0]["name"],
             "status": "SUSPEND_PENDING",
-            "hook_events": "null",
+            "hook_events": {},
         })
         provider = self.mock_providers[0]
         provider.get_stack.side_effect = [
@@ -1395,12 +1611,12 @@ class TestDeleteStackTask(HastexoTestCase):
         provider.delete_stack.assert_called()
         self.mocks["remote_exec"].assert_not_called()
 
-    def test_delete_hook_null(self):
+    def test_delete_hook_empty(self):
         # Setup
         self.update_stack({
             "provider": self.providers[0]["name"],
             "status": "DELETE_PENDING",
-            "hook_events": "null",
+            "hook_events": {},
         })
         provider = self.mock_providers[0]
         provider.get_stack.side_effect = [

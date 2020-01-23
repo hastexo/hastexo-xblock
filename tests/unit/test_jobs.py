@@ -6,11 +6,11 @@ from hastexo.jobs import SuspenderJob, ReaperJob
 from hastexo.models import Stack, StackLog
 from hastexo.provider import ProviderException
 from hastexo.common import (
-    CREATE_STATE,
-    SUSPEND_STATE,
-    DELETE_STATE,
-    DELETED_STATE,
-    DELETE_IN_PROGRESS_STATE,
+    CREATE_COMPLETE,
+    SUSPEND_PENDING,
+    DELETE_PENDING,
+    DELETE_COMPLETE,
+    DELETE_IN_PROGRESS,
 )
 
 
@@ -116,7 +116,7 @@ class TestHastexoJobs(TestCase):
         # Assert
         mock_suspend_task.apply_async.assert_called()
         stack = Stack.objects.get(name=self.stack_name)
-        self.assertEqual(stack.status, SUSPEND_STATE)
+        self.assertEqual(stack.status, SUSPEND_PENDING)
 
     def test_suspend_stack_for_the_second_time(self):
         # Setup
@@ -142,7 +142,7 @@ class TestHastexoJobs(TestCase):
         # Assert
         mock_suspend_task.apply_async.assert_called()
         stack = Stack.objects.get(name=self.stack_name)
-        self.assertEqual(stack.status, SUSPEND_STATE)
+        self.assertEqual(stack.status, SUSPEND_PENDING)
 
     def test_dont_suspend_unexistent_stack(self):
         # Setup
@@ -278,9 +278,9 @@ class TestHastexoJobs(TestCase):
         # Assert
         self.assertEqual(2, len(mock_suspend_task.apply_async.mock_calls))
         stack1 = Stack.objects.get(name=stack1_name)
-        self.assertEqual(stack1.status, SUSPEND_STATE)
+        self.assertEqual(stack1.status, SUSPEND_PENDING)
         stack2 = Stack.objects.get(name=stack2_name)
-        self.assertEqual(stack2.status, SUSPEND_STATE)
+        self.assertEqual(stack2.status, SUSPEND_PENDING)
         stack3 = Stack.objects.get(name=stack3_name)
         self.assertEqual(stack3.status, state)
 
@@ -331,9 +331,9 @@ class TestHastexoJobs(TestCase):
         # Assert
         self.assertEqual(2, len(mock_delete_task.apply_async.mock_calls))
         stack1 = Stack.objects.get(name=stack1_name)
-        self.assertEqual(stack1.status, DELETE_STATE)
+        self.assertEqual(stack1.status, DELETE_PENDING)
         stack2 = Stack.objects.get(name=stack2_name)
-        self.assertEqual(stack2.status, DELETE_STATE)
+        self.assertEqual(stack2.status, DELETE_PENDING)
         stack3 = Stack.objects.get(name=stack3_name)
         self.assertEqual(stack3.status, state)
 
@@ -349,7 +349,7 @@ class TestHastexoJobs(TestCase):
             name=stack1_name,
             suspend_timestamp=delete_timestamp,
             provider="provider1",
-            status=DELETE_STATE
+            status=DELETE_PENDING
         )
         stack1.save()
         stack2_name = "bogus_stack_2"
@@ -359,7 +359,7 @@ class TestHastexoJobs(TestCase):
             name=stack2_name,
             suspend_timestamp=delete_timestamp,
             provider="provider2",
-            status=DELETE_IN_PROGRESS_STATE
+            status=DELETE_IN_PROGRESS
         )
         stack2.save()
         stack3_name = "bogus_stack_3"
@@ -369,7 +369,7 @@ class TestHastexoJobs(TestCase):
             name=stack3_name,
             suspend_timestamp=delete_timestamp,
             provider="provider3",
-            status=DELETED_STATE
+            status=DELETE_COMPLETE
         )
         stack3.save()
         stack4_name = "bogus_stack_4"
@@ -390,11 +390,11 @@ class TestHastexoJobs(TestCase):
         # Assert
         mock_delete_task.apply_async.assert_not_called()
         stack1 = Stack.objects.get(name=stack1_name)
-        self.assertEqual(stack1.status, DELETE_STATE)
+        self.assertEqual(stack1.status, DELETE_PENDING)
         stack2 = Stack.objects.get(name=stack2_name)
-        self.assertEqual(stack2.status, DELETE_IN_PROGRESS_STATE)
+        self.assertEqual(stack2.status, DELETE_IN_PROGRESS)
         stack3 = Stack.objects.get(name=stack3_name)
-        self.assertEqual(stack3.status, DELETED_STATE)
+        self.assertEqual(stack3.status, DELETE_COMPLETE)
         stack4 = Stack.objects.get(name=stack4_name)
         self.assertEqual(stack4.status, "CREATE_FAILED")
 
@@ -446,7 +446,7 @@ class TestHastexoJobs(TestCase):
                 course_id=self.course_id,
                 name=stack_names[i],
                 suspend_timestamp=delete_timestamp,
-                status=DELETED_STATE
+                status=DELETE_COMPLETE
             )
             _stack.save()
 
@@ -456,7 +456,7 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             name=stack_names[4],
             suspend_timestamp=dont_delete_timestamp,
-            status=CREATE_STATE
+            status=CREATE_COMPLETE
         )
         _stack.save()
 
@@ -465,17 +465,17 @@ class TestHastexoJobs(TestCase):
         for i in range(0, 3):
             provider1_stacks.append({
                 "name": stack_names[i],
-                "status": CREATE_STATE
+                "status": CREATE_COMPLETE
             })
         provider2_stacks = []
         for i in range(3, 5):
             provider2_stacks.append({
                 "name": stack_names[i],
-                "status": CREATE_STATE
+                "status": CREATE_COMPLETE
             })
         provider3_stacks = [{
             "name": "unknown",
-            "status": CREATE_STATE
+            "status": CREATE_COMPLETE
         }]
         mock_provider.get_stacks.side_effect = [
             provider1_stacks,
@@ -496,15 +496,15 @@ class TestHastexoJobs(TestCase):
         # Assert
         self.assertEqual(4, len(mock_delete_task.apply_async.mock_calls))
         stack = Stack.objects.get(name=stack_names[0])
-        self.assertEqual(stack.status, DELETE_STATE)
+        self.assertEqual(stack.status, DELETE_PENDING)
         stack = Stack.objects.get(name=stack_names[1])
-        self.assertEqual(stack.status, DELETE_STATE)
+        self.assertEqual(stack.status, DELETE_PENDING)
         stack = Stack.objects.get(name=stack_names[2])
-        self.assertEqual(stack.status, DELETE_STATE)
+        self.assertEqual(stack.status, DELETE_PENDING)
         stack = Stack.objects.get(name=stack_names[3])
-        self.assertEqual(stack.status, DELETE_STATE)
+        self.assertEqual(stack.status, DELETE_PENDING)
         stack = Stack.objects.get(name=stack_names[4])
-        self.assertEqual(stack.status, CREATE_STATE)
+        self.assertEqual(stack.status, CREATE_COMPLETE)
 
     def test_exception_destroying_zombies(self):
         # Setup
@@ -541,6 +541,6 @@ class TestHastexoJobs(TestCase):
         states = [l.status for l in stacklog]
         expected_states = [
             state,
-            SUSPEND_STATE
+            SUSPEND_PENDING
         ]
         self.assertEqual(states, expected_states)
