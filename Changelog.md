@@ -1,3 +1,10 @@
+Unreleased
+---------------------------
+
+* [Security fix] test: Require django>=1.11.27 (CVE-2019-19844)
+* [Enhancement] Bump XBlock 1.2 version to 1.2.9
+* [Enhancement] Add Python 3.8 to test matrix
+
 Version 3.4.1 (2020-01-07)
 ---------------------------
 
