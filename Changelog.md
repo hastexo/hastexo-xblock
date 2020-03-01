@@ -1,3 +1,8 @@
+Unreleased
+---------------------------
+
+* [Enhancement] Allow nested blocks
+
 Version 3.5.1 (2020-03-25)
 ---------------------------
 

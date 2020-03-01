@@ -6,7 +6,11 @@ from xblock.core import XBlock, XML_NAMESPACES
 from xblock.fields import Scope, Float, String, Dict, List, Integer
 from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
-from xblockutils.studio_editable import StudioEditableXBlockMixin
+from xblockutils.studio_editable import (
+    NestedXBlockSpec,
+    StudioContainerWithNestedXBlocksMixin,
+    StudioEditableXBlockMixin,
+)
 from xblockutils.settings import XBlockWithSettingsMixin
 
 from django.db import transaction
@@ -43,14 +47,18 @@ class LaunchError(Exception):
 @XBlock.wants('settings')
 class HastexoXBlock(XBlock,
                     XBlockWithSettingsMixin,
-                    StudioEditableXBlockMixin):
+                    StudioEditableXBlockMixin,
+                    StudioContainerWithNestedXBlocksMixin):
     """
     Provides lab environments and an SSH connection to them.
 
     """
+    CATEGORY = "hastexo"
+    STUDIO_LABEL = "hastexo XBlock"
+
     # Settings with defaults.
     display_name = String(
-        default="Lab",
+        default="hastexo XBlock",
         scope=Scope.settings,
         help="Title to display")
     weight = Float(
@@ -232,10 +240,32 @@ class HastexoXBlock(XBlock,
 
         return block
 
-    def author_view(self, context=None):
-        """ Studio View """
-        msg = u"This XBlock only renders content when viewed via the LMS."
-        return Fragment(u'<em>%s</em></p>' % msg)
+    @property
+    def allowed_nested_blocks(self):
+        """
+        Returns a list of allowed nested blocks.
+
+        """
+        additional_blocks = []
+        try:
+            from xmodule.video_module.video_module import VideoDescriptor
+            _spec = NestedXBlockSpec(
+                VideoDescriptor, category="video", label=u"Video"
+            )
+            additional_blocks.append(_spec)
+        except ImportError:
+            logger.warning("Unable to import VideoDescriptor", exc_info=True)
+
+        try:
+            from pdf import pdfXBlock
+            _spec = NestedXBlockSpec(pdfXBlock, category="pdf", label=u"PDF")
+            additional_blocks.append(_spec)
+        except ImportError:
+            logger.info("Unable to import pdfXblock", exc_info=True)
+
+        return [
+            NestedXBlockSpec(None, category="html", label=u"HTML")
+        ] + additional_blocks
 
     def is_correct(self):
         if not (self.check_status and isinstance(self.check_status, dict)):
@@ -281,9 +311,20 @@ class HastexoXBlock(XBlock,
         self.stack_run = "%s_%s" % (course_id.course, course_id.run)
         self.stack_name = "%s_%s" % (self.stack_run, student_id)
 
-        # Render the HTML template
-        html = loader.render_template('static/html/main.html')
-        frag = Fragment(html)
+        frag = Fragment()
+
+        # Render children
+        child_content = ""
+        for child_id in self.children:
+            child = self.runtime.get_block(child_id)
+            child_fragment = child.render("student_view", context)
+            frag.add_frag_resources(child_fragment)
+            child_content += child_fragment.content
+
+        # Render the main template
+        frag.add_content(loader.render_django_template(
+            "static/html/main.html", {"child_content": child_content}
+        ))
 
         # Add the public CSS and JS
         frag.add_css_url(

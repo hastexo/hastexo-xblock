@@ -77,7 +77,20 @@ To deploy the hastexo XBlock:
     ],
     ```
 
-4. This xblock uses a Django model to synchronize stack information across
+4. If you're going to use it in a content library, also add it to the
+   `ADVANCED_PROBLEM_TYPES` of your Studio environment, by editing
+   `/edx/app/edxapp/cms.env.json` and adding:
+
+    ```
+    "ADVANCED_PROBLEM_TYPES": [
+        {
+            "boilerplate_name": null,
+            "component": "hastexo"
+        }
+    ],
+    ```
+
+5. This xblock uses a Django model to synchronize stack information across
    instances.  Migrate the `edxapp` database so the `hastexo_stack` table is
    created:
 
@@ -85,7 +98,7 @@ To deploy the hastexo XBlock:
    $ sudo /edx/bin/edxapp-migrate-lms
    ```
 
-5. Add configuration to `XBLOCK_SETTINGS` on `/edx/app/edxapp/lms.env.json`:
+6. Add configuration to `XBLOCK_SETTINGS` on `/edx/app/edxapp/lms.env.json`:
 
     ```
     "XBLOCK_SETTINGS": {
@@ -144,7 +157,7 @@ To deploy the hastexo XBlock:
     }
     ```
 
-6. Now install the Guacamole web app and stack supervisor scripts by cloning
+7. Now install the Guacamole web app and stack supervisor scripts by cloning
    the `hastexo_xblock` fork of edx/configuration and assigning that role to
    the machine:
 
@@ -154,7 +167,7 @@ To deploy the hastexo XBlock:
     $ ansible-playbook -c local -i "localhost," run_role.yml -e role=hastexo_xblock
     ```
 
-7. At this point restart edxapp, its workers, and make sure the stack jobs are
+8. At this point restart edxapp, its workers, and make sure the stack jobs are
    running:
 
     ```
@@ -164,7 +177,7 @@ To deploy the hastexo XBlock:
     sudo /edx/bin/supervisorctl start reaper:
     ```
 
-8. Finally, in your course, go to the advanced settings and add the hastexo
+9. Finally, in your course, go to the advanced settings and add the hastexo
    module to the "Advanced Module List" like so:
 
    ```
@@ -565,6 +578,36 @@ In order to add the hastexo Xblock through Studio, open the unit where you want
 it to go.  Add a new component, select `Advanced`, then select the `Lab`
 component.  This adds the XBlock.  Edit the Settings as explained above.
 
+### Using the hastexo XBlock in a content library
+
+This XBlock is usable in [content libraries](https://edx.readthedocs.io/projects/open-edx-building-and-running-a-course/en/latest/course_components/libraries.html).
+It supports adding lab instructions as child blocks, so that when the block is
+randomized, the instructions are bundled together with it.
+
+To add the XBlock to the library via Studio, make sure it is configured as one
+of the `ADVANCED_PROBLEM_TYPES` in `cms.env.json`, then select it as such when
+adding content to your library.  (Note: as of Open edX Ironwood, the ability to
+do so requires running a [patched version](https://github.com/hastexo/edx-platform/tree/hastexo/ironwood/free_the_library)
+of `edx-platform`.)
+
+The following child block types are currently supported:
+
+    * html
+    * video
+    * [pdf](https://github.com/MarCnu/pdfXBlock)
+
+If using OLX, html blocks can be defined separately in the `html` subdirectory
+as usual, with the child element referring to it by URL name:
+
+```
+<vertical url_name="lab_introduction">
+  <hastexo ...>
+    <html url_name="lab_instructions">
+  </hastexo>
+</vertical>
+```
+
+Child blocks will always be rendered _above_ the terminal.
 
 ## Student experience
 

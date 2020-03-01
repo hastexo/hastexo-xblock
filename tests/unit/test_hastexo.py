@@ -14,9 +14,11 @@ from mock import Mock, patch, DEFAULT
 from webob import Request
 from django.test import TestCase
 from workbench.runtime import WorkbenchRuntime
+from xblock.core import XBlock
 from xblock.fields import ScopeIds
 from xblock.runtime import KvsFieldData, DictKeyValueStore
 from xblock.test.test_parsing import XmlTest
+from sample_xblocks.basic.content import HtmlBlock
 
 
 def make_request(data, method='POST'):
@@ -151,6 +153,59 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
         self.assertEqual(len(block.tests), 2)
         self.assertEqual(block.tests[0], "Multi-line\ntest 1\n")
         self.assertEqual(block.tests[1], "Multi-line\ntest 2\n")
+
+    @XBlock.register_temp_plugin(HtmlBlock, "html")
+    def test_student_view(self):
+        block = self.parse_xml_to_block(textwrap.dedent("""\
+    <?xml version='1.0' encoding='utf-8'?>
+    <hastexo xmlns:option="http://code.edx.org/xblock/option"
+      stack_template_path='hot_lab.yaml'
+      stack_user_name='training'
+      stack_protocol='rdp'
+      launch_timeout='900'>
+      <html>
+        This is a child.
+      </html>
+      <html>
+        This is another child.
+      </html>
+    </hastexo>
+            """).encode('utf-8'))
+
+        course_id = Mock(course='course', run='run')
+        student_id = 'student'
+        mock_get_block_ids = Mock(return_value=(course_id, student_id))
+        stack = Mock(port='port')
+        mock_create_stack = Mock(return_value=stack)
+
+        with patch.multiple(
+                block,
+                get_block_ids=mock_get_block_ids,
+                create_stack=mock_create_stack):
+
+            frag = block.student_view({})
+            html = frag.body_html()
+
+        self.assertIn("This is a child.", html)
+        self.assertIn("This is another child.", html)
+
+    @XBlock.register_temp_plugin(HtmlBlock, "html")
+    def test_nested_blocks_spec(self):
+        block = self.parse_xml_to_block(textwrap.dedent("""\
+    <?xml version='1.0' encoding='utf-8'?>
+    <hastexo xmlns:option="http://code.edx.org/xblock/option"
+      stack_template_path='hot_lab.yaml'
+      stack_user_name='training'
+      stack_protocol='rdp'
+      launch_timeout='900'>
+      <html>
+        This is a child.
+      </html>
+    </hastexo>
+            """).encode('utf-8'))
+
+        specs = block.get_nested_blocks_spec()
+        self.assertEqual(len(specs), 1)
 
 
 class TestHastexoXBlock(TestCase):

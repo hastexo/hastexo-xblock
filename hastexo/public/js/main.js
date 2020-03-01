@@ -11,8 +11,12 @@ function HastexoXBlock(runtime, element, configuration) {
     var terminal_client = undefined;
     var terminal_element = undefined;
     var terminal_connected = false;
+    var dialog_container = undefined;
 
     var init = function() {
+        /* Set dialog container. */
+        dialog_container = $(element).find('.hastexblock')[0];
+
         /* Bind reset button action. */
         $(element).find('.buttons.bar > .reset').on('click', reset_dialog);
 
@@ -50,7 +54,7 @@ function HastexoXBlock(runtime, element, configuration) {
                         $.dialog.close();
                         location.reload();
                     });
-                    dialog.dialog(element);
+                    dialog.dialog(dialog_container);
                 }
 
                 if (terminal_connected) {
@@ -259,7 +263,7 @@ function HastexoXBlock(runtime, element, configuration) {
                     $.dialog.close();
                     location.reload();
                 });
-                dialog.dialog(element);
+                dialog.dialog(dialog_container);
             };
 
             get_user_stack_status(true);
@@ -276,7 +280,7 @@ function HastexoXBlock(runtime, element, configuration) {
     };
 
     var get_user_stack_status = function(initialize = false, reset = false) {
-        $('#launch_pending').dialog(element);
+        $('#launch_pending').dialog(dialog_container);
         $.ajax({
             type: 'POST',
             url: runtime.handlerUrl(element, 'get_user_stack_status'),
@@ -352,7 +356,7 @@ function HastexoXBlock(runtime, element, configuration) {
                     $.dialog.close();
                     location.reload();
                 });
-                dialog.dialog(element);
+                dialog.dialog(dialog_container);
             }
 
             if (terminal_connected) {
@@ -398,7 +402,7 @@ function HastexoXBlock(runtime, element, configuration) {
                 $.dialog.close();
                 location.reload();
             });
-            dialog.dialog(element);
+            dialog.dialog(dialog_container);
         } else {
             /* Unexpected status.  Display error message. */
             if (keepalive_timer) clearTimeout(keepalive_timer);
@@ -413,7 +417,7 @@ function HastexoXBlock(runtime, element, configuration) {
                 $.dialog.close();
                 location.reload();
             });
-            dialog.dialog(element);
+            dialog.dialog(dialog_container);
         }
     };
 
@@ -435,7 +439,7 @@ function HastexoXBlock(runtime, element, configuration) {
     };
 
     var get_check_status = function() {
-        $('#check_pending').dialog(element);
+        $('#check_pending').dialog(dialog_container);
 
         var show_error = function(error_msg) {
             var dialog = $('#check_error');
@@ -447,7 +451,7 @@ function HastexoXBlock(runtime, element, configuration) {
                 $.dialog.close();
                 get_check_status();
             });
-            dialog.dialog(element);
+            dialog.dialog(dialog_container);
         };
 
         $.ajax({
@@ -481,10 +485,10 @@ function HastexoXBlock(runtime, element, configuration) {
                         hints_title.show();
                         hints.show();
                     }
-                    dialog.dialog(element);
+                    dialog.dialog(dialog_container);
                 } else if (check.status == 'CHECK_PROGRESS_PENDING') {
                     dialog = $('#check_pending');
-                    dialog.dialog(element);
+                    dialog.dialog(dialog_container);
                     if (check_timer) clearTimeout(check_timer);
                     check_timer = setTimeout(get_check_status, configuration.timeouts['check']);
                 } else {
@@ -513,7 +517,7 @@ function HastexoXBlock(runtime, element, configuration) {
             /* Start over. */
             get_user_stack_status(true);
         });
-        dialog.dialog(element);
+        dialog.dialog(dialog_container);
     };
 
     var reset_dialog = function() {
@@ -533,7 +537,7 @@ function HastexoXBlock(runtime, element, configuration) {
             get_user_stack_status(true, true);
         });
 
-        dialog.dialog(element);
+        dialog.dialog(dialog_container);
     };
 
     init();
