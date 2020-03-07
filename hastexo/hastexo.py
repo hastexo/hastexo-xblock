@@ -272,17 +272,6 @@ class HastexoXBlock(XBlock,
         The primary view of the HastexoXBlock, shown to students when viewing
         courses.
         """
-        def error_frag(msg):
-            """ Build a fragment to display runtime errors. """
-            context = {'error_msg': msg}
-            html = loader.render_template('static/html/error.html', context)
-            frag = Fragment(html)
-            frag.add_css_url(
-                self.runtime.local_resource_url(self,
-                                                'public/css/main.css')
-            )
-            return frag
-
         # Load configuration
         settings = get_xblock_settings()
 
