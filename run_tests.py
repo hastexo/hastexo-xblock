@@ -27,8 +27,7 @@ if __name__ == "__main__":
     os.environ.setdefault("DJANGO_LIVE_TEST_SERVER_ADDRESS",
                           "localhost:8081-8099")
 
-    # Silence too verbose Django logging
-    logging.disable(logging.DEBUG)
+    logging.basicConfig()
 
     try:
         os.mkdir('var')
