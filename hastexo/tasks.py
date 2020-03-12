@@ -3,7 +3,8 @@ import os
 import traceback
 import socket
 
-from django.db import transaction
+from django.db import transaction, close_old_connections
+from django.db.utils import OperationalError
 from celery import Task
 from celery.utils.log import get_task_logger
 from celery.exceptions import SoftTimeLimitExceeded
@@ -75,8 +76,70 @@ class HastexoTask(Task):
 
         return self.sleep_timeout
 
-    def sleep(self):
-        time.sleep(self.get_sleep_timeout())
+    def sleep(self, multiplier=1):
+        sleep_time = multiplier * self.get_sleep_timeout()
+        logger.debug("Sleeping for %i seconds" % sleep_time)
+        time.sleep(sleep_time)
+
+    @transaction.atomic
+    def update_stack(self, data):
+        stack = Stack.objects.select_for_update().get(id=self.stack_id)
+        update_stack_fields(stack, data)
+        stack.save(update_fields=list(data.keys()))
+
+    def update_stack_retry(self, data, max_attempts=3):
+        """A wrapper around update_stack that retries until it either
+        succeeds, or times out."""
+
+        # This wraps a try/except block *around* update_stack, which
+        # uses transaction.atomic().
+        # Catching exceptions *inside* transaction.atomic is highly
+        # discouraged.
+        #
+        # Reference:
+        # https://docs.djangoproject.com/en/1.11/topics/db/transactions/
+        i = 1
+        while True:
+            try:
+                # Try updating the stack. If it succeeds, we're done.
+                self.update_stack(data)
+                break
+            except SoftTimeLimitExceeded:
+                # If we've hit the timeout, something went massively
+                # wrong, repeatedly. Log an error, and throw the
+                # timeout up the stack.
+                logger.error("Timeout updating database status for "
+                             "[%s]." % self.stack_name)
+                raise
+            except OperationalError:
+                # Sleep and then retry, until we either succeed, hit
+                # max_attempts, or hit the timeout. Between attempts,
+                # increase the sleep period by factors of 1, 2, 3.
+
+                # First, clean up the broken connection. Django will
+                # subsequently reconnect as needed.
+                close_old_connections()
+
+                if i >= max_attempts:
+                    logger.error(
+                        "Unable to update database status for "
+                        "[%s] (%i attempts)." % (self.stack_name, i)
+                    )
+                    raise
+                else:
+                    logger.warning(
+                        "Error updating database status for "
+                        "[%s], retrying (attempt %i)" % (self.stack_name, i),
+                        exc_info=True
+                    )
+                    self.sleep(multiplier=i)
+                    i += 1
+
+        # If we're here, we've successfully updated the database
+        # stack. This is the normal flow of events, so we only need to
+        # log this when we're debugging.
+        logger.debug("Updated database status for [%s] " %
+                     self.stack_name)
 
 
 class LaunchStackTask(HastexoTask):
@@ -165,13 +228,7 @@ class LaunchStackTask(HastexoTask):
 
         # Don't wait for the user to check results.  Update the database
         # immediately.
-        self.update_stack(stack_data)
-
-    @transaction.atomic
-    def update_stack(self, data):
-        stack = Stack.objects.select_for_update().get(id=self.stack_id)
-        update_stack_fields(stack, data)
-        stack.save(update_fields=list(data.keys()))
+        self.update_stack_retry(stack_data)
 
     def get_provider(self, name):
         try:
@@ -564,11 +621,14 @@ class SuspendStackTask(HastexoTask):
             setattr(self, key, value)
 
         stack = Stack.objects.get(id=self.stack_id)
+        self.stack_name = stack.name
+
         try:
             status = self.suspend_stack(stack)
         except Exception as e:
-            error_msg = "Error suspending stack [%s]: %s" % (stack.name,
-                                                             str(e))
+            error_msg = "Error suspending stack [%s]: %s" % (
+                self.stack_name,
+                str(e))
             logger.error(error_msg)
             status = SUSPEND_FAILED
         else:
@@ -576,9 +636,12 @@ class SuspendStackTask(HastexoTask):
 
         # The suspender doesn't check task results, so just save status in the
         # database.
-        stack.error_msg = error_msg
-        stack.status = status
-        stack.save(update_fields=["status", "error_msg"])
+        stack_data = {
+            'error_msg': error_msg,
+            'status': status,
+        }
+
+        self.update_stack_retry(stack_data)
 
     def suspend_stack(self, stack):
         provider = Provider.init(stack.provider)
@@ -633,13 +696,16 @@ class DeleteStackTask(HastexoTask):
             setattr(self, key, value)
 
         stack = Stack.objects.get(id=self.stack_id)
+        self.stack_name = stack.name
+
         try:
             status = self.delete_stack(stack)
         except Exception as e:
             status = DELETE_FAILED
             provider = stack.provider
             error_msg = "Error deleting stack [%s]: %s" % (
-                stack.name, str(e))
+                self.stack_name,
+                str(e))
             logger.error(error_msg)
         else:
             provider = ""
@@ -647,10 +713,12 @@ class DeleteStackTask(HastexoTask):
 
         # The reaper doesn't check task results, so just save status in the
         # database.
-        stack.status = status
-        stack.provider = provider
-        stack.error_msg = error_msg
-        stack.save(update_fields=["status", "provider", "error_msg"])
+        stack_data = {
+            'status': status,
+            'provider': provider,
+            'error_msg': error_msg,
+        }
+        self.update_stack_retry(stack_data)
 
     def delete_stack(self, stack):
         """

@@ -1,3 +1,7 @@
+Unreleased
+----------
+* [Enhancement] Retry failed database updates from Celery tasks
+
 Version 3.4.2 (2020-01-23)
 ---------------------------
 

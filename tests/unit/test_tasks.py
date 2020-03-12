@@ -20,6 +20,7 @@ from hastexo.tasks import (
     CheckStudentProgressTask,
 )
 from celery.exceptions import SoftTimeLimitExceeded
+from django.db.utils import OperationalError
 
 
 class HastexoTestCase(TestCase):
@@ -770,6 +771,95 @@ class TestLaunchStackTask(HastexoTestCase):
             self.read_from_contentstore,
             params="resume"
         )
+
+    @patch.object(LaunchStackTask,
+                  'update_stack',
+                  side_effect=[OperationalError,
+                               OperationalError,
+                               None])
+    def test_resume_suspended_stack_transient_operational_error(self,
+                                                             update_stack_patch):  # noqa: E501
+        """
+        Try to resume a previously suspended stack, but simulate a
+        database error, only on the first three calls, to
+        LaunchStackTask.update_stack(). Such an error should cause the
+        stack update to be retried. When the error does not persist on
+        the fourth try, the task should succeed.
+        """
+
+        # Setup
+        provider = self.mock_providers[1]
+        provider.get_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+        provider.resume_stack.side_effect = [
+            self.stacks["RESUME_COMPLETE"]
+        ]
+        self.update_stack({
+            "provider": self.providers[1]["name"],
+            "status": "SUSPEND_COMPLETE"
+        })
+
+        # Run
+        LaunchStackTask().run(**self.kwargs)
+
+        # The update_stack() method would have to be called 3 times (2
+        # failures with an OperationalError, then 1 success).
+        self.assertEqual(update_stack_patch.call_count, 3)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        # self.assertEqual(stack.status, "RESUME_COMPLETE")
+        self.assertEqual(stack.provider, self.providers[1]["name"])
+
+    @patch.object(LaunchStackTask,
+                  'update_stack',
+                  side_effect=[OperationalError,
+                               OperationalError,
+                               OperationalError])
+    def test_resume_suspended_stack_persistent_operational_error(self,
+                                                                 update_stack_patch):  # noqa: E501
+        """
+        Try to resume a previously suspended stack, but simulate a
+        persistent database error in the process. Such an error should cause
+        the task to time out.
+        """
+
+        # Setup
+        provider = self.mock_providers[1]
+        provider.get_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+        provider.resume_stack.side_effect = [
+            self.stacks["RESUME_COMPLETE"]
+        ]
+        self.update_stack({
+            "provider": self.providers[1]["name"],
+            "status": "SUSPEND_COMPLETE"
+        })
+
+        # Run
+        with self.assertRaises(OperationalError):
+            LaunchStackTask().run(**self.kwargs)
+
+        # The update_stack() method would have to be called 3 times
+        # (all failures with an OperationalError).
+        self.assertEqual(update_stack_patch.call_count, 3)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+
+        # Whatever happened in the database could have caused the
+        # stack status to be anything *except* successful resume.
+        self.assertNotEqual(stack.status, "RESUME_COMPLETE")
+
+        # Regardless, the database information about the stack
+        # provider should still be unchanged.
+        self.assertEqual(stack.provider, self.providers[1]["name"])
 
     def test_resumed_stack_has_no_ip(self):
         # Setup
