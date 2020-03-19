@@ -1,16 +1,22 @@
 -r base.txt
+
+# These package versions must be kept in sync with edx-platform as much as possible.
 django>=1.11.27,<1.12
 celery>=3.1.25,<4.0
+xblock-utils>=1.2.0,<1.3
+jsonfield==2.0.2
+six==1.11.0
+lazy==1.1
+django-pyfs==2.0
+mako==1.0.2
+sqlparse==0.2.4
+
+# XBlock SDK
 -e git://github.com/edx/xblock-sdk.git@master#egg=xblock-sdk==master
-xblock-utils
-jsonfield
-six
-lazy
+
+# Tooling
+ddt
 nose
 mock
 tox
 coverage
-django-pyfs
-mako
-ddt
-sqlparse
