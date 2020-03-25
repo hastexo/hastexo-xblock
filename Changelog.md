@@ -1,5 +1,11 @@
+Unreleased
+---------------------------
+
+* [Bug fix] Include suspended stacks in count to assess provider
+  capacity and utilization
+
 Version 3.5.0 (2020-03-19)
-----------
+---------------------------
 * [Enhancement] Retry failed database updates from Celery tasks
 
 Version 3.4.2 (2020-01-23)

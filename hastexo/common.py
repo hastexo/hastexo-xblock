@@ -140,6 +140,7 @@ OCCUPANCY_STATES = (
     SUSPEND_PENDING,  # noqa: F821
     SUSPEND_ISSUED,  # noqa: F821
     SUSPEND_RETRY,  # noqa: F821
+    SUSPEND_COMPLETE,  # noqa: F821
     DELETE_PENDING  # noqa: F821
 )
 

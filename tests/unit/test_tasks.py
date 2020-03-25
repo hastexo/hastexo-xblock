@@ -543,9 +543,11 @@ class TestLaunchStackTask(HastexoTestCase):
         for i, p in enumerate(self.providers):
             p["capacity"] = capacity
             self.mock_providers[i].capacity = capacity
+            # A suspended stack counts toward the provider capacity,
+            # just like a freshly created one does.
             data = {
                 "provider": p["name"],
-                "status": "CREATE_COMPLETE"
+                "status": "SUSPEND_COMPLETE"
             }
             for j in range(0, capacity):
                 name = "stack_%d_%d" % (i, j)
