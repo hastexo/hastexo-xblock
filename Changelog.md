@@ -1,4 +1,4 @@
-Unreleased
+Version 3.5.1 (2020-03-25)
 ---------------------------
 
 * [Bug fix] Include suspended stacks in count to assess provider
