@@ -1,3 +1,9 @@
+Unreleased
+---------------------------
+
+* [Bug fix] Always, rather than selectively, retry failed database
+  updates from Celery tasks
+
 Version 3.6.0 (2020-03-30)
 ---------------------------
 
@@ -11,6 +17,7 @@ Version 3.5.1 (2020-03-25)
 
 Version 3.5.0 (2020-03-19)
 ---------------------------
+
 * [Enhancement] Retry failed database updates from Celery tasks
 
 Version 3.4.2 (2020-01-23)

@@ -775,12 +775,12 @@ class TestLaunchStackTask(HastexoTestCase):
         )
 
     @patch.object(LaunchStackTask,
-                  'update_stack',
+                  'update_stack_once',
                   side_effect=[OperationalError,
                                OperationalError,
                                None])
     def test_resume_suspended_stack_transient_operational_error(self,
-                                                             update_stack_patch):  # noqa: E501
+                                                                update_stack_once_patch):  # noqa: E501
         """
         Try to resume a previously suspended stack, but simulate a
         database error, only on the first three calls, to
@@ -805,9 +805,9 @@ class TestLaunchStackTask(HastexoTestCase):
         # Run
         LaunchStackTask().run(**self.kwargs)
 
-        # The update_stack() method would have to be called 3 times (2
+        # The update_stack_once() method would have to be called 3 times (2
         # failures with an OperationalError, then 1 success).
-        self.assertEqual(update_stack_patch.call_count, 3)
+        self.assertEqual(update_stack_once_patch.call_count, 3)
 
         # Fetch stack
         stack = self.get_stack()
@@ -817,12 +817,12 @@ class TestLaunchStackTask(HastexoTestCase):
         self.assertEqual(stack.provider, self.providers[1]["name"])
 
     @patch.object(LaunchStackTask,
-                  'update_stack',
+                  'update_stack_once',
                   side_effect=[OperationalError,
                                OperationalError,
                                OperationalError])
     def test_resume_suspended_stack_persistent_operational_error(self,
-                                                                 update_stack_patch):  # noqa: E501
+                                                                 update_stack_once_patch):  # noqa: E501
         """
         Try to resume a previously suspended stack, but simulate a
         persistent database error in the process. Such an error should cause
@@ -846,9 +846,9 @@ class TestLaunchStackTask(HastexoTestCase):
         with self.assertRaises(OperationalError):
             LaunchStackTask().run(**self.kwargs)
 
-        # The update_stack() method would have to be called 3 times
-        # (all failures with an OperationalError).
-        self.assertEqual(update_stack_patch.call_count, 3)
+        # The update_stack_once() method would have to be called 3
+        # times (all failures with an OperationalError).
+        self.assertEqual(update_stack_once_patch.call_count, 3)
 
         # Fetch stack
         stack = self.get_stack()

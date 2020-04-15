@@ -82,17 +82,19 @@ class HastexoTask(Task):
         time.sleep(sleep_time)
 
     @transaction.atomic
-    def update_stack(self, data):
+    def update_stack_once(self, data):
+        """Convenience method that wraps the update of a Stack object in a
+        transaction."""
         stack = Stack.objects.select_for_update().get(id=self.stack_id)
         update_stack_fields(stack, data)
         stack.save(update_fields=list(data.keys()))
 
-    def update_stack_retry(self, data, max_attempts=3):
-        """A wrapper around update_stack that retries until it either
+    def update_stack(self, data, max_attempts=3):
+        """Wrapper around update_stack_once() that retries until it either
         succeeds, or times out."""
 
-        # This wraps a try/except block *around* update_stack, which
-        # uses transaction.atomic().
+        # This wraps a try/except block *around* update_stack_once,
+        # which uses transaction.atomic().
         # Catching exceptions *inside* transaction.atomic is highly
         # discouraged.
         #
@@ -102,7 +104,7 @@ class HastexoTask(Task):
         while True:
             try:
                 # Try updating the stack. If it succeeds, we're done.
-                self.update_stack(data)
+                self.update_stack_once(data)
                 break
             except SoftTimeLimitExceeded:
                 # If we've hit the timeout, something went massively
@@ -228,7 +230,7 @@ class LaunchStackTask(HastexoTask):
 
         # Don't wait for the user to check results.  Update the database
         # immediately.
-        self.update_stack_retry(stack_data)
+        self.update_stack(stack_data)
 
     def get_provider(self, name):
         try:
@@ -641,7 +643,7 @@ class SuspendStackTask(HastexoTask):
             'status': status,
         }
 
-        self.update_stack_retry(stack_data)
+        self.update_stack(stack_data)
 
     def suspend_stack(self, stack):
         provider = Provider.init(stack.provider)
@@ -718,7 +720,7 @@ class DeleteStackTask(HastexoTask):
             'provider': provider,
             'error_msg': error_msg,
         }
-        self.update_stack_retry(stack_data)
+        self.update_stack(stack_data)
 
     def delete_stack(self, stack):
         """
