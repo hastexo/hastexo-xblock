@@ -1,4 +1,4 @@
-Unreleased
+Version 3.6.1 (2020-04-15)
 ---------------------------
 
 * [Bug fix] Always, rather than selectively, retry failed database
