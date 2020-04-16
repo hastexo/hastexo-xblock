@@ -1,4 +1,4 @@
-[![PyPI version](https://img.shields.io/pypi/v/hastexo-xblock.svg)](https://pypi.python.org/pypi/hastexo-xblock)
+[![PyPI version](https://img.shields.io/pypi/v/hastexo-xblock)](https://pypi.python.org/pypi/hastexo-xblock)
 [![Build Status](https://travis-ci.org/hastexo/hastexo-xblock.svg?branch=master)](https://travis-ci.org/hastexo/hastexo-xblock) [![codecov](https://codecov.io/gh/hastexo/hastexo-xblock/branch/master/graph/badge.svg)](https://codecov.io/gh/hastexo/hastexo-xblock)
 
 # hastexo XBlock
