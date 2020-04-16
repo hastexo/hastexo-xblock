@@ -1,4 +1,4 @@
-[![PyPI version](https://img.shields.io/pypi/v/hastexo-xblock)](https://pypi.python.org/pypi/hastexo-xblock)
+[![PyPI version](https://badge.fury.io/py/hastexo-xblock.svg)](https://pypi.python.org/pypi/hastexo-xblock)
 [![Build Status](https://travis-ci.org/hastexo/hastexo-xblock.svg?branch=master)](https://travis-ci.org/hastexo/hastexo-xblock) [![codecov](https://codecov.io/gh/hastexo/hastexo-xblock/branch/master/graph/badge.svg)](https://codecov.io/gh/hastexo/hastexo-xblock)
 
 # hastexo XBlock
@@ -13,9 +13,9 @@ browser-based connection mechanism, which includes the ability to connect to
 graphical user environments (via VNC and RDP), in addition to terminals (via
 SSH).
 
--> If you are looking for the legacy GateOne functionality, please check out
--> the documentation in
--> [the `stable-0.5` branch](https://github.com/hastexo/hastexo-xblock/tree/stable-0.5).
+> If you are looking for the legacy GateOne functionality, please check out
+> the documentation in
+> [the `stable-0.5` branch](https://github.com/hastexo/hastexo-xblock/tree/stable-0.5).
 
 
 ## Purpose
