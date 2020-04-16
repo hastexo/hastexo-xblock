@@ -1,3 +1,10 @@
+Unreleased
+---------------------------
+
+* [Documentation] Add documentation for maintainers (on how to cut a
+  release)
+
+
 Version 3.6.1 (2020-04-15)
 ---------------------------
 
