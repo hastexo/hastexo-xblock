@@ -36,6 +36,8 @@ setup(
     description='hastexo XBlock: '
                 'Makes arbitrarily complex lab environments '
                 'available on an Open edX LMS',
+    long_description=open('README.md').read(),
+    long_description_content_type='text/markdown',
     url='https://github.com/hastexo/hastexo-xblock',
     author='hastexo',
     author_email='pypi@hastexo.com',

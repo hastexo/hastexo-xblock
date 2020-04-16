@@ -3,6 +3,7 @@ Unreleased
 
 * [Documentation] Add documentation for maintainers (on how to cut a
   release)
+* [Documentation] Include README.md in the package’s PyPI description
 
 
 Version 3.6.1 (2020-04-15)
