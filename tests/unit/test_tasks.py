@@ -204,6 +204,88 @@ class TestLaunchStackTask(HastexoTestCase):
         )
         self.assertFalse(self.mocks["remote_exec"].called)
 
+    @patch.object(LaunchStackTask,
+                  'get_provider_stack_count_once',
+                  side_effect=[OperationalError,
+                               OperationalError,
+                               0])
+    def test_create_stack_transient_database_error(self,
+                                                   get_provider_stack_count_once_patch):  # noqa: E501
+        """
+        Try to launch a new stack, but simulate a database error, only
+        on the first two calls, to
+        LaunchStackTask.get_provider_stack_count_once(). Such an error
+        should cause the stack count to be retried. When the error
+        does not persist on the third try, the task should succeed.
+        """
+
+        # Setup
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["DELETE_COMPLETE"]
+        ]
+        provider.create_stack.side_effect = [
+            self.stacks["CREATE_COMPLETE"]
+        ]
+
+        # Run
+        LaunchStackTask().run(**self.kwargs)
+
+        # The get_provider_stack_count_once() method would have to be
+        # called 3 times (2 failures with an OperationalError, then 1
+        # success).
+        self.assertEqual(get_provider_stack_count_once_patch.call_count, 3)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "CREATE_COMPLETE")
+        self.assertEqual(stack.provider, self.providers[0]["name"])
+        self.assertEqual(stack.error_msg, u"")
+        provider.create_stack.assert_called_with(
+            self.stack_name,
+            self.stack_run
+        )
+        ping_command = PING_COMMAND % (0, self.stack_ip)
+        self.mocks["os"].system.assert_called_with(ping_command)
+        self.mocks["ssh_to"].assert_called_with(
+            self.stack_user_name,
+            self.stack_ip,
+            self.stack_key
+        )
+        self.assertFalse(self.mocks["remote_exec"].called)
+
+    @patch.object(LaunchStackTask,
+                  'get_provider_stack_count_once',
+                  side_effect=[OperationalError,
+                               OperationalError,
+                               OperationalError])
+    def test_create_stack_persistent_database_error(self,
+                                                   get_provider_stack_count_once_patch):  # noqa: E501
+        """
+        Try to launch a new stack, but simulate a persistent database
+        error in the process. Such an error should cause the task to
+        fail.
+        """
+
+        # Setup
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["DELETE_COMPLETE"]
+        ]
+        provider.create_stack.side_effect = [
+            self.stacks["CREATE_FAILED"]
+        ]
+
+        # Run
+        with self.assertRaises(OperationalError):
+            LaunchStackTask().run(**self.kwargs)
+
+        # The get_provider_stack_count_once() method would have to be
+        # called 3 times (all failures with an OperationalError).
+        self.assertEqual(get_provider_stack_count_once_patch.call_count, 3)
+
     def test_create_stack_has_no_ip(self):
         # Setup
         provider1 = self.mock_providers[0]

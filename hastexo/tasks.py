@@ -261,7 +261,7 @@ class LaunchStackTask(HastexoTask):
 
         return stack_data
 
-    def get_provider_stack_count(self, provider):
+    def get_provider_stack_count_once(self, provider):
         stack_count = Stack.objects.filter(
             course_id__exact=self.course_id,
             provider__exact=provider.name,
@@ -271,6 +271,43 @@ class LaunchStackTask(HastexoTask):
         ).count()
 
         return stack_count
+
+    def get_provider_stack_count(self, provider, max_attempts=3):
+        i = 1
+        while True:
+            try:
+                # Try getting the stack count. If it succeeds, we're done.
+                return self.get_provider_stack_count_once(provider)
+            except SoftTimeLimitExceeded:
+                # If we've hit the timeout, something went massively
+                # wrong, repeatedly. Log an error, and throw the
+                # timeout up the stack.
+                logger.error("Timeout fetching stack count for "
+                             "provider [%s]." % provider.name)
+                raise
+            except OperationalError:
+                # Sleep and then retry, until we either succeed, hit
+                # max_attempts, or hit the timeout. Between attempts,
+                # increase the sleep period by factors of 1, 2, 3.
+
+                # First, clean up the broken connection. Django will
+                # subsequently reconnect as needed.
+                close_old_connections()
+
+                if i >= max_attempts:
+                    logger.error(
+                        "Unable to fetch stack count for provider "
+                        "[%s] (%i attempts)." % (provider.name, i)
+                    )
+                    raise
+                else:
+                    logger.warning(
+                        "Error fetching stack count for provider "
+                        "[%s], retrying (attempt %i)" % (provider.name, i),
+                        exc_info=True
+                    )
+                    self.sleep(multiplier=i)
+                    i += 1
 
     def try_all_providers(self):
         stack_data = None

@@ -1,6 +1,7 @@
 Unreleased
 ---------------------------
 
+* [Bug fix] Retry database query to fetch per-provider stack count
 * [Documentation] Add documentation for maintainers (on how to cut a
   release)
 * [Documentation] Include README.md in the package’s PyPI description
