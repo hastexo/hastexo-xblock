@@ -865,10 +865,10 @@ class TestLaunchStackTask(HastexoTestCase):
                                                                 update_stack_once_patch):  # noqa: E501
         """
         Try to resume a previously suspended stack, but simulate a
-        database error, only on the first three calls, to
+        database error, only on the first two calls, to
         LaunchStackTask.update_stack(). Such an error should cause the
         stack update to be retried. When the error does not persist on
-        the fourth try, the task should succeed.
+        the third try, the task should succeed.
         """
 
         # Setup
@@ -908,7 +908,7 @@ class TestLaunchStackTask(HastexoTestCase):
         """
         Try to resume a previously suspended stack, but simulate a
         persistent database error in the process. Such an error should cause
-        the task to time out.
+        the task to fail.
         """
 
         # Setup
