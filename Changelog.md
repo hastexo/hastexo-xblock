@@ -1,4 +1,4 @@
-Unreleased
+Version 3.6.2 (2020-05-05)
 ---------------------------
 
 * [Bug fix] Retry database query to fetch per-provider stack count
