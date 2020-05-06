@@ -3,7 +3,7 @@ import os
 import traceback
 import socket
 
-from django.db import transaction, close_old_connections
+from django.db import connection, transaction, close_old_connections
 from django.db.utils import OperationalError
 from celery import Task
 from celery.utils.log import get_task_logger
@@ -331,6 +331,7 @@ class LaunchStackTask(HastexoTask):
             # Launch stack in provider.  If successful, don't continue trying.
             try:
                 self.update_stack({"provider": provider.name})
+                connection.close()
                 stack_data = self.try_provider(provider)
                 break
             except LaunchStackFailed as e:
@@ -421,6 +422,7 @@ class LaunchStackTask(HastexoTask):
                     self.sleep()
 
                     logger.info("Resetting stack [%s]." % self.stack_name)
+                    connection.close()
                     provider_stack = provider.delete_stack(self.stack_name)
             except ProviderException as e:
                 error_msg = ("Error deleting stack [%s]: %s" %
@@ -437,6 +439,7 @@ class LaunchStackTask(HastexoTask):
                     self.sleep()
 
                     logger.info("Creating stack [%s]." % self.stack_name)
+                    connection.close()
                     provider_stack = provider.create_stack(self.stack_name,
                                                            self.stack_run)
             except ProviderException as e:
@@ -460,6 +463,7 @@ class LaunchStackTask(HastexoTask):
                     self.sleep()
 
                     logger.info("Resuming stack [%s]." % self.stack_name)
+                    connection.close()
                     provider_stack = provider.resume_stack(self.stack_name)
             except ProviderException as e:
                 error_msg = ("Error resuming stack [%s]: %s" %
