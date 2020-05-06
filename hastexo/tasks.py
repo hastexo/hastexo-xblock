@@ -3,7 +3,7 @@ import os
 import traceback
 import socket
 
-from django.db import transaction, close_old_connections
+from django.db import connection, transaction, close_old_connections
 from django.db.utils import OperationalError
 from celery import Task
 from celery.utils.log import get_task_logger
@@ -331,6 +331,7 @@ class LaunchStackTask(HastexoTask):
             # Launch stack in provider.  If successful, don't continue trying.
             try:
                 self.update_stack({"provider": provider.name})
+                connection.close()
                 stack_data = self.try_provider(provider)
                 break
             except LaunchStackFailed as e:
@@ -380,6 +381,7 @@ class LaunchStackTask(HastexoTask):
 
         # Check if the stack actually exists
         try:
+            connection.close()
             provider_stack = provider.get_stack(self.stack_name)
         except ProviderException as e:
             error_msg = ("Error retrieving [%s] stack information: %s" %
@@ -395,6 +397,7 @@ class LaunchStackTask(HastexoTask):
         try:
             while IN_PROGRESS in provider_stack["status"]:
                 try:
+                    connection.close()
                     # Sleep to avoid throttling.
                     self.sleep()
 
@@ -417,6 +420,7 @@ class LaunchStackTask(HastexoTask):
         if reset:
             try:
                 if provider_stack["status"] != DELETE_COMPLETE:
+                    connection.close()
                     # Sleep to avoid throttling.
                     self.sleep()
 
@@ -433,10 +437,12 @@ class LaunchStackTask(HastexoTask):
             # Create the stack if it doesn't exist
             try:
                 if provider_stack["status"] == DELETE_COMPLETE:
+                    connection.close()
                     # Sleep to avoid throttling.
                     self.sleep()
 
                     logger.info("Creating stack [%s]." % self.stack_name)
+                    connection.close()
                     provider_stack = provider.create_stack(self.stack_name,
                                                            self.stack_run)
             except ProviderException as e:
@@ -456,10 +462,12 @@ class LaunchStackTask(HastexoTask):
                     was_resumed = True
 
                 if provider_stack["status"] == SUSPEND_COMPLETE:
+                    connection.close()
                     # Sleep to avoid throttling.
                     self.sleep()
 
                     logger.info("Resuming stack [%s]." % self.stack_name)
+                    connection.close()
                     provider_stack = provider.resume_stack(self.stack_name)
             except ProviderException as e:
                 error_msg = ("Error resuming stack [%s]: %s" %
@@ -508,6 +516,7 @@ class LaunchStackTask(HastexoTask):
                 logger.error("Deleting unsuccessfully "
                              "created stack [%s]." % self.stack_name)
                 try:
+                    connection.close()
                     e.provider.delete_stack(self.stack_name, False)
                 except ProviderException as e:
                     logger.error("Failure deleting stack "
@@ -517,6 +526,7 @@ class LaunchStackTask(HastexoTask):
                 logger.error("Suspending unsuccessfully "
                              "resumed stack [%s]." % self.stack_name)
                 try:
+                    connection.close()
                     e.provider.suspend_stack(self.stack_name)
                 except ProviderException as e:
                     logger.error("Failure suspending stack "
@@ -716,6 +726,7 @@ class SuspendStackTask(HastexoTask):
                         pass
 
             # Suspend stack
+            connection.close()
             logger.info("Suspending stack [%s]." % stack.name)
             provider_stack = provider.suspend_stack(stack.name)
         else:
@@ -788,6 +799,7 @@ class DeleteStackTask(HastexoTask):
                         # We need the stack to be up in order to execute the
                         # pre-delete hook.
                         if provider_stack["status"] == SUSPEND_COMPLETE:
+                            connection.close()
                             provider_stack = provider.resume_stack(
                                 stack.name)
                         elif provider_stack["status"] not in UP_STATES:
@@ -819,6 +831,7 @@ class DeleteStackTask(HastexoTask):
                             ssh.close()
 
                 try:
+                    connection.close()
                     provider_stack = provider.delete_stack(stack.name)
                 except SoftTimeLimitExceeded:
                     # Retry on any exception except a timeout.

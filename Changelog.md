@@ -1,6 +1,7 @@
 Unreleased
 ---------------------------
 
+* [Bug fix] Proactively close database connections in Celery tasks
 * [Enhancement] Support XBlock 1.3 (Python 3 only)
 
 Version 3.6.2 (2020-05-05)
@@ -10,7 +11,6 @@ Version 3.6.2 (2020-05-05)
 * [Documentation] Add documentation for maintainers (on how to cut a
   release)
 * [Documentation] Include README.md in the package’s PyPI description
-
 
 Version 3.6.1 (2020-04-15)
 ---------------------------
