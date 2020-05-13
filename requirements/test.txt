@@ -10,6 +10,7 @@ lazy==1.1
 django-pyfs==2.0
 mako==1.0.2
 sqlparse==0.2.4
+web-fragments<0.3.2
 
 # XBlock SDK
 -e git://github.com/edx/xblock-sdk.git@master#egg=xblock-sdk==master
