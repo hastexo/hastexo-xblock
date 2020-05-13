@@ -262,7 +262,7 @@ class TestLaunchStackTask(HastexoTestCase):
                                OperationalError,
                                OperationalError])
     def test_create_stack_persistent_database_error(self,
-                                                   get_provider_stack_count_once_patch):  # noqa: E501
+                                                    get_provider_stack_count_once_patch):  # noqa: E501
         """
         Try to launch a new stack, but simulate a persistent database
         error in the process. Such an error should cause the task to

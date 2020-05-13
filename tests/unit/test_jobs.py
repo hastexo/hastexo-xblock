@@ -538,7 +538,7 @@ class TestHastexoJobs(TestCase):
 
         # Assert
         stacklog = StackLog.objects.filter(stack_id=stack.id)
-        states = [l.status for l in stacklog]
+        states = [logentry.status for logentry in stacklog]
         expected_states = [
             state,
             SUSPEND_PENDING
