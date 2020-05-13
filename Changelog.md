@@ -1,3 +1,8 @@
+Unreleased
+---------------------------
+
+* [Enhancement] Support XBlock 1.3 (Python 3 only)
+
 Version 3.6.2 (2020-05-05)
 ---------------------------
 
