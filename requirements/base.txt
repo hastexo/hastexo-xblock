@@ -11,4 +11,5 @@ paramiko>=2.1.6,<2.2
 python-heatclient>=1.6.1,<1.7
 python-keystoneclient>=3.17.0,<3.18
 python-novaclient>=7.1.2,<7.2
+tenacity>=6.2
 -e .

@@ -62,6 +62,7 @@ setup(
         'python-heatclient',
         'python-keystoneclient',
         'python-novaclient',
+        'tenacity',
     ],
     entry_points={
         'xblock.v1': [

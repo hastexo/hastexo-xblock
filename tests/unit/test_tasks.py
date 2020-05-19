@@ -204,17 +204,10 @@ class TestLaunchStackTask(HastexoTestCase):
         )
         self.assertFalse(self.mocks["remote_exec"].called)
 
-    @patch.object(LaunchStackTask,
-                  'get_provider_stack_count_once',
-                  side_effect=[OperationalError,
-                               OperationalError,
-                               0])
-    def test_create_stack_transient_database_error(self,
-                                                   get_provider_stack_count_once_patch):  # noqa: E501
+    def test_create_stack_transient_database_error(self):
         """
         Try to launch a new stack, but simulate a database error, only
-        on the first two calls, to
-        LaunchStackTask.get_provider_stack_count_once(). Such an error
+        on the first two calls. Such an error
         should cause the stack count to be retried. When the error
         does not persist on the third try, the task should succeed.
         """
@@ -228,13 +221,17 @@ class TestLaunchStackTask(HastexoTestCase):
             self.stacks["CREATE_COMPLETE"]
         ]
 
-        # Run
-        LaunchStackTask().run(**self.kwargs)
+        # Mock OperationalError 2 times with Stack.objects.filter()
+        with patch("hastexo.models.Stack.objects.filter") as filter_patch:
+            filter_patch.side_effect = [OperationalError,
+                                        OperationalError,
+                                        Stack.objects]
+            # Run
+            LaunchStackTask().run(**self.kwargs)
 
-        # The get_provider_stack_count_once() method would have to be
-        # called 3 times (2 failures with an OperationalError, then 1
-        # success).
-        self.assertEqual(get_provider_stack_count_once_patch.call_count, 3)
+        # The filter() method would have to be called 3 times
+        # (2 failures with an OperationalError, then 1 success).
+        self.assertEqual(filter_patch.call_count, 3)
 
         # Fetch stack
         stack = self.get_stack()
@@ -256,13 +253,7 @@ class TestLaunchStackTask(HastexoTestCase):
         )
         self.assertFalse(self.mocks["remote_exec"].called)
 
-    @patch.object(LaunchStackTask,
-                  'get_provider_stack_count_once',
-                  side_effect=[OperationalError,
-                               OperationalError,
-                               OperationalError])
-    def test_create_stack_persistent_database_error(self,
-                                                    get_provider_stack_count_once_patch):  # noqa: E501
+    def test_create_stack_persistent_database_error(self):
         """
         Try to launch a new stack, but simulate a persistent database
         error in the process. Such an error should cause the task to
@@ -278,13 +269,17 @@ class TestLaunchStackTask(HastexoTestCase):
             self.stacks["CREATE_FAILED"]
         ]
 
-        # Run
-        with self.assertRaises(OperationalError):
-            LaunchStackTask().run(**self.kwargs)
+        # Mock OperationalError 3 times with Stack.objects.filter()
+        with patch("hastexo.models.Stack.objects.filter") as filter_patch:
+            filter_patch.side_effect = [OperationalError,
+                                        OperationalError,
+                                        OperationalError]
+            # Run
+            with self.assertRaises(OperationalError):
+                LaunchStackTask().run(**self.kwargs)
 
-        # The get_provider_stack_count_once() method would have to be
-        # called 3 times (all failures with an OperationalError).
-        self.assertEqual(get_provider_stack_count_once_patch.call_count, 3)
+            # The filter() method would have to be called 3 times.
+            self.assertEqual(filter_patch.call_count, 3)
 
     def test_create_stack_has_no_ip(self):
         # Setup
@@ -856,19 +851,12 @@ class TestLaunchStackTask(HastexoTestCase):
             params="resume"
         )
 
-    @patch.object(LaunchStackTask,
-                  'update_stack_once',
-                  side_effect=[OperationalError,
-                               OperationalError,
-                               None])
-    def test_resume_suspended_stack_transient_operational_error(self,
-                                                                update_stack_once_patch):  # noqa: E501
+    def test_resume_suspended_stack_transient_operational_error(self):
         """
         Try to resume a previously suspended stack, but simulate a
-        database error, only on the first two calls, to
-        LaunchStackTask.update_stack(). Such an error should cause the
-        stack update to be retried. When the error does not persist on
-        the third try, the task should succeed.
+        database error, but only on the first two calls. Such an error
+        should cause the stack update to be retried. When the error
+        does not persist on the third try, the task should succeed.
         """
 
         # Setup
@@ -884,12 +872,16 @@ class TestLaunchStackTask(HastexoTestCase):
             "status": "SUSPEND_COMPLETE"
         })
 
-        # Run
-        LaunchStackTask().run(**self.kwargs)
+        # Mock OperationalError 2 times
+        with patch.object(Stack, 'save', side_effect=[OperationalError,
+                                                      OperationalError,
+                                                      None]) as save_patch:
+            # Run
+            LaunchStackTask().run(**self.kwargs)
 
-        # The update_stack_once() method would have to be called 3 times (2
-        # failures with an OperationalError, then 1 success).
-        self.assertEqual(update_stack_once_patch.call_count, 3)
+            # The save() method would have to be called 3 times (2
+            # failures with an OperationalError, then 1 success).
+            self.assertEqual(save_patch.call_count, 3)
 
         # Fetch stack
         stack = self.get_stack()
@@ -898,13 +890,7 @@ class TestLaunchStackTask(HastexoTestCase):
         # self.assertEqual(stack.status, "RESUME_COMPLETE")
         self.assertEqual(stack.provider, self.providers[1]["name"])
 
-    @patch.object(LaunchStackTask,
-                  'update_stack_once',
-                  side_effect=[OperationalError,
-                               OperationalError,
-                               OperationalError])
-    def test_resume_suspended_stack_persistent_operational_error(self,
-                                                                 update_stack_once_patch):  # noqa: E501
+    def test_resume_suspended_stack_persistent_operational_error(self):
         """
         Try to resume a previously suspended stack, but simulate a
         persistent database error in the process. Such an error should cause
@@ -924,13 +910,17 @@ class TestLaunchStackTask(HastexoTestCase):
             "status": "SUSPEND_COMPLETE"
         })
 
-        # Run
-        with self.assertRaises(OperationalError):
-            LaunchStackTask().run(**self.kwargs)
+        # Mock OperationalError 3 times
+        with patch.object(
+            Stack, 'save', side_effect=[OperationalError,
+                                        OperationalError,
+                                        OperationalError]) as save_patch:
+            # Run
+            with self.assertRaises(OperationalError):
+                LaunchStackTask().run(**self.kwargs)
 
-        # The update_stack_once() method would have to be called 3
-        # times (all failures with an OperationalError).
-        self.assertEqual(update_stack_once_patch.call_count, 3)
+            # The save() method would have to be called 3 times.
+            self.assertEqual(save_patch.call_count, 3)
 
         # Fetch stack
         stack = self.get_stack()

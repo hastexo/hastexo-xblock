@@ -2,12 +2,20 @@ import time
 import os
 import traceback
 import socket
+import logging
 
-from django.db import transaction, close_old_connections
+from django.db import connection, transaction
 from django.db.utils import OperationalError
 from celery import Task
 from celery.utils.log import get_task_logger
 from celery.exceptions import SoftTimeLimitExceeded
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+    before_sleep_log,
+)
 
 from .models import Stack
 from .provider import Provider, ProviderException
@@ -40,6 +48,12 @@ CLEANUP_SUSPEND = 1
 CLEANUP_DELETE = 2
 
 PING_COMMAND = "ping -c 1 -W %d %s >/dev/null 2>&1"
+
+
+def close_connection_on_retry(retry_state):
+    """Simple wrapper that accepts retry_state as a parameter,
+    so that it can be used as a retry callback."""
+    connection.close()
 
 
 class LaunchStackFailed(Exception):
@@ -81,67 +95,25 @@ class HastexoTask(Task):
         logger.debug("Sleeping for %i seconds" % sleep_time)
         time.sleep(sleep_time)
 
+    # If OperationalError is raised here, try again (max attempts = 3)
+    # Before every subsequent retry, wait
+    # Use before_sleep to close connection
+    # Use after_log to log attempts
+    # Reraise the exception from last attempt
+    #
+    # Reference:
+    # https://tenacity.readthedocs.io/en/latest/
+    @retry(retry=retry_if_exception_type(OperationalError),
+           stop=stop_after_attempt(3),
+           wait=wait_exponential(),
+           after=close_connection_on_retry,
+           before_sleep=before_sleep_log(logger, logging.WARNING),
+           reraise=True)
     @transaction.atomic
-    def update_stack_once(self, data):
-        """Convenience method that wraps the update of a Stack object in a
-        transaction."""
+    def update_stack(self, data):
         stack = Stack.objects.select_for_update().get(id=self.stack_id)
         update_stack_fields(stack, data)
         stack.save(update_fields=list(data.keys()))
-
-    def update_stack(self, data, max_attempts=3):
-        """Wrapper around update_stack_once() that retries until it either
-        succeeds, or times out."""
-
-        # This wraps a try/except block *around* update_stack_once,
-        # which uses transaction.atomic().
-        # Catching exceptions *inside* transaction.atomic is highly
-        # discouraged.
-        #
-        # Reference:
-        # https://docs.djangoproject.com/en/1.11/topics/db/transactions/
-        i = 1
-        while True:
-            try:
-                # Try updating the stack. If it succeeds, we're done.
-                self.update_stack_once(data)
-                break
-            except SoftTimeLimitExceeded:
-                # If we've hit the timeout, something went massively
-                # wrong, repeatedly. Log an error, and throw the
-                # timeout up the stack.
-                logger.error("Timeout updating database status for "
-                             "[%s]." % self.stack_name)
-                raise
-            except OperationalError:
-                # Sleep and then retry, until we either succeed, hit
-                # max_attempts, or hit the timeout. Between attempts,
-                # increase the sleep period by factors of 1, 2, 3.
-
-                # First, clean up the broken connection. Django will
-                # subsequently reconnect as needed.
-                close_old_connections()
-
-                if i >= max_attempts:
-                    logger.error(
-                        "Unable to update database status for "
-                        "[%s] (%i attempts)." % (self.stack_name, i)
-                    )
-                    raise
-                else:
-                    logger.warning(
-                        "Error updating database status for "
-                        "[%s], retrying (attempt %i)" % (self.stack_name, i),
-                        exc_info=True
-                    )
-                    self.sleep(multiplier=i)
-                    i += 1
-
-        # If we're here, we've successfully updated the database
-        # stack. This is the normal flow of events, so we only need to
-        # log this when we're debugging.
-        logger.debug("Updated database status for [%s] " %
-                     self.stack_name)
 
 
 class LaunchStackTask(HastexoTask):
@@ -261,7 +233,18 @@ class LaunchStackTask(HastexoTask):
 
         return stack_data
 
-    def get_provider_stack_count_once(self, provider):
+    # If OperationalError is raised here, try again (max attempts = 3)
+    # Before every subsequent retry, wait
+    # Use before_sleep to close connection
+    # Use after_log to log attempts
+    # Reraise the exception from last attempt
+    @retry(retry=retry_if_exception_type(OperationalError),
+           stop=stop_after_attempt(3),
+           wait=wait_exponential(),
+           after=close_connection_on_retry,
+           before_sleep=before_sleep_log(logger, logging.WARNING),
+           reraise=True)
+    def get_provider_stack_count(self, provider):
         stack_count = Stack.objects.filter(
             course_id__exact=self.course_id,
             provider__exact=provider.name,
@@ -269,45 +252,7 @@ class LaunchStackTask(HastexoTask):
         ).exclude(
             name__exact=self.stack_name
         ).count()
-
         return stack_count
-
-    def get_provider_stack_count(self, provider, max_attempts=3):
-        i = 1
-        while True:
-            try:
-                # Try getting the stack count. If it succeeds, we're done.
-                return self.get_provider_stack_count_once(provider)
-            except SoftTimeLimitExceeded:
-                # If we've hit the timeout, something went massively
-                # wrong, repeatedly. Log an error, and throw the
-                # timeout up the stack.
-                logger.error("Timeout fetching stack count for "
-                             "provider [%s]." % provider.name)
-                raise
-            except OperationalError:
-                # Sleep and then retry, until we either succeed, hit
-                # max_attempts, or hit the timeout. Between attempts,
-                # increase the sleep period by factors of 1, 2, 3.
-
-                # First, clean up the broken connection. Django will
-                # subsequently reconnect as needed.
-                close_old_connections()
-
-                if i >= max_attempts:
-                    logger.error(
-                        "Unable to fetch stack count for provider "
-                        "[%s] (%i attempts)." % (provider.name, i)
-                    )
-                    raise
-                else:
-                    logger.warning(
-                        "Error fetching stack count for provider "
-                        "[%s], retrying (attempt %i)" % (provider.name, i),
-                        exc_info=True
-                    )
-                    self.sleep(multiplier=i)
-                    i += 1
 
     def try_all_providers(self):
         stack_data = None
