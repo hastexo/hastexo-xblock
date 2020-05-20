@@ -1,4 +1,4 @@
-Unreleased
+Version 3.6.3 (2020-05-20)
 ---------------------------
 
 This is the last release to be tested against Python 2.7.
