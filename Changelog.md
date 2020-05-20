@@ -5,7 +5,8 @@ This is the last release to be tested against Python 2.7.
 Any subsequent releases will support Python 3 only.
 
 * [Enhancement] Support XBlock 1.3 (Python 3 only)
-* [Enhancement] Add a new dependency to a 3rd party library, tenacity
+* [Enhancement] Refactor database error retries, using tenacity
+* [Documentation] Update README
 
 Version 3.6.2 (2020-05-05)
 ---------------------------
