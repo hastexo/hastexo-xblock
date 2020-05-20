@@ -5,17 +5,14 @@
 
 The hastexo [XBlock](https://xblock.readthedocs.org/en/latest/) is an
 [Open edX](https://open.edx.org/) API that integrates realistic lab
-environments into distributed computing courses. The hastexo XBlock allows
-students to access an OpenStack environment within an edX course.
+environments into distributed computing courses. The hastexo XBlock
+allows students to access an OpenStack (or Google Cloud) environment
+within an edX course.
 
 It leverages [Apache Guacamole](https://guacamole.incubator.apache.org/) as a
 browser-based connection mechanism, which includes the ability to connect to
 graphical user environments (via VNC and RDP), in addition to terminals (via
 SSH).
-
-> If you are looking for the legacy GateOne functionality, please check out
-> the documentation in
-> [the `stable-0.5` branch](https://github.com/hastexo/hastexo-xblock/tree/stable-0.5).
 
 
 ## Purpose
@@ -33,9 +30,8 @@ when the student returns to the lab environment.
 Since public cloud environments typically charge by the minute to *run*
 virtual machines, the hastexo XBlock makes lab environments cost effective to
 deploy. The hastexo XBlock can run a fully distributed virtual lab environment
-for a course in [Ceph](http://ceph.com), OpenStack,
-[Open vSwitch](http://openvswitch.org/) or
-[fleet](https://coreos.com/using-coreos/clustering/) for approximately $25 per
+for a course in [Ceph](http://ceph.com), OpenStack, or
+[Open vSwitch](http://openvswitch.org/) for approximately $25 per
 month on a public cloud (assuming students use the environment for 1 hour per
 day).
 
@@ -48,7 +44,7 @@ limited by the feature set of the cloud's deployment features.
 The easiest way for platform administrators to deploy the hastexo XBlock and
 its dependencies to an Open edX installation is to pip install it to the `edxapp`
 virtualenv, and then to use the `hastexo_xblock` role included in the
-[hastexo\_xblock branch](https://github.com/hastexo/edx-configuration/tree/hastexo/ginkgo/hastexo_xblock)
+[hastexo\_xblock branch](https://github.com/hastexo/edx-configuration/tree/hastexo/hawthorn/hastexo_xblock)
 of `edx/configuration`.
 
 To deploy the hastexo XBlock:
@@ -162,16 +158,17 @@ To deploy the hastexo XBlock:
    the machine:
 
     ```
-    $ git clone -b hastexo/ginkgo/hastexo_xblock https://github.com/hastexo/edx-configuration.git
+    $ git clone -b hastexo/hawthorn/hastexo_xblock https://github.com/hastexo/edx-configuration.git
     $ cd edx-configuration/playbooks
     $ ansible-playbook -c local -i "localhost," run_role.yml -e role=hastexo_xblock
     ```
 
-8. At this point restart edxapp, its workers, and make sure the stack jobs are
-   running:
+8. At this point restart the LMS, the CMS, and the Celery workers, and
+   also make sure the stack management jobs are running:
 
     ```
-    sudo /edx/bin/supervisorctl restart edxapp:
+    sudo /edx/bin/supervisorctl restart lms:
+    sudo /edx/bin/supervisorctl restart cms:
     sudo /edx/bin/supervisorctl restart edxapp_worker:
     sudo /edx/bin/supervisorctl start suspender:
     sudo /edx/bin/supervisorctl start reaper:
