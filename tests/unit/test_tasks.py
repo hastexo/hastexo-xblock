@@ -2016,3 +2016,56 @@ class TestCheckStudentProgressTask(HastexoTestCase):
         self.assertEqual(res["pass"], 3)
         self.assertEqual(res["total"], 3)
         self.assertEqual(res["errors"], [])
+
+    def test_check_student_progress_hints(self):
+        # Setup
+        # Double error messages as bytes and strings,
+        # to test if both will be handeled accordingly
+        stderr_fail_1 = b'single line'
+        stderr_fail_2 = "single line"
+        stderr_fail_3 = b'line 1\nline 2'
+        stderr_fail_4 = "line 1\nline 2"
+        stderr_fail_5 = b''
+        stderr_fail_6 = ""
+
+        self.mocks["remote_exec"].side_effect = [
+            0,
+            RemoteExecException(stderr_fail_1),
+            RemoteExecException(stderr_fail_2),
+            RemoteExecException(stderr_fail_3),
+            RemoteExecException(stderr_fail_4),
+            RemoteExecException(stderr_fail_5),
+            RemoteExecException(stderr_fail_6),
+        ]
+        tests = [
+            "test pass",
+            "test fail",
+            "test fail",
+            "test fail",
+            "test fail",
+            "test fail",
+            "test fail"
+        ]
+        kwargs = {
+            "tests": tests,
+            "stack_ip": self.stack_ip,
+            "stack_key": self.stack_key,
+            "stack_user_name": self.stack_user_name
+        }
+
+        # Run
+        res = CheckStudentProgressTask().run(**kwargs)
+
+        # Assertions
+        self.assertEqual(res["status"], "CHECK_PROGRESS_COMPLETE")
+        self.assertEqual(res["pass"], 1)
+        self.assertEqual(res["total"], 7)
+
+        # Assert that all errors are displayed as strings,
+        # stderr_fail 5 and 6 are read as empty and not displayed
+        self.assertEqual(res["errors"], [
+            "single line",
+            "single line",
+            "line 1\nline 2",
+            "line 1\nline 2"
+        ])

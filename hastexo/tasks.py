@@ -827,9 +827,10 @@ class CheckStudentProgressTask(HastexoTask):
             try:
                 remote_exec(ssh, test, reuse_sftp=sftp)
             except RemoteExecException as e:
-                error_msg = str(e)
-                if error_msg:
-                    errors.append(error_msg)
+                msg = e.args[0]
+                hint = msg.decode() if isinstance(msg, bytes) else str(msg)
+                if hint:
+                    errors.append(hint)
             else:
                 score += 1
 
