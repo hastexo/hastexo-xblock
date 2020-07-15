@@ -3,6 +3,7 @@ Unreleased
 
 * [Bug fix] Always display lab progress check hints as human readable strings
 * [Testing] Fix Python 3.5 tests
+* [Testing] Drop XBlock 1.1 from the test matrix
 
 Version 3.6.3 (2020-05-20)
 ---------------------------
