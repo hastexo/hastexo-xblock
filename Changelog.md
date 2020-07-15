@@ -2,6 +2,7 @@ Unreleased
 ---------------------------
 
 * [Bug fix] Always display lab progress check hints as human readable strings
+* [Testing] Drop XBlock 1.1 from the test matrix
 
 Version 3.6.3 (2020-05-20)
 ---------------------------
