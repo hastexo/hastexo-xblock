@@ -3,6 +3,7 @@ Unreleased
 
 * [Bug fix] Always display lab progress check hints as human readable strings
 * [Testing] Drop XBlock 1.1 from the test matrix
+* [Testing] Match up XBlock and Python version according to Open edX named releases
 
 Version 3.6.3 (2020-05-20)
 ---------------------------
