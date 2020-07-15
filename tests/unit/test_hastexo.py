@@ -290,7 +290,14 @@ class TestHastexoXBlock(TestCase):
                                      make_request(data, method=method))
         if expect_json:
             self.assertEqual(response.status_code, 200)
-            return json.loads(response.body)
+            # json.loads() is smart enough to grok both bytes and str
+            # from Python 3.6 forward. However in Python 3.5 (Ubuntu
+            # Xenial), we must pass json.loads() a str, as it will
+            # choke on bytes.
+            if isinstance(response.body, bytes):
+                return json.loads(response.body.decode('utf-8'))
+            else:
+                return json.loads(response.body)
         return response
 
     def test_get_launch_timeout(self):
