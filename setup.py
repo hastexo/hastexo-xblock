@@ -70,6 +70,10 @@ setup(
         ]
     },
     scripts=package_scripts(["bin"]),
-    package_data=package_data("hastexo", ["static", "public", "migrations"]),
+    package_data=package_data("hastexo",
+                              ["static",
+                               "public",
+                               "management",
+                               "migrations"]),
     setup_requires=['setuptools-scm'],
 )
