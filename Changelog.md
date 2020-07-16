@@ -1,4 +1,4 @@
-Unreleased
+Version 3.6.4 (2020-07-16)
 ---------------------------
 
 * [Bug fix] Always display lab progress check hints as human readable strings
