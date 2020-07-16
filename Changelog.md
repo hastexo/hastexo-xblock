@@ -1,3 +1,11 @@
+Unreleased
+---------------------------
+
+* [Bug fix] Correctly include the "reaper" and "suspender" manage.py
+  commands in packaging.
+* [Testing] Include unit tests for the manage.py commands.
+
+
 Version 3.6.4 (2020-07-16)
 ---------------------------
 
