@@ -1,4 +1,4 @@
-Unreleased
+Version 3.6.5 (2020-07-16)
 ---------------------------
 
 * [Bug fix] Correctly include the "reaper" and "suspender" manage.py
