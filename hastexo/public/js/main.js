@@ -327,7 +327,10 @@ function HastexoXBlock(runtime, element, configuration) {
                 'port': port,
                 'user': stack.user,
                 'key': stack.key,
-                'password': stack.password
+                'password': stack.password,
+                'color_scheme': configuration.color_scheme,
+                'font_name': configuration.font_name,
+                'font_size': configuration.font_size
             }));
             terminal_connected = true;
         } catch (e) {

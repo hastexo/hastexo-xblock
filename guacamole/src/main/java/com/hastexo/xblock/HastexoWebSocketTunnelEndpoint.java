@@ -71,6 +71,9 @@ public class HastexoWebSocketTunnelEndpoint extends GuacamoleWebSocketTunnelEndp
         String key = request.getParameter("key");
         int width = request.getIntegerParameter("width");
         int height = request.getIntegerParameter("height");
+        String colorScheme = request.getParameter("color_scheme");
+        String fontName = request.getParameter("font_name");
+        int fontSize = request.getIntegerParameter("font_size");
 
         // Connection configuration
         GuacamoleConfiguration guacConfig = new GuacamoleConfiguration();
@@ -94,8 +97,9 @@ public class HastexoWebSocketTunnelEndpoint extends GuacamoleWebSocketTunnelEndp
             guacConfig.setParameter("encodings", "zrle ultra copyrect hextile zlib corre rre raw");
         } else {
             guacConfig.setParameter("private-key", key);
-            guacConfig.setParameter("color-scheme", "white-black");
-            guacConfig.setParameter("font-size", "10");
+            guacConfig.setParameter("color-scheme", colorScheme);
+            guacConfig.setParameter("font-name", fontName);
+            guacConfig.setParameter("font-size", fontSize);
         }
 
         // Set screen size

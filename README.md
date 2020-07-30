@@ -100,6 +100,9 @@ To deploy the hastexo XBlock:
     "XBLOCK_SETTINGS": {
         "hastexo": {
             "terminal_url": "/hastexo-xblock/",
+            "terminal_color_scheme": "white-black",
+            "terminal_font_name": "monospace",
+            "terminal_font_size": 10,
             "launch_timeout": 900,
             "remote_exec_timeout": 300,
             "suspend_timeout": 120,
@@ -201,6 +204,18 @@ This is a brief explanation of each:
   `window.location`.  (It is possible to define it with a ":"-prefixed port,
   such as ":8080/hastexo-xblock/", for use in devstacks). (Default:
   `/hastexo-xblock/`)
+
+* `terminal_color_scheme`: Color scheme for the terminal window. Suitable values
+  are described in [Guacamole Documentation](https://guacamole.apache.org/doc/gug/configuring-guacamole.html#ssh).
+  For example, `foreground:rgb:ff/ff/ff;background:rgb:00/00/00` and
+  `white-black` both represent white text on a black background.
+  (Default: `white-black`)
+
+* `terminal_font_name`: The name of the font to use in terminal. A matching font
+  must be installed on the Guacamole server. (Default: `monospace`) 
+
+* `terminal_font_size`: The size of the font to use in terminal, in points.
+  (Default: `10`)
 
 * `launch_timeout`: How long to wait for a stack to be launched, in seconds.
   (Default: `900`)
