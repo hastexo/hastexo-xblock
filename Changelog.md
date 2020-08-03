@@ -1,3 +1,8 @@
+Unreleased
+---------------------------
+
+* [Bug fix] Terminal font size configuration value type fix
+
 Version 3.6.6 (2020-08-03)
 ---------------------------
 

@@ -102,7 +102,7 @@ To deploy the hastexo XBlock:
             "terminal_url": "/hastexo-xblock/",
             "terminal_color_scheme": "white-black",
             "terminal_font_name": "monospace",
-            "terminal_font_size": 10,
+            "terminal_font_size": "10",
             "launch_timeout": 900,
             "remote_exec_timeout": 300,
             "suspend_timeout": 120,

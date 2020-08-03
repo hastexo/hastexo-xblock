@@ -73,7 +73,7 @@ public class HastexoWebSocketTunnelEndpoint extends GuacamoleWebSocketTunnelEndp
         int height = request.getIntegerParameter("height");
         String colorScheme = request.getParameter("color_scheme");
         String fontName = request.getParameter("font_name");
-        int fontSize = request.getIntegerParameter("font_size");
+        String fontSize = request.getParameter("font_size");
 
         // Connection configuration
         GuacamoleConfiguration guacConfig = new GuacamoleConfiguration();
