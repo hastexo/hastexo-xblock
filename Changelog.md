@@ -1,4 +1,4 @@
-Unreleased
+Version 3.6.6 (2020-08-03)
 ---------------------------
 
 * [Enhancement] Make Guacamole terminal color scheme and font configurable
