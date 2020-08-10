@@ -14,6 +14,9 @@ function HastexoXBlock(runtime, element, configuration) {
     var dialog_container = undefined;
 
     var init = function() {
+        /* Construct the layout for instructions and terminal */
+        construct_layout();
+
         /* Set dialog container. */
         dialog_container = $(element).find('.hastexblock')[0];
 
@@ -268,6 +271,48 @@ function HastexoXBlock(runtime, element, configuration) {
 
             get_user_stack_status(true);
         });
+    };
+
+    var construct_layout = function() {
+        var instructions_layout = configuration.instructions_layout;
+
+        /* 'above' is the default layout and doesn't require any changes */
+        if (instructions_layout != 'above') {
+            /* find the vertical element containing the content */
+            var content = $('.vert-mod');
+
+            /* find the vertical elements that contain lab instructions and terminal */
+            var terminal_parent = $('#terminal').closest('.vert');
+            var instructions_parent = $('.lab_instructions').closest('.vert');
+
+            if (terminal_parent != 'undefined' && instructions_parent != 'undefined') {
+                if (instructions_layout === 'left' || instructions_layout === 'right') {
+                    $(content).addClass('content-side-by-side');
+                    $('.lab_instructions').addClass('instructions-side-view');
+                    $('#container').addClass('terminal-side-view');
+
+                    $(instructions_parent).css({
+                        'float': [instructions_layout],
+                        'width' : '40%',
+                        'height': '100%'
+                    });
+                    $(terminal_parent).css({
+                        ['margin-' + instructions_layout] : '40%',
+                        'height': '100%'
+                    });
+
+                    /* if terminal is on the left side, move terminal buttons to the left as well */
+                    if (instructions_layout === 'right') {
+                        $(element).find('.buttons').css({'text-align': 'left'});
+                    };
+                };
+                if (instructions_layout === 'below') {
+                    $(instructions_parent).insertAfter($(terminal_parent));
+                };
+            } else {
+                console.warn('Unable to modify content layout, elements not found');
+            };
+        };
     };
 
     /* Returns a fuzzy timeout that varies between plus or minus 25% of the

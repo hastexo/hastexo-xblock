@@ -103,6 +103,7 @@ To deploy the hastexo XBlock:
             "terminal_color_scheme": "white-black",
             "terminal_font_name": "monospace",
             "terminal_font_size": "10",
+            "instructions_layout": "above",
             "launch_timeout": 900,
             "remote_exec_timeout": 300,
             "suspend_timeout": 120,
@@ -216,6 +217,10 @@ This is a brief explanation of each:
 
 * `terminal_font_size`: The size of the font to use in terminal, in points.
   (Default: `10`)
+
+* `instructions_layout`: Configuration for instructions layout. It's possible
+  to set the position for instructions to be 'above', 'below', 'left' or 'right'
+  from the terminal window. (Default: `above`)
 
 * `launch_timeout`: How long to wait for a stack to be launched, in seconds.
   (Default: `900`)

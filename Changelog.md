@@ -1,3 +1,8 @@
+Unreleased
+---------------------------
+
+* [Enhancement] Make instructions layout configurable
+
 Version 3.6.7 (2020-08-03)
 ---------------------------
 

@@ -350,7 +350,8 @@ class HastexoXBlock(XBlock,
             "port": stack.port,
             "color_scheme": settings.get("terminal_color_scheme"),
             "font_name": settings.get("terminal_font_name"),
-            "font_size": settings.get("terminal_font_size")
+            "font_size": settings.get("terminal_font_size"),
+            "instructions_layout": settings.get("instructions_layout")
         })
 
         return frag

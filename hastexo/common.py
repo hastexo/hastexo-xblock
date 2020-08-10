@@ -151,6 +151,7 @@ DEFAULT_SETTINGS = {
     "terminal_color_scheme": "white-black",
     "terminal_font_name": "monospace",
     "terminal_font_size": "10",
+    "instructions_layout": "above",
     "launch_timeout": 900,
     "remote_exec_timeout": 300,
     "suspend_timeout": 120,
