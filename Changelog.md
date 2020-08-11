@@ -1,4 +1,4 @@
-Unreleased
+Version 3.6.8 (2020-08-11)
 ---------------------------
 
 * [Enhancement] Make instructions layout configurable (experimental)
