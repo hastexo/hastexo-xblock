@@ -220,7 +220,8 @@ This is a brief explanation of each:
 
 * `instructions_layout`: Configuration for instructions layout. It's possible
   to set the position for instructions to be 'above', 'below', 'left' or 'right'
-  from the terminal window. (Default: `above`)
+  from the terminal window. (Default: `above`; this is currently an
+  experimental feature)
 
 * `launch_timeout`: How long to wait for a stack to be launched, in seconds.
   (Default: `900`)
