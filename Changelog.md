@@ -1,3 +1,8 @@
+Unreleased
+---------------------------
+
+* [Bug fix] Minor style fixes for layout options
+
 Version 3.6.8 (2020-08-11)
 ---------------------------
 

@@ -287,9 +287,11 @@ function HastexoXBlock(runtime, element, configuration) {
 
             if (terminal_parent != 'undefined' && instructions_parent != 'undefined') {
                 if (instructions_layout === 'left' || instructions_layout === 'right') {
-                    $(content).addClass('content-side-by-side');
                     $('.lab_instructions').addClass('instructions-side-view');
                     $('#container').addClass('terminal-side-view');
+                    $(content).addClass('content-side-by-side');
+                    /* Make sure the xblock fits to content area */
+                    $(content).height($('.hastexblock').height() + 20);
 
                     $(instructions_parent).css({
                         'float': [instructions_layout],

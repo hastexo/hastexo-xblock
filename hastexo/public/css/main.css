@@ -67,6 +67,7 @@
     border-radius: 10px;
     text-align: center;
     z-index: 1001;
+    margin: 0 20px 0 10px;
 }
 
 .dialog-overlay:before {
@@ -176,7 +177,6 @@
 
 .content-side-by-side {
     max-width: 1800px;
-    height: 42em;
 }
 
 .instructions-side-view {
