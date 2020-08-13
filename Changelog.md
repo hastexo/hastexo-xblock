@@ -1,4 +1,4 @@
-Unreleased
+Version 3.6.9 (2020-08-13)
 ---------------------------
 
 * [Bug fix] Minor style fixes for layout options
