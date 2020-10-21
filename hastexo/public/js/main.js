@@ -211,7 +211,9 @@ function HastexoXBlock(runtime, element, configuration) {
                  * letting the user click on it doesn't work. */
                 .hover(
                     function() {
+                       var x = window.scrollX, y = window.scrollY;
                        $(this).focus();
+                       window.scrollTo(x, y);
                     }, function() {
                        $(this).blur();
                     }
