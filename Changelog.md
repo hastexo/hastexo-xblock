@@ -1,4 +1,4 @@
-Unreleased
+Version 3.6.10 (2020-10-21)
 ---------------------------
 
 * [UI change] Disable page auto-scroll when terminal gets focused
