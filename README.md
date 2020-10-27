@@ -508,6 +508,12 @@ The following are optional:
 * `launch_timeout`: How long to wait for a stack to be launched, in seconds.
   If unset, the global timeout will be used.
 
+* `delete_age`: Delete stacks that haven't been resumed in this many seconds.
+  Overrides the globally defined setting. The global setting currently only
+  supports days but will begin to support suffixes `d`, `h`, `m`, `s` in future
+  releases. Using this attribute will allow setting the `delete_age` value per
+  instance and configure it to have a shorter value.
+
 You can also use the following nested XML options:
 
 * `providers`: A list of references to providers configured in the platform.

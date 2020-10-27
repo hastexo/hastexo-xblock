@@ -56,6 +56,7 @@ class StackAdminForm(forms.ModelForm):
 
     provider = forms.ChoiceField(required=False)
     status = forms.ChoiceField()
+    delete_by = forms.DateTimeField(required=False)
 
     def __init__(self, *args, **kwargs):
         super(StackAdminForm, self).__init__(*args, **kwargs)
@@ -99,7 +100,7 @@ class StackAdmin(admin.ModelAdmin):
     search_fields = ("name", "course_id", "status", "provider")
     readonly_fields = ("name", student_email, "course_id", "run", "protocol",
                        "port", "ip", "launch_timestamp", "suspend_timestamp",
-                       "created_on", "error_msg",)
+                       "created_on", "error_msg", "delete_age",)
     exclude = ("student_id", "providers", "hook_script", "hook_events",
                "launch_task_id", "user", "key", "password",)
     ordering = ("-launch_timestamp",)

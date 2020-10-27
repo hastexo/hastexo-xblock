@@ -1,5 +1,27 @@
+from django.conf import settings as django_settings
 from django.db import models
+from django.utils import timezone
 from jsonfield.fields import JSONField
+
+SETTINGS_KEY = 'hastexo'
+DEFAULT_SETTINGS = {"delete_age": 14}
+
+
+def default_delete_by_timestamp():
+    # load the default delete_age value from settings
+    try:
+        settings = django_settings.XBLOCK_SETTINGS.get(
+            SETTINGS_KEY,
+            DEFAULT_SETTINGS
+        )
+    except AttributeError:
+        settings = DEFAULT_SETTINGS
+
+    # create a delete_by timestamp based on the delete_age from settings
+    delete_by = timezone.now() + timezone.timedelta(
+        days=settings.get("delete_age", 14))
+
+    return delete_by
 
 
 class StackCommon(models.Model):
@@ -28,6 +50,9 @@ class StackCommon(models.Model):
     launch_timestamp = models.DateTimeField(null=True, db_index=True)
     suspend_timestamp = models.DateTimeField(null=True, db_index=True)
     created_on = models.DateTimeField(auto_now_add=True, db_index=True)
+    delete_age = models.IntegerField(null=True)
+    delete_by = models.DateTimeField(null=True, db_index=True,
+                                     default=default_delete_by_timestamp)
 
 
 class Stack(StackCommon):

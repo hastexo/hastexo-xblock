@@ -286,20 +286,23 @@ class TestHastexoJobs(TestCase):
 
     def test_delete_old_stacks(self):
         # Setup
-        delete_age = self.settings.get("delete_age")
-        delete_delta = timezone.timedelta(days=(delete_age + 1))
-        delete_timestamp = timezone.now() - delete_delta
-        dont_delete_delta = timezone.timedelta(days=(delete_age - 1))
-        dont_delete_timestamp = timezone.now() - dont_delete_delta
+        delete_age = self.settings.get("delete_age") * 86400
+        dont_delete_age = delete_age * 2
+        suspend_timestamp = timezone.now() - timezone.timedelta(
+            seconds=delete_age)
+        dont_delete_timestamp = timezone.now() + timezone.timedelta(
+            seconds=delete_age)
         state = "RESUME_COMPLETE"
         stack1_name = "bogus_stack_1"
         stack1 = Stack(
             student_id=self.student_id,
             course_id=self.course_id,
             name=stack1_name,
-            suspend_timestamp=delete_timestamp,
+            suspend_timestamp=suspend_timestamp,
             provider="provider1",
-            status=state
+            status=state,
+            delete_age=delete_age,
+            delete_by=suspend_timestamp
         )
         stack1.save()
         stack2_name = "bogus_stack_2"
@@ -307,9 +310,11 @@ class TestHastexoJobs(TestCase):
             student_id=self.student_id,
             course_id=self.course_id,
             name=stack2_name,
-            suspend_timestamp=delete_timestamp,
+            suspend_timestamp=suspend_timestamp,
             provider="provider2",
-            status=state
+            status=state,
+            delete_age=delete_age,
+            delete_by=suspend_timestamp
         )
         stack2.save()
         stack3_name = "bogus_stack_3"
@@ -317,9 +322,11 @@ class TestHastexoJobs(TestCase):
             student_id=self.student_id,
             course_id=self.course_id,
             name=stack3_name,
-            suspend_timestamp=dont_delete_timestamp,
+            suspend_timestamp=suspend_timestamp,
             provider='provider3',
-            status=state
+            status=state,
+            delete_age=dont_delete_age,
+            delete_by=dont_delete_timestamp
         )
         stack3.save()
         mock_delete_task = self.get_delete_task_mock()
@@ -339,17 +346,19 @@ class TestHastexoJobs(TestCase):
 
     def test_dont_try_to_delete_certain_stack_states(self):
         # Setup
-        delete_age = self.settings.get("delete_age")
-        delete_delta = timezone.timedelta(days=(delete_age + 1))
-        delete_timestamp = timezone.now() - delete_delta
+        delete_age = self.settings.get("delete_age") * 86400
+        suspend_timestamp = timezone.now() - timezone.timedelta(
+            seconds=delete_age)
         stack1_name = "bogus_stack_1"
         stack1 = Stack(
             student_id=self.student_id,
             course_id=self.course_id,
             name=stack1_name,
-            suspend_timestamp=delete_timestamp,
+            suspend_timestamp=suspend_timestamp,
             provider="provider1",
-            status=DELETE_PENDING
+            status=DELETE_PENDING,
+            delete_age=delete_age,
+            delete_by=suspend_timestamp
         )
         stack1.save()
         stack2_name = "bogus_stack_2"
@@ -357,9 +366,11 @@ class TestHastexoJobs(TestCase):
             student_id=self.student_id,
             course_id=self.course_id,
             name=stack2_name,
-            suspend_timestamp=delete_timestamp,
+            suspend_timestamp=suspend_timestamp,
             provider="provider2",
-            status=DELETE_IN_PROGRESS
+            status=DELETE_IN_PROGRESS,
+            delete_age=delete_age,
+            delete_by=suspend_timestamp
         )
         stack2.save()
         stack3_name = "bogus_stack_3"
@@ -367,9 +378,11 @@ class TestHastexoJobs(TestCase):
             student_id=self.student_id,
             course_id=self.course_id,
             name=stack3_name,
-            suspend_timestamp=delete_timestamp,
+            suspend_timestamp=suspend_timestamp,
             provider="provider3",
-            status=DELETE_COMPLETE
+            status=DELETE_COMPLETE,
+            delete_age=delete_age,
+            delete_by=suspend_timestamp
         )
         stack3.save()
         stack4_name = "bogus_stack_4"
@@ -377,10 +390,36 @@ class TestHastexoJobs(TestCase):
             student_id=self.student_id,
             course_id=self.course_id,
             name=stack4_name,
-            suspend_timestamp=delete_timestamp,
-            status="CREATE_FAILED"
+            suspend_timestamp=suspend_timestamp,
+            status="CREATE_FAILED",
+            delete_age=delete_age,
+            delete_by=suspend_timestamp
         )
         stack4.save()
+        stack5_name = "bogus_stack_5"
+        stack5 = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            name=stack5_name,
+            suspend_timestamp=suspend_timestamp,
+            provider="provider2",
+            status=CREATE_COMPLETE,
+            delete_age=delete_age,
+            delete_by=suspend_timestamp
+        )
+        stack5.save()
+        stack6_name = "bogus_stack_6"
+        stack6 = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            name=stack6_name,
+            suspend_timestamp=suspend_timestamp,
+            provider="provider3",
+            status="LAUNCH_PENDING",
+            delete_age=delete_age,
+            delete_by=suspend_timestamp
+        )
+        stack6.save()
         mock_delete_task = self.get_delete_task_mock()
 
         # Run
@@ -397,21 +436,25 @@ class TestHastexoJobs(TestCase):
         self.assertEqual(stack3.status, DELETE_COMPLETE)
         stack4 = Stack.objects.get(name=stack4_name)
         self.assertEqual(stack4.status, "CREATE_FAILED")
+        stack5 = Stack.objects.get(name=stack5_name)
+        self.assertEqual(stack5.status, CREATE_COMPLETE)
+        stack6 = Stack.objects.get(name=stack6_name)
+        self.assertEqual(stack6.status, "LAUNCH_PENDING")
 
-    def test_dont_delete_if_age_is_zero(self):
+    def test_delete_if_age_is_zero(self):
         # Setup
-        self.settings["delete_age"] = 0
-        delete_delta = timezone.timedelta(days=15)
-        delete_timestamp = timezone.now() - delete_delta
-        state = 'RESUME_COMPLETE'
+        suspend_timestamp = timezone.now()
+        state = 'SUSPEND_COMPLETE'
         stack_name = 'bogus_stack'
         stack = Stack(
             student_id=self.student_id,
             course_id=self.course_id,
             name=stack_name,
-            suspend_timestamp=delete_timestamp,
+            suspend_timestamp=suspend_timestamp,
             provider='provider1',
-            status=state
+            status=state,
+            delete_age=0,
+            delete_by=suspend_timestamp
         )
         stack.save()
         mock_delete_task = self.get_delete_task_mock()
@@ -420,9 +463,9 @@ class TestHastexoJobs(TestCase):
         job = ReaperJob(self.settings)
         job.run()
 
-        mock_delete_task.apply_async.assert_not_called()
+        mock_delete_task.apply_async.assert_called()
         stack = Stack.objects.get(name=stack_name)
-        self.assertEqual(stack.status, state)
+        self.assertEqual(stack.status, 'DELETE_PENDING')
 
     def test_destroy_zombies(self):
         # Setup

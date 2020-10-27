@@ -16,6 +16,8 @@ from .common import (
     DELETE_COMPLETE,
     DELETE_IN_PROGRESS,
     DELETE_PENDING,
+    LAUNCH_PENDING,
+    CREATE_COMPLETE
 )
 
 
@@ -107,15 +109,11 @@ class ReaperJob(AbstractJob):
 
     """
     def run(self):
-        age = self.settings.get("delete_age", 14)
-        if not age:
-            return
-
-        timedelta = timezone.timedelta(days=age)
-        cutoff = timezone.now() - timedelta
         dont_delete = [DELETE_PENDING,
                        DELETE_COMPLETE,
-                       DELETE_IN_PROGRESS]
+                       DELETE_IN_PROGRESS,
+                       LAUNCH_PENDING,
+                       CREATE_COMPLETE]
 
         self.refresh_db()
 
@@ -124,7 +122,9 @@ class ReaperJob(AbstractJob):
             stacks = Stack.objects.select_for_update().filter(
                 suspend_timestamp__isnull=False
             ).filter(
-                suspend_timestamp__lt=cutoff
+                delete_by__isnull=False
+            ).filter(
+                delete_by__lt=timezone.now()
             ).exclude(
                 status__in=dont_delete
             ).exclude(

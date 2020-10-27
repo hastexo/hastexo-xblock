@@ -371,6 +371,22 @@ class TestHastexoXBlock(TestCase):
             with self.assertRaises(Exception):
                 self.create_stack()
 
+    def test_create_stack_with_default_delete_age(self):
+        self.init_block(False)
+        delete_age = DEFAULT_SETTINGS["delete_age"] * 86400
+        self.assertEqual(self.block.delete_age, None)
+        self.create_stack()
+        stack = self.get_stack()
+        self.assertEqual(stack.delete_age, delete_age)
+
+    def test_create_stack_override_default_delete_age(self):
+        self.init_block(False)
+        delete_age = 3600
+        self.block.delete_age = delete_age
+        self.create_stack()
+        stack = self.get_stack()
+        self.assertEqual(stack.delete_age, delete_age)
+
     def test_get_user_stack_status_first(self):
         self.init_block(False)
         stack = self.create_stack()

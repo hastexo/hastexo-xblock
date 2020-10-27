@@ -91,6 +91,12 @@ class HastexoXBlock(XBlock,
         scope=Scope.settings,
         help="The relative path to an uploaded executable script. "
              "For example, \"hot_script.sh\".")
+    delete_age = String(
+        default=None,
+        scope=Scope.settings,
+        help="Delete stacks that haven't been resumed in this many seconds. "
+             "Overrides the globally defined setting."
+    )
 
     # Set via XML
     hook_events = Dict(
@@ -160,6 +166,7 @@ class HastexoXBlock(XBlock,
         'stack_user_name',
         'stack_protocol',
         'launch_timeout',
+        'delete_age',
         'ports',
         'providers',
         'tests')
@@ -296,6 +303,18 @@ class HastexoXBlock(XBlock,
             launch_timeout = settings.get("launch_timeout")
 
         return launch_timeout
+
+    def get_delete_age(self, settings):
+        """
+        Return 'delete_age' in seconds.
+        XBlock attribute overrides the global setting.
+        """
+        if self.delete_age:
+            # delete_age attribute value is already in seconds
+            return int(self.delete_age)
+        else:
+            # delete_age value in settings is in days, convert to seconds
+            return settings.get("delete_age", 14) * 86400
 
     def student_view(self, context=None):
         """
@@ -435,6 +454,7 @@ class HastexoXBlock(XBlock,
         stack.protocol = self.stack_protocol
         stack.port = port
         stack.providers = providers
+        stack.delete_age = self.get_delete_age(settings)
 
         stack.save(update_fields=[
             "user",
@@ -443,7 +463,8 @@ class HastexoXBlock(XBlock,
             "hook_events",
             "protocol",
             "port",
-            "providers"
+            "providers",
+            "delete_age"
         ])
 
         return stack

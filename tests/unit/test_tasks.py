@@ -106,6 +106,7 @@ class HastexoTestCase(TestCase):
             providers=self.providers,
             hook_script=self.hook_script,
             hook_events=self.hook_events,
+            delete_age=1209600  # default settings value of 14 days in seconds
         )
         stack.save()
 
@@ -1433,6 +1434,7 @@ class TestSuspendStackTask(HastexoTestCase):
 
         # Assertions
         self.assertEqual(stack.status, "SUSPEND_COMPLETE")
+        self.assertIsNotNone(stack.delete_by)
         self.assertEqual(stack.error_msg, u"")
         self.assertEqual(stack.provider, self.providers[0]["name"])
         self.mocks["remote_exec"].assert_called_with(
@@ -1463,6 +1465,7 @@ class TestSuspendStackTask(HastexoTestCase):
 
         # Assertions
         self.assertEqual(stack.status, "SUSPEND_COMPLETE")
+        self.assertIsNotNone(stack.delete_by)
         self.assertEqual(stack.error_msg, u"")
         self.assertEqual(stack.provider, self.providers[0]["name"])
         self.mocks["remote_exec"].assert_called_with(
@@ -1494,6 +1497,7 @@ class TestSuspendStackTask(HastexoTestCase):
 
         # Assertions
         self.assertEqual(stack.status, "SUSPEND_COMPLETE")
+        self.assertIsNotNone(stack.delete_by)
         self.assertEqual(stack.error_msg, u"")
         self.assertEqual(stack.provider, self.providers[0]["name"])
         self.mocks["remote_exec"].assert_not_called()
@@ -1523,6 +1527,7 @@ class TestSuspendStackTask(HastexoTestCase):
 
         # Assertions
         self.assertEqual(stack.status, "SUSPEND_COMPLETE")
+        self.assertIsNotNone(stack.delete_by)
         self.assertEqual(stack.error_msg, u"")
         self.assertEqual(stack.provider, self.providers[0]["name"])
         self.mocks["remote_exec"].assert_called_with(
@@ -1554,6 +1559,7 @@ class TestSuspendStackTask(HastexoTestCase):
 
         # Assertions
         self.assertEqual(stack.status, "SUSPEND_COMPLETE")
+        self.assertIsNotNone(stack.delete_by)
         self.assertEqual(stack.error_msg, u"")
         self.assertEqual(stack.provider, self.providers[0]["name"])
         self.mocks["remote_exec"].assert_called_with(
@@ -1625,6 +1631,7 @@ class TestSuspendStackTask(HastexoTestCase):
 
         # Assertions
         self.assertEqual(stack.status, "SUSPEND_FAILED")
+        self.assertIsNotNone(stack.delete_by)
         self.assertNotEqual(stack.error_msg, u"")
 
     def dont_wait_for_suspension_forever(self):
@@ -1647,6 +1654,7 @@ class TestSuspendStackTask(HastexoTestCase):
 
         # Assertions
         self.assertEqual(stack.status, "SUSPEND_FAILED")
+        self.assertIsNotNone(stack.delete_by)
         self.assertNotEqual(stack.error_msg, u"")
 
 

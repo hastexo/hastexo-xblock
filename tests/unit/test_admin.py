@@ -74,7 +74,7 @@ class TestHastexoStackAdmin(TestCase):
         form = self.stack_admin.get_form(self.request, self.stack)
         self.assertEqual(
             list(form.base_fields),
-            ["provider", "status"]
+            ["provider", "status", "delete_by"]
         )
 
     def test_save_action_admin_form(self):
@@ -84,7 +84,11 @@ class TestHastexoStackAdmin(TestCase):
         """
         form = self.stack_admin.get_form(self.request)(
             instance=self.stack,
-            data={"status": "DELETE_COMPLETE", "provider": ""}
+            data={
+                "status": "DELETE_COMPLETE",
+                "provider": "",
+                "delete_by": None
+            }
         )
         self.assertTrue(form.is_valid())
         form.save()

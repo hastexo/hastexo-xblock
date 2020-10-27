@@ -6,6 +6,7 @@ import logging
 
 from django.db import connection, transaction
 from django.db.utils import OperationalError
+from django.utils import timezone
 from celery import Task
 from celery.utils.log import get_task_logger
 from celery.exceptions import SoftTimeLimitExceeded
@@ -624,6 +625,10 @@ class SuspendStackTask(HastexoTask):
             'error_msg': error_msg,
             'status': status,
         }
+
+        # Set the delete_by value based on the delete_age value
+        stack_data['delete_by'] = timezone.now() + timezone.timedelta(
+            seconds=stack.delete_age)
 
         self.update_stack(stack_data)
 

@@ -1,3 +1,11 @@
+Unreleased
+---------------------------
+
+* [Enhancement] Enable overriding 'delete_age' via XBlock attribute in seconds.
+  The global settings still only accepts 'delete_age' value in days but
+  is now converted to seconds internally. In future releases the settings will
+  begin to support suffixes 'd', 'h', 'm' and 's'.
+
 Version 3.6.10 (2020-10-21)
 ---------------------------
 
