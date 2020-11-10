@@ -5,6 +5,10 @@ Unreleased
   The global settings still only accepts 'delete_age' value in days but
   is now converted to seconds internally. In future releases the settings will
   begin to support suffixes 'd', 'h', 'm' and 's'.
+* [BACKWARD INCOMPATIBLE] This release removes Python 2.7 from the
+  test matrix. This in turn means that we have also removed XBlock 1.1
+  and XBlock 1.2 from the test matrix (both of which rely on Python
+  2).
 
 Version 3.6.10 (2020-10-21)
 ---------------------------
