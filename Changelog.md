@@ -10,6 +10,9 @@ Unreleased
   and XBlock 1.2 from the test matrix (both of which rely on Python
   2).
 * [Testing] Include XBlock 1.4 in the test matrix.
+* [Testing] Include a .gitlab-ci.yml file for running CI tests
+  when mirroring this repository onto a public or private GitLab
+  instance.
 
 Version 3.6.10 (2020-10-21)
 ---------------------------
