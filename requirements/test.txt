@@ -15,6 +15,12 @@ web-fragments<0.3.2
 # XBlock SDK
 -e git://github.com/edx/xblock-sdk.git@master#egg=xblock-sdk==master
 
+# Other XBlocks that are supported as nested elements
+markdown-xblock
+
+# dependencies of supported nested XBlocks
+path.py>=12.4
+
 # Tooling
 ddt
 nose

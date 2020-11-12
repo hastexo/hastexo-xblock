@@ -191,6 +191,7 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
 
     @XBlock.register_temp_plugin(HtmlBlock, "html")
     def test_nested_blocks_spec(self):
+        """A nested html element should be supported."""
         block = self.parse_xml_to_block(textwrap.dedent("""\
     <?xml version='1.0' encoding='utf-8'?>
     <hastexo xmlns:option="http://code.edx.org/xblock/option"
@@ -205,7 +206,31 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
             """).encode('utf-8'))
 
         specs = block.get_nested_blocks_spec()
-        self.assertEqual(len(specs), 1)
+        self.assertEqual(len(specs), 2)
+
+    def test_parsing_nested_markdown_xblock(self):
+        """A nested markdown element should be supported."""
+
+        with patch('markdown_xblock.html.MarkdownXBlock.parse_xml') as p:
+            p.return_value = Mock()
+
+            block = self.parse_xml_to_block(textwrap.dedent("""\
+        <?xml version='1.0' encoding='utf-8'?>
+        <hastexo xmlns:option="http://code.edx.org/xblock/option"
+            stack_template_path='hot_lab.yaml'
+            stack_user_name='training'
+            stack_protocol='rdp'
+            launch_timeout='900'>
+            <markdown/>
+        </hastexo>
+                """).encode('utf-8'))
+
+            self.assertTrue(p.called)
+            self.assertTrue(block.has_children)
+            nested_blocks = block.get_children()
+
+            self.assertEqual(len(nested_blocks), 1)
+            self.assertEqual(nested_blocks[0].display_name, 'Markdown')
 
 
 class TestHastexoXBlock(TestCase):

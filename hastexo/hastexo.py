@@ -386,6 +386,15 @@ class HastexoXBlock(XBlock,
         except ImportError:
             logger.info("Unable to import pdfXblock", exc_info=True)
 
+        try:
+            from markdown_xblock import MarkdownXBlock
+            _spec = NestedXBlockSpec(MarkdownXBlock,
+                                     category="markdown",
+                                     label=u"Markdown")
+            additional_blocks.append(_spec)
+        except ImportError:
+            logger.info("Unable to import MarkdownXBlock", exc_info=True)
+
         return [
             NestedXBlockSpec(None, category="html", label=u"HTML")
         ] + additional_blocks

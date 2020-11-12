@@ -6,6 +6,10 @@ Unreleased
   `hook_events`, `ports`, `providers` and `tests` are exported to a separate
   xml file.
 * [Bug fix] Fix support for nested `<video>` elements
+* [Enhancement] Support `<markdown>` (from the
+  [markdown-xblock](https://pypi.org/project/markdown-xblock/)
+  package) as an additional nested element (in addition to `<html>`,
+  `<pdf>`, and `<video>`)
 
 Version 4.0.0 (2020-11-10)
 ---------------------------
