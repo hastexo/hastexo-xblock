@@ -255,13 +255,13 @@ class HastexoXBlock(XBlock,
         """
         additional_blocks = []
         try:
-            from xmodule.video_module.video_module import VideoDescriptor
+            from xmodule.video_module.video_module import VideoBlock
             _spec = NestedXBlockSpec(
-                VideoDescriptor, category="video", label=u"Video"
+                VideoBlock, category="video", label=u"Video"
             )
             additional_blocks.append(_spec)
         except ImportError:
-            logger.warning("Unable to import VideoDescriptor", exc_info=True)
+            logger.warning("Unable to import VideoBlock", exc_info=True)
 
         try:
             from pdf import pdfXBlock

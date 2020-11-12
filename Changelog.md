@@ -1,3 +1,8 @@
+Unreleased
+---------------------------
+
+* [Bug fix] Fix support for nested `<video>` elements
+
 Version 4.0.0 (2020-11-10)
 ---------------------------
 
