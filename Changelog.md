@@ -1,6 +1,10 @@
 Unreleased
 ---------------------------
 
+* [Enhancement] Refactor course export/import logic. XBlock editable fields
+  are added as attributes to the <hastexo> element in a vertical block.
+  `hook_events`, `ports`, `providers` and `tests` are exported to a separate
+  xml file.
 * [Bug fix] Fix support for nested `<video>` elements
 
 Version 4.0.0 (2020-11-10)

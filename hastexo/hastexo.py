@@ -1,5 +1,6 @@
 import time
 import logging
+import os
 import textwrap
 
 from xblock.core import XBlock, XML_NAMESPACES
@@ -103,26 +104,22 @@ class HastexoXBlock(XBlock,
         default=None,
         scope=Scope.settings,
         enforce_type=True,
-        xml_node=True,
         help="A dictionary of (string, boolean) pairs, where `string` is any "
              "of \"suspend\", \"resume\", and \"delete\".")
     ports = List(
         default=[],
         scope=Scope.settings,
         enforce_type=True,
-        xml_node=True,
         help="What ports are available in the stack.")
     providers = List(
         default=[],
         scope=Scope.settings,
         enforce_type=True,
-        xml_node=True,
         help="List of providers to launch the stack in.")
     tests = List(
         default=[],
         scope=Scope.content,
         enforce_type=True,
-        xml_node=True,
         help="The list of tests to run.")
 
     # Deprecated in favor of "providers"
@@ -177,75 +174,194 @@ class HastexoXBlock(XBlock,
     icon_class = 'problem'
     block_settings_key = SETTINGS_KEY
 
+    def parse_attributes(tag, node, block):
+        """
+        Handle parsing tests, ports and providers.
+        """
+        if tag == "test":
+            text = node.text
+
+            # Fix up whitespace.
+            if text[0] == "\n":
+                text = text[1:]
+            text.rstrip()
+            text = textwrap.dedent(text)
+
+            block.tests.append(text)
+
+        elif tag == "port":
+            name = node.attrib["name"]
+            if not name:
+                raise KeyError("name")
+            number = node.attrib["number"]
+            if not number:
+                raise KeyError("number")
+            number = int(number)
+            port = {"name": name,
+                    "number": number}
+            block.ports.append(port)
+
+        elif tag == "provider":
+            name = node.attrib["name"]
+            if not name:
+                raise KeyError("name")
+            capacity = node.attrib.get("capacity")
+            if capacity in (None, "None", ""):
+                capacity = -1
+            else:
+                # This will raise a TypeError if the string literal
+                # cannot be converted
+                capacity = int(capacity)
+            template = node.attrib.get("template", None)
+            environment = node.attrib.get("environment", None)
+            provider = {"name": name,
+                        "capacity": capacity,
+                        "template": template,
+                        "environment": environment}
+            block.providers.append(provider)
+
     @classmethod
     def parse_xml(cls, node, runtime, keys, id_generator):
         """
-        DEPRECATED: the 'option' namespace is now the preferred way to specify
-        tests, ports, and providers.  This custom parser will be removed in a
-        future version.
-
+        Use `node` to construct a new block.
         """
         block = runtime.construct_xblock_from_class(cls, keys)
 
-        # Find children
-        for child in node:
-            if child.tag is etree.Comment:
-                continue
+        if 'filename' in node.attrib:
+            # Read xml content from file.
+            url_name = node.get('url_name', node.get('slug'))
+            location = id_generator.create_definition(node.tag, url_name)
 
-            qname = etree.QName(child)
-            tag = qname.localname
-            namespace = qname.namespace
+            filename = node.get('filename')
+            pointer_path = "{category}/{url_path}".format(
+                category='hastexo',
+                url_path=location.block_id.replace(':', '/')
+            )
+            base = os.path.dirname(pointer_path)
+            filepath = u"{base}/{name}.xml".format(base=base, name=filename)
 
-            if namespace == XML_NAMESPACES["option"]:
-                cls._set_field_if_present(block, tag, child.text, child.attrib)
-            elif tag == "test":
-                text = child.text
+            with runtime.resources_fs.open(
+                    filepath, encoding='utf-8') as infile:
+                root = etree.fromstring(infile.read())
+                for child in root:
+                    if child.tag is etree.Comment:
+                        continue
 
-                # Fix up whitespace.
-                if text[0] == "\n":
-                    text = text[1:]
-                text.rstrip()
-                text = textwrap.dedent(text)
+                    elif child.tag in ['test', 'port', 'provider']:
+                        cls.parse_attributes(child.tag, child, block)
 
-                block.tests.append(text)
-            elif tag == "port":
-                name = child.attrib["name"]
-                if not name:
-                    raise KeyError("name")
-                number = child.attrib["number"]
-                if not number:
-                    raise KeyError("number")
-                number = int(number)
-                port = {"name": name,
-                        "number": number}
-                block.ports.append(port)
-            elif tag == "provider":
-                name = child.attrib["name"]
-                if not name:
-                    raise KeyError("name")
-                capacity = child.attrib.get("capacity")
-                if capacity in (None, "None"):
-                    capacity = -1
-                else:
-                    # This will raise a TypeError if the string literal
-                    # cannot be converted
-                    capacity = int(capacity)
-                template = child.attrib.get("template", None)
-                environment = child.attrib.get("environment", None)
-                provider = {"name": name,
-                            "capacity": capacity,
-                            "template": template,
-                            "environment": environment}
+                    elif child.tag == "hook_events":
+                        hook_events = {
+                            "suspend": bool(
+                                child.attrib.get("suspend", "true")),
+                            "resume": bool(
+                                child.attrib.get("resume", "true")),
+                            "delete": bool(
+                                child.attrib.get("delete", "true"))
+                        }
+                        block.hook_events = hook_events
 
-                block.providers.append(provider)
-            else:
+                    else:
+                        logger.warning(
+                            "Attribute unknown to Hastexo XBlock: {}".format(
+                                child.tag))
+            # Import nested blocks
+            for child in node:
                 block.runtime.add_node_as_child(block, child, id_generator)
+        else:
+            for child in node:
+                if child.tag is etree.Comment:
+                    continue
+
+                qname = etree.QName(child)
+                tag = qname.localname
+                namespace = qname.namespace
+
+                if namespace == XML_NAMESPACES["option"]:
+                    cls._set_field_if_present(
+                        block, tag, child.text, child.attrib)
+                elif tag in ['test', 'port', 'provider']:
+                    cls.parse_attributes(child.tag, child, block)
+                else:
+                    # Import nested blocks
+                    block.runtime.add_node_as_child(block, child, id_generator)
 
         # Attributes become fields.
-        for name, value in node.items():
+        for name, value in list(node.items()):  # lxml has no iteritems
             cls._set_field_if_present(block, name, value, {})
 
         return block
+
+    def add_dict_properties_to_node(self, properties, node):
+        """
+        Add properties from a dictionary as attributes to `node`.
+
+        """
+        for key in properties.keys():
+            node.set(key, str(properties.get(key, '')))
+
+    def add_xml_to_node(self, node):
+        """
+        For exporting, set data on etree.Element `node`.
+        """
+
+        # Write xml data to file
+        pathname = self.url_name.replace(':', '/')
+        filepath = u'{category}/{pathname}.xml'.format(
+            category=self.category,
+            pathname=pathname
+        )
+
+        self.runtime.export_fs.makedirs(
+            os.path.dirname(filepath),
+            recreate=True)
+
+        with self.runtime.export_fs.open(filepath, 'wb') as filestream:
+            root = etree.Element('hastexo')
+
+            if self.hook_events:
+                hook_events_node = etree.SubElement(root, 'hook_events')
+                self.add_dict_properties_to_node(
+                    self.hook_events, hook_events_node)
+
+            if self.ports:
+                for port in self.ports:
+                    port_node = etree.SubElement(root, 'port')
+                    self.add_dict_properties_to_node(port, port_node)
+
+            if self.providers:
+                for provider in self.providers:
+                    provider_node = etree.SubElement(root, 'provider')
+                    self.add_dict_properties_to_node(provider, provider_node)
+
+            if self.tests:
+                for test in self.tests:
+                    etree.SubElement(
+                        root, 'test').text = etree.CDATA(test)
+            etree.ElementTree(
+                root).write(filestream, pretty_print=True, encoding='utf-8')
+
+        # Write out the xml file name
+        filename = os.path.basename(pathname)
+
+        # Add all editable fields as node attributes
+        node.tag = self.category
+        node.set("filename", filename)
+        node.set('xblock-family', self.entry_point)
+        node.set('display_name', self.display_name)
+        node.set('weight', str(self.weight))
+        node.set('stack_user_name', self.stack_user_name)
+        node.set('stack_protocol', self.stack_protocol)
+        node.set('stack_template_path', self.stack_template_path or '')
+        node.set('launch_timeout', str(self.launch_timeout or ''))
+        node.set('hook_script', self.hook_script or '')
+        node.set('delete_age', str(self.delete_age or ''))
+
+        # Include nested blocks in course export
+        if self.has_children:
+            for child_id in self.children:
+                child = self.runtime.get_block(child_id)
+                self.runtime.add_block_as_child_node(child, node)
 
     @property
     def allowed_nested_blocks(self):
