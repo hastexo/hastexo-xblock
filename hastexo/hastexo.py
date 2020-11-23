@@ -14,6 +14,7 @@ from xblockutils.studio_editable import (
 )
 from xblockutils.settings import XBlockWithSettingsMixin
 
+from distutils.util import strtobool
 from django.db import transaction
 from django.utils import timezone
 from lxml import etree
@@ -252,12 +253,12 @@ class HastexoXBlock(XBlock,
 
                     elif child.tag == "hook_events":
                         hook_events = {
-                            "suspend": bool(
-                                child.attrib.get("suspend", "true")),
-                            "resume": bool(
-                                child.attrib.get("resume", "true")),
-                            "delete": bool(
-                                child.attrib.get("delete", "true"))
+                            "suspend": bool(strtobool(
+                                child.attrib.get("suspend", "true"))),
+                            "resume": bool(strtobool(
+                                child.attrib.get("resume", "true"))),
+                            "delete": bool(strtobool(
+                                child.attrib.get("delete", "true")))
                         }
                         block.hook_events = hook_events
 
