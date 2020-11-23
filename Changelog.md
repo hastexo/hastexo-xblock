@@ -1,4 +1,4 @@
-Unreleased
+Version 4.1.0 (2020-11-23)
 ---------------------------
 
 * [Enhancement] Refactor course export/import logic. XBlock editable
