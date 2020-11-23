@@ -1,4 +1,4 @@
-Unreleased
+Version 4.1.1 (2020-11-23)
 ---------------------------
 
 * [Bug fix] Correct the erroneous Maven `pom.xml` that accidentally
