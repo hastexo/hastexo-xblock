@@ -1,5 +1,17 @@
+Unreleased
+---------------------------
+
+* [Bug fix] Correct the erroneous Maven `pom.xml` that accidentally
+  bumped 4.0.0 references to 4.1.0 in the prior release. It should
+  obviously have only bumped the package's own `<version>` string, and
+  not the model version, schema, or namespace reference.
+
 Version 4.1.0 (2020-11-23)
 ---------------------------
+
+**Do not use this release.** An erroneous invocation of `bumpversion`
+resulted in a Maven `pom.xml` that renders the Guacamole subsystem
+`.war` file impossible to build.
 
 * [Enhancement] Refactor course export/import logic. XBlock editable
   fields are added as attributes to the <hastexo> element in a
