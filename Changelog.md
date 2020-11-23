@@ -1,15 +1,18 @@
 Unreleased
 ---------------------------
 
-* [Enhancement] Refactor course export/import logic. XBlock editable fields
-  are added as attributes to the <hastexo> element in a vertical block.
-  `hook_events`, `ports`, `providers` and `tests` are exported to a separate
-  xml file.
-* [Bug fix] Fix support for nested `<video>` elements
+* [Enhancement] Refactor course export/import logic. XBlock editable
+  fields are added as attributes to the <hastexo> element in a
+  vertical block.  `hook_events`, `ports`, `providers` and `tests` are
+  exported to a separate xml file. This does not affect existing
+  deployed courses using the XBlock, but might possibly require some
+  tweaking to automated deployment pipelines that rely on import and
+  export.
+* [Bug fix] Fix support for nested `<video>` elements.
 * [Enhancement] Support `<markdown>` (from the
   [markdown-xblock](https://pypi.org/project/markdown-xblock/)
   package) as an additional nested element (in addition to `<html>`,
-  `<pdf>`, and `<video>`)
+  `<pdf>`, and `<video>`).
 
 Version 4.0.0 (2020-11-10)
 ---------------------------
