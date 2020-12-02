@@ -1,3 +1,11 @@
+Unreleased
+----------
+
+* [Bug fix] The XBlock allows to configure the layout for
+lab instructions to be either above, below, left or right from the terminal.
+However, that configuration was not working properly for lab
+instructions that are in a nested block.
+
 Version 4.1.1 (2020-11-23)
 ---------------------------
 

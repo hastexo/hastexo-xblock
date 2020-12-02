@@ -280,38 +280,56 @@ function HastexoXBlock(runtime, element, configuration) {
 
         /* 'above' is the default layout and doesn't require any changes */
         if (instructions_layout != 'above') {
-            /* find the vertical element containing the content */
-            var content = $('.vert-mod');
+            /* check if an element with a class "lab_instructions" exists */
+            if ($('.lab_instructions')[0]) {
 
-            /* find the vertical elements that contain lab instructions and terminal */
-            var terminal_parent = $('#terminal').closest('.vert');
-            var instructions_parent = $('.lab_instructions').closest('.vert');
+                /* define the layout object for terminal */
+                var terminal;
 
-            if (terminal_parent != 'undefined' && instructions_parent != 'undefined') {
+                /* define the layout object for lab intructions */
+                var lab_instructions;
+
+                /* find the parent of vertical elements */
+                var layout_parent = $('.vert-mod');
+
+                /* find the vertical element that contains the terminal */
+                var terminal_parent = $('#terminal').closest('.vert');
+
+                /* check if lab instructions are in a nested block */
+                if ($(terminal_parent).find('.lab_instructions').length > 0) {
+                    /* Consider the terminal parent as the parent of our layout objects */
+                    layout_parent = terminal_parent
+                    lab_instructions = $('.lab_instructions')
+                    terminal = $('.hastexblock')
+                }
+                else {
+                    /* find the vertical element that contains the lab instructions */
+                    lab_instructions = $('.lab_instructions').closest('.vert');
+                    terminal = terminal_parent
+                }
                 if (instructions_layout === 'left' || instructions_layout === 'right') {
                     $('.lab_instructions').addClass('instructions-side-view');
                     $('#container').addClass('terminal-side-view');
-                    $(content).addClass('content-side-by-side');
+                    $(layout_parent).addClass('content-side-by-side');
                     /* Make sure the xblock fits to content area */
-                    $(content).height($('.hastexblock').height() + 20);
+                    $(layout_parent).height($('.hastexblock').height() + 20);
 
-                    $(instructions_parent).css({
+                    $(lab_instructions).css({
                         'float': [instructions_layout],
                         'width' : '40%',
                         'height': '100%'
                     });
-                    $(terminal_parent).css({
+                    $(terminal).css({
                         ['margin-' + instructions_layout] : '40%',
                         'height': '100%'
                     });
-
                     /* if terminal is on the left side, move terminal buttons to the left as well */
                     if (instructions_layout === 'right') {
                         $(element).find('.buttons').css({'text-align': 'left'});
                     };
-                };
+                }
                 if (instructions_layout === 'below') {
-                    $(instructions_parent).insertAfter($(terminal_parent));
+                    $(lab_instructions).insertAfter($(terminal));
                 };
             } else {
                 console.warn('Unable to modify content layout, elements not found');
