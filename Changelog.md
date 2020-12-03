@@ -1,4 +1,4 @@
-Unreleased
+Version 4.1.2 (2020-12-03)
 ----------
 
 * [Bug fix] The XBlock allows to configure the layout for
