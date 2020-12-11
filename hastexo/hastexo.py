@@ -4,7 +4,7 @@ import os
 import textwrap
 
 from xblock.core import XBlock, XML_NAMESPACES
-from xblock.fields import Scope, Float, String, Dict, List, Integer
+from xblock.fields import Scope, Float, String, Dict, List, Integer, Boolean
 from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import (
@@ -99,6 +99,11 @@ class HastexoXBlock(XBlock,
         help="Delete stacks that haven't been resumed in this many seconds. "
              "Overrides the globally defined setting."
     )
+    read_only = Boolean(
+        default=False,
+        scope=Scope.settings,
+        help="Display the terminal window in read-only mode"
+    )
 
     # Set via XML
     hook_events = Dict(
@@ -167,7 +172,8 @@ class HastexoXBlock(XBlock,
         'delete_age',
         'ports',
         'providers',
-        'tests')
+        'tests',
+        'read_only')
 
     has_author_view = True
     has_score = True
@@ -357,6 +363,7 @@ class HastexoXBlock(XBlock,
         node.set('launch_timeout', str(self.launch_timeout or ''))
         node.set('hook_script', self.hook_script or '')
         node.set('delete_age', str(self.delete_age or ''))
+        node.set('read_only', str(self.read_only))
 
         # Include nested blocks in course export
         if self.has_children:
@@ -496,7 +503,8 @@ class HastexoXBlock(XBlock,
             "color_scheme": settings.get("terminal_color_scheme"),
             "font_name": settings.get("terminal_font_name"),
             "font_size": settings.get("terminal_font_size"),
-            "instructions_layout": settings.get("instructions_layout")
+            "instructions_layout": settings.get("instructions_layout"),
+            "read_only": self.read_only
         })
 
         return frag

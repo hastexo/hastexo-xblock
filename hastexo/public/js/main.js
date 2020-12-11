@@ -128,108 +128,110 @@ function HastexoXBlock(runtime, element, configuration) {
                 terminal_client.disconnect();
             };
 
-            /* Mouse handling */
-            var mouse = new Guacamole.Mouse(terminal_element);
+            if(!configuration.read_only) {
+                /* Mouse handling */
+                var mouse = new Guacamole.Mouse(terminal_element);
 
-            mouse.onmousedown =
-            mouse.onmouseup   =
-            mouse.onmousemove = function(mouseState) {
-                terminal_client.sendMouseState(mouseState);
+                mouse.onmousedown =
+                mouse.onmouseup   =
+                mouse.onmousemove = function(mouseState) {
+                    terminal_client.sendMouseState(mouseState);
 
-                /* Reset the idle timeout on mouse action. */
-                if (configuration.timeouts['idle']) {
-                    if (idle_timer) clearTimeout(idle_timer);
-                    idle_timer = setTimeout(idle, configuration.timeouts['idle']);
-                }
-            };
-
-            /* Keyboard handling.  */
-            var keyboard = new Guacamole.Keyboard(terminal_element);
-            var ctrl, shift = false;
-
-            keyboard.onkeydown = function (keysym) {
-                var cancel_event = true;
-
-                /* Don't cancel event on paste shortcuts. */
-                if (keysym == 0xFFE1 /* shift */
-                    || keysym == 0xFFE3 /* ctrl */
-                    || keysym == 0xFF63 /* insert */
-                    || keysym == 0x0056 /* V */
-                    || keysym == 0x0076 /* v */
-                ) {
-                    cancel_event = false;
-                }
-
-                /* Remember when ctrl or shift are down. */
-                if (keysym == 0xFFE1) {
-                    shift = true;
-                } else if (keysym == 0xFFE3) {
-                    ctrl = true;
-                }
-
-                /* Delay sending final stroke until clipboard is updated. */
-                if ((ctrl && shift && keysym == 0x0056) /* ctrl-shift-V */
-                    || (ctrl && keysym == 0x0076) /* ctrl-v */
-                    || (shift && keysym == 0xFF63) /* shift-insert */
-                ) {
-                    window.setTimeout(function() {
-                        terminal_client.sendKeyEvent(1, keysym);
-                    }, 50);
-                } else {
-                    terminal_client.sendKeyEvent(1, keysym);
-                }
-
-                return !cancel_event;
-            };
-
-            keyboard.onkeyup = function (keysym) {
-                /* Remember when ctrl or shift are released. */
-                if (keysym == 0xFFE1) {
-                    shift = false;
-                } else if (keysym == 0xFFE3) {
-                    ctrl = false;
-                }
-
-                /* Delay sending final stroke until clipboard is updated. */
-                if ((ctrl && shift && keysym == 0x0056) /* ctrl-shift-v */
-                    || (ctrl && keysym == 0x0076) /* ctrl-v */
-                    || (shift && keysym == 0xFF63) /* shift-insert */
-                ) {
-                    window.setTimeout(function() {
-                        terminal_client.sendKeyEvent(0, keysym);
-                    }, 50);
-                } else {
-                    terminal_client.sendKeyEvent(0, keysym);
-                }
-            };
-
-            $(terminal_element)
-                /* Set tabindex so that element can be focused.  Otherwise, no
-                 * keyboard events will be registered for it. */
-                .attr('tabindex', 1)
-                /* Focus on the element based on mouse movement.  Simply
-                 * letting the user click on it doesn't work. */
-                .hover(
-                    function() {
-                       var x = window.scrollX, y = window.scrollY;
-                       $(this).focus();
-                       window.scrollTo(x, y);
-                    }, function() {
-                       $(this).blur();
+                    /* Reset the idle timeout on mouse action. */
+                    if (configuration.timeouts['idle']) {
+                        if (idle_timer) clearTimeout(idle_timer);
+                        idle_timer = setTimeout(idle, configuration.timeouts['idle']);
                     }
-                )
-                /* Release all keys when the element loses focus. */
-                .blur(function() {
-                    keyboard.reset();
-                });
+                };
 
-            /* Handle paste events when the element is in focus. */
-            $(document).on('paste', function(e) {
-                var text = e.originalEvent.clipboardData.getData('text/plain');
-                if ($(terminal_element).is(":focus")) {
-                    terminal_client.setClipboard(text);
-                }
-            });
+                /* Keyboard handling.  */
+                var keyboard = new Guacamole.Keyboard(terminal_element);
+                var ctrl, shift = false;
+
+                keyboard.onkeydown = function (keysym) {
+                    var cancel_event = true;
+
+                    /* Don't cancel event on paste shortcuts. */
+                    if (keysym == 0xFFE1 /* shift */
+                        || keysym == 0xFFE3 /* ctrl */
+                        || keysym == 0xFF63 /* insert */
+                        || keysym == 0x0056 /* V */
+                        || keysym == 0x0076 /* v */
+                    ) {
+                        cancel_event = false;
+                    }
+
+                    /* Remember when ctrl or shift are down. */
+                    if (keysym == 0xFFE1) {
+                        shift = true;
+                    } else if (keysym == 0xFFE3) {
+                        ctrl = true;
+                    }
+
+                    /* Delay sending final stroke until clipboard is updated. */
+                    if ((ctrl && shift && keysym == 0x0056) /* ctrl-shift-V */
+                        || (ctrl && keysym == 0x0076) /* ctrl-v */
+                        || (shift && keysym == 0xFF63) /* shift-insert */
+                    ) {
+                        window.setTimeout(function() {
+                            terminal_client.sendKeyEvent(1, keysym);
+                        }, 50);
+                    } else {
+                        terminal_client.sendKeyEvent(1, keysym);
+                    }
+
+                    return !cancel_event;
+                };
+
+                keyboard.onkeyup = function (keysym) {
+                    /* Remember when ctrl or shift are released. */
+                    if (keysym == 0xFFE1) {
+                        shift = false;
+                    } else if (keysym == 0xFFE3) {
+                        ctrl = false;
+                    }
+
+                    /* Delay sending final stroke until clipboard is updated. */
+                    if ((ctrl && shift && keysym == 0x0056) /* ctrl-shift-v */
+                        || (ctrl && keysym == 0x0076) /* ctrl-v */
+                        || (shift && keysym == 0xFF63) /* shift-insert */
+                    ) {
+                        window.setTimeout(function() {
+                            terminal_client.sendKeyEvent(0, keysym);
+                        }, 50);
+                    } else {
+                        terminal_client.sendKeyEvent(0, keysym);
+                    }
+                };
+
+                $(terminal_element)
+                    /* Set tabindex so that element can be focused.  Otherwise, no
+                    * keyboard events will be registered for it. */
+                    .attr('tabindex', 1)
+                    /* Focus on the element based on mouse movement.  Simply
+                    * letting the user click on it doesn't work. */
+                    .hover(
+                        function() {
+                        var x = window.scrollX, y = window.scrollY;
+                        $(this).focus();
+                        window.scrollTo(x, y);
+                        }, function() {
+                        $(this).blur();
+                        }
+                    )
+                    /* Release all keys when the element loses focus. */
+                    .blur(function() {
+                        keyboard.reset();
+                    });
+
+                /* Handle paste events when the element is in focus. */
+                $(document).on('paste', function(e) {
+                    var text = e.originalEvent.clipboardData.getData('text/plain');
+                    if ($(terminal_element).is(":focus")) {
+                        terminal_client.setClipboard(text);
+                    }
+                });
+            }
 
             /* Error handling. */
             terminal_client.onerror = function(guac_error) {

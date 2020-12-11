@@ -514,6 +514,10 @@ The following are optional:
   releases. Using this attribute will allow setting the `delete_age` value per
   instance and configure it to have a shorter value.
 
+* `read_only`: Display a lab terminal in a `read-only` mode. If set to `True`,
+  a lab stack will be created or resumed as usual, the student can see the lab
+  terminal but is not able to interact with it. Default is `False`.
+
 You can also use the following nested XML options:
 
 * `providers`: A list of references to providers configured in the platform.

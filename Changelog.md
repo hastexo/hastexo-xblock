@@ -1,3 +1,8 @@
+Unreleased
+----------
+
+* [Enhancement] Add an option to display a terminal in  `read-only` mode.
+
 Version 4.1.2 (2020-12-03)
 ----------
 
