@@ -1,15 +1,18 @@
 Unreleased
-----------
+---------------------------
 
-* [Enhancement] Add an option to display a terminal in  `read-only` mode.
+* [Enhancement] Add a `read_only` XBlock attribute which, when set,
+  blocks all keyboard and mouse interaction with the Guacamole
+  terminal (effectively rendering it read-only). Defaults to `false`,
+  meaning the terminal is rendered with full interactivity by default.
 
 Version 4.1.2 (2020-12-03)
-----------
+---------------------------
 
-* [Bug fix] The XBlock allows to configure the layout for
-lab instructions to be either above, below, left or right from the terminal.
-However, that configuration was not working properly for lab
-instructions that are in a nested block.
+* [Bug fix] The XBlock allows to configure the layout for lab
+  instructions to be either above, below, left or right from the
+  terminal.  However, that configuration was not working properly for
+  lab instructions that are in a nested block.
 
 Version 4.1.1 (2020-11-23)
 ---------------------------
