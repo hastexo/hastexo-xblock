@@ -1,4 +1,4 @@
-Unreleased
+Version 4.1.3 (2020-12-11)
 ---------------------------
 
 * [Enhancement] Add a `read_only` XBlock attribute which, when set,
