@@ -547,6 +547,10 @@ class HastexoXBlock(XBlock,
         frag.add_javascript_url(
             self.runtime.local_resource_url(self, 'public/js/main.js')
         )
+        frag.add_javascript_url(
+            self.runtime.local_resource_url(
+                self, 'public/js/guacamole-common-js/all.min.js')
+        )
 
         # Create the stack in the database
         stack = self.create_stack(settings, course_id, student_id)
@@ -556,12 +560,8 @@ class HastexoXBlock(XBlock,
             "terminal_url": settings.get("terminal_url"),
             "timeouts": settings.get("js_timeouts"),
             "has_tests": len(self.tests) > 0,
-            "protocol": self.stack_protocol,
             "ports": self.ports,
             "port": stack.port,
-            "color_scheme": settings.get("terminal_color_scheme"),
-            "font_name": settings.get("terminal_font_name"),
-            "font_size": settings.get("terminal_font_size"),
             "instructions_layout": settings.get("instructions_layout"),
             "read_only": self.read_only,
             "progress_check_label": self.progress_check_label,
@@ -838,10 +838,7 @@ class HastexoXBlock(XBlock,
         return {
             "status": stack.status,
             "error_msg": stack.error_msg,
-            "ip": stack.ip,
-            "user": stack.user,
-            "key": stack.key,
-            "password": stack.password
+            "name": stack.name
         }
 
     @XBlock.json_handler
