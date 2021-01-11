@@ -1,3 +1,7 @@
+Unreleased
+--------------------------
+* [Enhancement] Update test requirements.
+
 Version 4.1.3 (2020-12-11)
 ---------------------------
 
