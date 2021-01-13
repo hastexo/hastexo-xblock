@@ -1,5 +1,5 @@
 [![PyPI version](https://badge.fury.io/py/hastexo-xblock.svg)](https://pypi.python.org/pypi/hastexo-xblock)
-[![Build Status](https://travis-ci.org/hastexo/hastexo-xblock.svg?branch=master)](https://travis-ci.org/hastexo/hastexo-xblock) [![codecov](https://codecov.io/gh/hastexo/hastexo-xblock/branch/master/graph/badge.svg)](https://codecov.io/gh/hastexo/hastexo-xblock)
+[![Build Status](https://github.com/hastexo/hastexo-xblock/workflows/Python%20package/badge.svg)](https://github.com/hastexo/hastexo-xblock/actions?query=workflow%3A%22Python+package%22) [![codecov](https://codecov.io/gh/hastexo/hastexo-xblock/branch/master/graph/badge.svg)](https://codecov.io/gh/hastexo/hastexo-xblock)
 
 # hastexo XBlock
 
