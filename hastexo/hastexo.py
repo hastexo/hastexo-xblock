@@ -212,19 +212,23 @@ class HastexoXBlock(XBlock,
             name = node.attrib["name"]
             if not name:
                 raise KeyError("name")
-            capacity = node.attrib.get("capacity")
+            capacity = node.attrib.get("capacity", None)
             if capacity in (None, "None", ""):
+                # capacity should not be undefined
+                # set to -1 (unlimited) in case it is
                 capacity = -1
             else:
                 # This will raise a TypeError if the string literal
                 # cannot be converted
                 capacity = int(capacity)
-            template = node.attrib.get("template", None)
-            environment = node.attrib.get("environment", None)
             provider = {"name": name,
-                        "capacity": capacity,
-                        "template": template,
-                        "environment": environment}
+                        "capacity": capacity}
+            template = node.attrib.get("template", None)
+            if template not in (None, "None"):
+                provider["template"] = template
+            environment = node.attrib.get("environment", None)
+            if environment not in (None, "None"):
+                provider["environment"] = environment
             block.providers.append(provider)
 
     @classmethod
@@ -339,6 +343,17 @@ class HastexoXBlock(XBlock,
             if self.providers:
                 for provider in self.providers:
                     provider_node = etree.SubElement(root, 'provider')
+                    provider_template = provider.get("template", None)
+                    if provider_template in (None, "None"):
+                        provider.pop("template")
+                    provider_environment = provider.get("environment", None)
+                    if provider_environment in (None, "None"):
+                        provider.pop("environment")
+                    provider_capacity = provider.get("capacity", None)
+                    if provider_capacity in (None, "None", ""):
+                        # capacity should not be undefined
+                        # set to -1 (unlimited) in case it is
+                        provider["capacity"] = -1
                     self.add_dict_properties_to_node(provider, provider_node)
 
             if self.tests:

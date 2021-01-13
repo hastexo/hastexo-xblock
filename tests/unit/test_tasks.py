@@ -512,6 +512,16 @@ class TestLaunchStackTask(HastexoTestCase):
         self.assertEqual(stack.provider, self.providers[1]["name"])
         provider.suspend_stack.assert_called()
 
+    def test_undefined_capacity(self):
+        # Setup
+        self.providers[0].pop("capacity")
+        self.update_stack({"providers": self.providers})
+
+        # Assert LaunchStackTask() fails if capacity is not defined
+        # for a provider.
+        with self.assertRaises(KeyError):
+            LaunchStackTask().run(**self.kwargs)
+
     def test_infinite_capacity(self):
         # Setup
         provider = self.mock_providers[0]

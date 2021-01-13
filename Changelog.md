@@ -2,6 +2,9 @@ Unreleased
 --------------------------
 * [Enhancement] Run integration tests in GitHub Actions, rather than
   Travis CI.
+* [Bug fix] Only add `template` and `environment` attributes
+  to a provider during course export and import when they have a value.
+  Adding a `null` or `None` values can cause breakage with spinning up labs.
 * [Enhancement] Update test requirements.
 
 Version 4.1.3 (2020-12-11)

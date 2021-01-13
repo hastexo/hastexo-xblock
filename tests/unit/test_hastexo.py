@@ -42,8 +42,7 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
       stack_user_name='training'
       stack_protocol='rdp'
       launch_timeout='900'>
-      <provider name='provider1' capacity='20'
-        environment='hot_env1.yaml' />
+      <provider name='provider1' capacity='-1' />
       <provider name='provider2' capacity='30' template='hot_lab2.yaml'
         environment='hot_env2.yaml' />
       <provider name='provider3' capacity='0' template='hot_lab3.yaml'
@@ -68,7 +67,9 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
         self.assertEqual(block.launch_timeout, 900)
         self.assertEqual(len(block.providers), 3)
         self.assertEqual(block.providers[0]["name"], "provider1")
-        self.assertEqual(block.providers[0]["template"], None)
+        self.assertEqual(block.providers[0]["capacity"], -1)
+        self.assertNotIn("template", block.providers[0])
+        self.assertNotIn("environment", block.providers[0])
         self.assertEqual(block.providers[1]["template"], "hot_lab2.yaml")
         self.assertEqual(block.providers[1]["capacity"], 30)
         self.assertEqual(block.providers[2]["environment"], "hot_env3.yaml")
@@ -78,6 +79,25 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
         self.assertEqual(len(block.tests), 2)
         self.assertEqual(block.tests[0], "Multi-line\ntest 1\n")
         self.assertEqual(block.tests[1], "Multi-line\ntest 2\n")
+
+    def test_parsing_capacity_empty_values(self):
+        block = self.parse_xml_to_block(textwrap.dedent("""\
+    <?xml version='1.0' encoding='utf-8'?>
+    <hastexo
+      stack_template_path='hot_lab.yaml'
+      stack_user_name='training'>
+      <provider name='provider1'
+        environment='hot_env1.yaml' />
+      <provider name='provider2' capacity=''
+        environment='hot_env2.yaml' />
+      <provider name='provider3' capacity='None'
+        environment='hot_env3.yaml' />
+    </hastexo>
+        """).encode('utf-8'))
+
+        self.assertEqual(block.providers[0]["capacity"], -1)
+        self.assertEqual(block.providers[1]["capacity"], -1)
+        self.assertEqual(block.providers[2]["capacity"], -1)
 
     def test_parsing_deprecated_requires_name(self):
         with self.assertRaises(KeyError):
