@@ -1,3 +1,7 @@
+Unreleased
+--------------------------
+* [Bug fix] Fix ICMP connectivity check for IPv6-only stacks.
+
 Version 4.1.4 (2021-01-14)
 --------------------------
 * [Enhancement] Run integration tests in GitHub Actions, rather than

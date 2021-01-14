@@ -24,10 +24,12 @@ from django.db.utils import OperationalError
 
 
 class HastexoTestCase(TestCase):
+    STACK_IP = "127.0.0.1"
+    PING_BINARY = 'ping'
+
     def setUp(self):
         self.stack_name = "bogus_stack_name"
         self.stack_user_name = "bogus_stack_user_name"
-        self.stack_ip = "127.0.0.1"
         self.stack_key = u"bogus_stack_key"
         self.stack_password = "bogus_stack_password"
         self.protocol = "ssh"
@@ -84,7 +86,7 @@ class HastexoTestCase(TestCase):
             self.stacks[state] = {
                 "status": state,
                 "outputs": {
-                    "public_ip": self.stack_ip,
+                    "public_ip": self.STACK_IP,
                     "private_key": self.stack_key,
                     "password": self.stack_password
                 }
@@ -196,11 +198,13 @@ class TestLaunchStackTask(HastexoTestCase):
             self.stack_name,
             self.stack_run
         )
-        ping_command = PING_COMMAND % (0, self.stack_ip)
+        ping_command = PING_COMMAND % (self.PING_BINARY,
+                                       0,
+                                       self.STACK_IP)
         self.mocks["os"].system.assert_called_with(ping_command)
         self.mocks["ssh_to"].assert_called_with(
             self.stack_user_name,
-            self.stack_ip,
+            self.STACK_IP,
             self.stack_key
         )
         self.assertFalse(self.mocks["remote_exec"].called)
@@ -245,11 +249,13 @@ class TestLaunchStackTask(HastexoTestCase):
             self.stack_name,
             self.stack_run
         )
-        ping_command = PING_COMMAND % (0, self.stack_ip)
+        ping_command = PING_COMMAND % (self.PING_BINARY,
+                                       0,
+                                       self.STACK_IP)
         self.mocks["os"].system.assert_called_with(ping_command)
         self.mocks["ssh_to"].assert_called_with(
             self.stack_user_name,
-            self.stack_ip,
+            self.STACK_IP,
             self.stack_key
         )
         self.assertFalse(self.mocks["remote_exec"].called)
@@ -1318,7 +1324,7 @@ class TestLaunchStackTask(HastexoTestCase):
         stack = self.get_stack()
 
         # Assertions
-        s.connect.assert_called_with((self.stack_ip, 3389))
+        s.connect.assert_called_with((self.STACK_IP, 3389))
         self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
 
     def test_dont_wait_forever_for_rdp_on_custom_port(self):
@@ -1349,7 +1355,7 @@ class TestLaunchStackTask(HastexoTestCase):
         stack = self.get_stack()
 
         # Assertions
-        s.connect.assert_called_with((self.stack_ip, self.port))
+        s.connect.assert_called_with((self.STACK_IP, self.port))
         self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
 
     def test_dont_wait_forever_for_suspension(self):
@@ -1997,7 +2003,7 @@ class TestCheckStudentProgressTask(HastexoTestCase):
         ]
         kwargs = {
             "tests": tests,
-            "stack_ip": self.stack_ip,
+            "stack_ip": self.STACK_IP,
             "stack_key": self.stack_key,
             "stack_user_name": self.stack_user_name
         }
@@ -2021,7 +2027,7 @@ class TestCheckStudentProgressTask(HastexoTestCase):
         ]
         kwargs = {
             "tests": tests,
-            "stack_ip": self.stack_ip,
+            "stack_ip": self.STACK_IP,
             "stack_key": self.stack_key,
             "stack_user_name": self.stack_user_name
         }
@@ -2066,7 +2072,7 @@ class TestCheckStudentProgressTask(HastexoTestCase):
         ]
         kwargs = {
             "tests": tests,
-            "stack_ip": self.stack_ip,
+            "stack_ip": self.STACK_IP,
             "stack_key": self.stack_key,
             "stack_user_name": self.stack_user_name
         }
@@ -2087,3 +2093,28 @@ class TestCheckStudentProgressTask(HastexoTestCase):
             "line 1\nline 2",
             "line 1\nline 2"
         ])
+
+
+class HastexoIPv6TestCase(HastexoTestCase):
+    STACK_IP = "::1"
+    PING_BINARY = 'ping6'
+
+
+class TestLaunchStackTaskIPv6(TestLaunchStackTask,
+                              HastexoIPv6TestCase):
+    pass
+
+
+class TestSuspendStackTaskIPv6(TestSuspendStackTask,
+                               HastexoIPv6TestCase):
+    pass
+
+
+class TestDeleteStackTaskIPv6(TestDeleteStackTask,
+                              HastexoIPv6TestCase):
+    pass
+
+
+class TestCheckStudentProgressTaskIPv6(TestCheckStudentProgressTask,
+                                       HastexoIPv6TestCase):
+    pass

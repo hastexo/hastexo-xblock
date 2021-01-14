@@ -3,6 +3,7 @@ import os
 import traceback
 import socket
 import logging
+import ipaddress
 
 from django.db import connection, transaction
 from django.db.utils import OperationalError
@@ -48,7 +49,7 @@ logger = get_task_logger(__name__)
 CLEANUP_SUSPEND = 1
 CLEANUP_DELETE = 2
 
-PING_COMMAND = "ping -c 1 -W %d %s >/dev/null 2>&1"
+PING_COMMAND = "%s -c 1 -W %d %s >/dev/null 2>&1"
 
 
 def close_connection_on_retry(retry_state):
@@ -470,7 +471,18 @@ class LaunchStackTask(HastexoTask):
                                      self.stack_name, e))
 
     def wait_for_ping(self, stack_ip):
-        ping_command = PING_COMMAND % (self.get_sleep_timeout(), stack_ip)
+        # The "ping" utility on Ubuntu Xenial does not work with
+        # IPv6. We thus have to parse the IP address, and use ping6 if
+        # it's an IPv6 one.
+        ping_command = PING_COMMAND % (
+            'ping6' if ipaddress.ip_address(stack_ip).version == 6 else 'ping',
+            self.get_sleep_timeout(),
+            stack_ip
+        )
+        logger.debug(
+            'Testing connectivity to stack [%s] with "%s"' % (self.stack_name,
+                                                              ping_command)
+        )
         while os.system(ping_command) != 0:
             self.sleep()
 
