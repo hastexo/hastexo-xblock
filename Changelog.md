@@ -1,4 +1,4 @@
-Unreleased
+Version 4.1.4 (2021-01-14)
 --------------------------
 * [Enhancement] Run integration tests in GitHub Actions, rather than
   Travis CI.
