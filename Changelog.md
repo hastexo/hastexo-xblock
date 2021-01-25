@@ -1,4 +1,4 @@
-Unreleased
+Version 4.1.5 (2021-01-25)
 --------------------------
 * [Bug fix] Fix ICMP connectivity check for IPv6-only stacks.
 
