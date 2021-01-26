@@ -521,6 +521,9 @@ The following are optional:
 * `progress_check_label`: Set a label for the progress check button.
   For example: `Submit Answer` or `Check Progress` (Default).
 
+* `show_hints_on_error`: On progress check failure, display the tests' standard
+  error streams as hints. Default is `True`.
+
 You can also use the following nested XML options:
 
 * `providers`: A list of references to providers configured in the platform.

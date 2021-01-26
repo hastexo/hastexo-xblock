@@ -549,14 +549,16 @@ function HastexoXBlock(runtime, element, configuration) {
                     });
                     var hints_title = dialog.find('.hints_title').hide();
                     var hints = dialog.find('.hints').empty().hide();
-                    if (data.errors.length > 0) {
-                        $.each(data.errors, function(i, error) {
-                            var pre = $('<pre>', {text: error});
-                            var li = $('<li>').append(pre);
-                            hints.append(li);
-                        });
-                        hints_title.show();
-                        hints.show();
+                    if (configuration.show_hints_on_error) {
+                        if (data.errors.length > 0) {
+                            $.each(data.errors, function(i, error) {
+                                var pre = $('<pre>', {text: error});
+                                var li = $('<li>').append(pre);
+                                hints.append(li);
+                            });
+                            hints_title.show();
+                            hints.show();
+                        }
                     }
                     dialog.dialog(dialog_container);
                 } else if (check.status == 'CHECK_PROGRESS_PENDING') {

@@ -1,5 +1,7 @@
 Unreleased
 -------------------------
+[Enhancement] Allow to enable/disable displaying test stderr
+  output streams as hints.
 [Enhancement] Make the progress check button label configurable.
 
 Version 4.1.5 (2021-01-25)
