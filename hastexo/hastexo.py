@@ -104,6 +104,12 @@ class HastexoXBlock(XBlock,
         scope=Scope.settings,
         help="Display the terminal window in read-only mode"
     )
+    progress_check_label = String(
+        default='Check Progress',
+        scope=Scope.settings,
+        help="Set the progress check button label. "
+             "For example: \"Submit Answer\" or \"Check Progress\"(Default)."
+    )
 
     # Set via XML
     hook_events = Dict(
@@ -162,6 +168,7 @@ class HastexoXBlock(XBlock,
 
     editable_fields = (
         'display_name',
+        'progress_check_label',
         'weight',
         'stack_template_path',
         'hook_script',
@@ -371,6 +378,7 @@ class HastexoXBlock(XBlock,
         node.set("filename", filename)
         node.set('xblock-family', self.entry_point)
         node.set('display_name', self.display_name)
+        node.set('progress_check_label', self.progress_check_label)
         node.set('weight', str(self.weight))
         node.set('stack_user_name', self.stack_user_name)
         node.set('stack_protocol', self.stack_protocol)
@@ -519,7 +527,8 @@ class HastexoXBlock(XBlock,
             "font_name": settings.get("terminal_font_name"),
             "font_size": settings.get("terminal_font_size"),
             "instructions_layout": settings.get("instructions_layout"),
-            "read_only": self.read_only
+            "read_only": self.read_only,
+            "progress_check_label": self.progress_check_label
         })
 
         return frag

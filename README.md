@@ -518,6 +518,9 @@ The following are optional:
   a lab stack will be created or resumed as usual, the student can see the lab
   terminal but is not able to interact with it. Default is `False`.
 
+* `progress_check_label`: Set a label for the progress check button.
+  For example: `Submit Answer` or `Check Progress` (Default).
+
 You can also use the following nested XML options:
 
 * `providers`: A list of references to providers configured in the platform.

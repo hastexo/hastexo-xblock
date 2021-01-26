@@ -26,6 +26,7 @@ function HastexoXBlock(runtime, element, configuration) {
         /* Display progress check button, if there are tests. */
         if (configuration.has_tests) {
             var button = $(element).find('.buttons .check');
+            button.attr("value", configuration.progress_check_label);
             button.show();
             button.on('click', get_check_status);
         }
