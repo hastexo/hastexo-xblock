@@ -1,4 +1,4 @@
-Unreleased
+Version 4.1.6 (2021-01-26)
 -------------------------
 [Enhancement] Allow to enable/disable displaying test stderr
   output streams as hints.
