@@ -12,7 +12,8 @@ jobs:
         python-version: [3.6, 3.7, 3.8]
 
     steps:
-    - uses: actions/checkout@v1
+    - name: Check out code
+      uses: actions/checkout@v1
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
@@ -22,3 +23,38 @@ jobs:
         pip install tox tox-gh-actions
     - name: Test with tox
       run: tox
+    - name: Upload coverage data
+      uses: actions/upload-artifact@v2
+      with:
+        name: coverage-${{ matrix.python-version }}
+        path: .coverage*
+        retention-days: 1
+
+  report:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v1
+    - name: Download artifacts
+      uses: actions/download-artifact@v2
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+    - name: Install dependencies
+      run: |
+        pip install coverage
+    - name: Compile coverage data
+      run: |
+        mv coverage-*/.coverage* .
+        coverage combine
+        coverage html
+        coverage report
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v2
+      with:
+        name: htmlcov
+        path: htmlcov
+        retention-days: 7
