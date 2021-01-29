@@ -521,8 +521,17 @@ The following are optional:
 * `progress_check_label`: Set a label for the progress check button.
   For example: `Submit Answer` or `Check Progress` (Default).
 
+* `show_feedback`: On progress check, show feedback on how many tasks out of total 
+  are completed. Default is `True`.
+
 * `show_hints_on_error`: On progress check failure, display the tests' standard
-  error streams as hints. Default is `True`.
+  error streams as hints.
+  When `show_feedback` is set to `False`, hints will never be displayed and having
+  this set to `True` will have no effect. Default is `True`.
+
+* `progress_check_result_heading`: Message to display on progress check result window.
+  This could be set to "Answer Submitted" for example, when choosing to not display
+  hints and feedback. Default is "Progress check result".
 
 You can also use the following nested XML options:
 

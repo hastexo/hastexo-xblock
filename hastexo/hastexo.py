@@ -110,11 +110,27 @@ class HastexoXBlock(XBlock,
         help="Set the progress check button label. "
              "For example: \"Submit Answer\" or \"Check Progress\"(Default)."
     )
+    show_feedback = Boolean(
+        default=True,
+        scope=Scope.settings,
+        help="On progress check, show feedback on how many tasks out of total "
+             "are completed."
+    )
     show_hints_on_error = Boolean(
         default=True,
         scope=Scope.settings,
         help="On progress check failure, display the tests' standard error "
-             "streams as hints"
+             "streams as hints. When 'show_feedback' is set to False, hints "
+             "will never be displayed and setting this to True will have no "
+             "effect."
+    )
+    progress_check_result_heading = String(
+        default='Progress check result',
+        scope=Scope.settings,
+        help="Message to display on progress check result window. This could "
+             "be set to \"Answer Submitted\" for example, when choosing to "
+             "not display hints and feedback. Default is \"Progress check "
+             "result\"."
     )
 
     # Set via XML
@@ -175,6 +191,8 @@ class HastexoXBlock(XBlock,
     editable_fields = (
         'display_name',
         'progress_check_label',
+        'progress_check_result_heading',
+        'show_feedback',
         'show_hints_on_error',
         'weight',
         'stack_template_path',
@@ -387,6 +405,9 @@ class HastexoXBlock(XBlock,
         node.set('display_name', self.display_name)
         node.set('progress_check_label', self.progress_check_label)
         node.set('show_hints_on_error', str(self.show_hints_on_error))
+        node.set('show_feedback', str(self.show_feedback))
+        node.set('progress_check_result_heading',
+                 self.progress_check_result_heading)
         node.set('weight', str(self.weight))
         node.set('stack_user_name', self.stack_user_name)
         node.set('stack_protocol', self.stack_protocol)
@@ -537,7 +558,9 @@ class HastexoXBlock(XBlock,
             "instructions_layout": settings.get("instructions_layout"),
             "read_only": self.read_only,
             "progress_check_label": self.progress_check_label,
-            "show_hints_on_error": self.show_hints_on_error
+            "show_hints_on_error": self.show_hints_on_error,
+            "show_feedback": self.show_feedback,
+            "progress_check_result_heading": self.progress_check_result_heading
         })
 
         return frag

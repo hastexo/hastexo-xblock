@@ -542,6 +542,7 @@ function HastexoXBlock(runtime, element, configuration) {
                 var dialog;
                 if (check.status == 'CHECK_PROGRESS_COMPLETE') {
                     dialog = $('#check_complete');
+                    dialog.find('.check_result_heading').html(configuration.progress_check_result_heading);
                     dialog.find('.check_pass').html(data.pass);
                     dialog.find('.check_total').html(data.total);
                     dialog.find('input.ok').one('click', function() {
@@ -549,16 +550,20 @@ function HastexoXBlock(runtime, element, configuration) {
                     });
                     var hints_title = dialog.find('.hints_title').hide();
                     var hints = dialog.find('.hints').empty().hide();
-                    if (configuration.show_hints_on_error) {
-                        if (data.errors.length > 0) {
-                            $.each(data.errors, function(i, error) {
-                                var pre = $('<pre>', {text: error});
-                                var li = $('<li>').append(pre);
-                                hints.append(li);
-                            });
-                            hints_title.show();
-                            hints.show();
+                    if (configuration.show_feedback) {
+                        if (configuration.show_hints_on_error) {
+                            if (data.errors.length > 0) {
+                                $.each(data.errors, function(i, error) {
+                                    var pre = $('<pre>', {text: error});
+                                    var li = $('<li>').append(pre);
+                                    hints.append(li);
+                                });
+                                hints_title.show();
+                                hints.show();
+                            }
                         }
+                    } else {
+                        dialog.find('.check_result_message').hide()
                     }
                     dialog.dialog(dialog_container);
                 } else if (check.status == 'CHECK_PROGRESS_PENDING') {

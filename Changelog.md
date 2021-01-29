@@ -1,3 +1,8 @@
+Unreleased
+-------------------------
+[Enhancement] Make the progress check result header configurable
+ and allow to enable/disable showing feedback for task completion.
+
 Version 4.1.6 (2021-01-26)
 -------------------------
 [Enhancement] Allow to enable/disable displaying test stderr
