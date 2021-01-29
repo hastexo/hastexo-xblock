@@ -882,3 +882,7 @@ class TestHastexoXBlock(TestCase):
                 time.sleep(check_timeout)
                 result = self.call_handler("get_check_status", {})
                 self.assertEqual(result['status'], 'ERROR')
+
+    def test_keepalive(self):
+        self.init_block()
+        self.call_handler("keepalive", data={})
