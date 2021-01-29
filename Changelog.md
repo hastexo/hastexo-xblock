@@ -1,4 +1,4 @@
-Unreleased
+Version 4.1.7 (2021-01-29)
 -------------------------
 [Enhancement] Make the progress check result header configurable
  and allow to enable/disable showing feedback for task completion.
