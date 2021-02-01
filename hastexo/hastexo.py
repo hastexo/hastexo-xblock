@@ -375,12 +375,19 @@ class HastexoXBlock(XBlock,
             if self.providers:
                 for provider in self.providers:
                     provider_node = etree.SubElement(root, 'provider')
-                    provider_template = provider.get("template", None)
-                    if provider_template in (None, "None"):
-                        provider.pop("template")
-                    provider_environment = provider.get("environment", None)
-                    if provider_environment in (None, "None"):
-                        provider.pop("environment")
+                    # Not having a 'template' or an 'environment' defined for
+                    # a provider is a valid option.
+                    # Only try to remove these when defined but values are
+                    # None or "None" to avoid breaking the export.
+                    if 'template' in provider:
+                        provider_template = provider.get("template", None)
+                        if provider_template in (None, "None"):
+                            provider.pop("template")
+                    if 'environment' in provider:
+                        provider_environment = provider.get("environment",
+                                                            None)
+                        if provider_environment in (None, "None"):
+                            provider.pop("environment")
                     provider_capacity = provider.get("capacity", None)
                     if provider_capacity in (None, "None", ""):
                         # capacity should not be undefined
