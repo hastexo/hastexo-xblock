@@ -2,10 +2,12 @@ import time
 import logging
 import os
 import textwrap
+import json
 
 from xblock.core import XBlock, XML_NAMESPACES
 from xblock.fields import Scope, Float, String, Dict, List, Integer, Boolean
 from xblock.fragment import Fragment
+from xblock.scorable import ScorableXBlockMixin, Score
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import (
     NestedXBlockSpec,
@@ -13,6 +15,7 @@ from xblockutils.studio_editable import (
     StudioEditableXBlockMixin,
 )
 from xblockutils.settings import XBlockWithSettingsMixin
+from bulk_grades.api import get_score, set_score
 
 from distutils.util import strtobool
 from django.db import transaction
@@ -49,6 +52,7 @@ class LaunchError(Exception):
 @XBlock.wants('settings')
 class HastexoXBlock(XBlock,
                     XBlockWithSettingsMixin,
+                    ScorableXBlockMixin,
                     StudioEditableXBlockMixin,
                     StudioContainerWithNestedXBlocksMixin):
     """
@@ -208,7 +212,7 @@ class HastexoXBlock(XBlock,
         'read_only')
 
     has_author_view = True
-    has_score = True
+    # No need to define has_score here; we inherit it from ScorableXBlockMixin.
     has_children = True
     icon_class = 'problem'
     block_settings_key = SETTINGS_KEY
@@ -961,6 +965,46 @@ class HastexoXBlock(XBlock,
             status = _process_result(result)
 
         return status
+
+    def max_score(self):
+        return self.weight
+
+    def get_score(self):
+        """
+        Return a raw score already persisted on the XBlock.  Should not
+        perform new calculations.
+
+        Returns:
+            Score(raw_earned=float, raw_possible=float)
+        """
+        score = get_score(self.runtime.user_id, self.location)
+        score = score or {'grade': 0, 'max_grade': 1}
+        return Score(raw_earned=score['grade'],
+                     raw_possible=score['max_grade'])
+
+    def set_score(self, score):
+        """
+        Persist a score to the XBlock.
+
+        The score is a named tuple with a raw_earned attribute and a
+        raw_possible attribute, reflecting the raw earned score and the maximum
+        raw score the student could have earned respectively.
+
+        Arguments:
+            score: Score(raw_earned=float, raw_possible=float)
+
+        Returns:
+            None
+        """
+        state = json.dumps({'grader': self._get_current_username()})
+        set_score(self.location,
+                  self.runtime.user_id,
+                  score.raw_earned,
+                  score.raw_possible,
+                  state=state)
+
+    def publish_grade(self):
+        pass
 
     @staticmethod
     def workbench_scenarios():
