@@ -15,6 +15,21 @@ graphical user environments (via VNC and RDP), in addition to terminals (via
 SSH).
 
 
+> **Important changes in version 5**
+>
+> As of version 5, this XBlock uses a different interaction mechanism
+> with Guacamole than it did in prior releases: rather than relying on
+> [a separately deployed Apache Tomcat
+> servlet](https://guacamole.apache.org/doc/gug/installing-guacamole.html#deploying-guacamole),
+> it now uses the [Daphne ASGI
+> server](https://github.com/django/daphne).
+>
+> If you follow the suggestions in this README, you will still be able
+> to use the edx-configuration Ansible playbooks to deploy this XBlock
+> to your Open edX instance, but we strongly suggest that you redeploy
+> your Open edX frontend servers, rather than attempt to reconfigure
+> them in-place.
+
 ## Purpose
 
 The hastexo XBlock orchestrates a virtual environment (a "stack") that runs on

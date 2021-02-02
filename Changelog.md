@@ -1,8 +1,16 @@
 Unreleased
 -------------------------
-* [Enhancement] Replace Guacamole servlet with a Django ASGI application,
-  that uses Django-Channels and [pyguacamole](https://pypi.org/project/pyguacamole/)
-  library.
+* [BREAKING CHANGE] Replace Guacamole servlet with a Django ASGI
+  application, which uses Django-Channels and the
+  [pyguacamole](https://pypi.org/project/pyguacamole/) library.  
+  As of 5.0, deployment of this XBlock will no longer rely on the
+  Apache Tomcat servlet container, which Guacamole normally uses, but
+  instead on the Daphne ASGI server. If you have been deploying this
+  XBlock with the modified edx-configuration playbooks as explained in
+  the README, deployment should still be automatic for you. It is,
+  however, strongly advised that you respin your app servers from
+  scratch, in order to keep any residual Tomcat servlet configuration
+  from lingering on them.
 
 Version 4.1.8 (2021-02-02)
 -------------------------
