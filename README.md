@@ -59,7 +59,7 @@ limited by the feature set of the cloud's deployment features.
 The easiest way for platform administrators to deploy the hastexo XBlock and
 its dependencies to an Open edX installation is to pip install it to the `edxapp`
 virtualenv, and then to use the `hastexo_xblock` role included in the
-[hastexo\_xblock branch](https://github.com/hastexo/edx-configuration/tree/hastexo/hawthorn/hastexo_xblock)
+[hastexo\_xblock branch](https://github.com/hastexo/edx-configuration/tree/hastexo/juniper/hastexo_xblock)
 of `edx/configuration`.
 
 To deploy the hastexo XBlock:
@@ -177,7 +177,7 @@ To deploy the hastexo XBlock:
    the machine:
 
     ```
-    $ git clone -b hastexo/hawthorn/hastexo_xblock https://github.com/hastexo/edx-configuration.git
+    $ git clone -b hastexo/juniper/hastexo_xblock https://github.com/hastexo/edx-configuration.git
     $ cd edx-configuration/playbooks
     $ ansible-playbook -c local -i "localhost," run_role.yml -e role=hastexo_xblock
     ```
