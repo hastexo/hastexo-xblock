@@ -1,5 +1,5 @@
 
-Unreleased
+Version 4.1.8 (2021-02-02)
 -------------------------
 [Bug fix] Fix export error, when provider attributes are not defined.
 
