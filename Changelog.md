@@ -1,5 +1,5 @@
-Unreleased
--------------------------
+Version 5.0.0rc0 (2021-02-02)
+-----------------------------
 * [BREAKING CHANGE] Replace Guacamole servlet with a Django ASGI
   application, which uses Django-Channels and the
   [pyguacamole](https://pypi.org/project/pyguacamole/) library.  
