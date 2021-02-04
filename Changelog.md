@@ -1,3 +1,7 @@
+Unreleased
+-------------------------
+* [Enhancement] Make progress check wait dialog wording more general
+  and more suitable for different progress check configurations.
 
 Version 4.1.8 (2021-02-02)
 -------------------------
