@@ -1,4 +1,4 @@
-Unreleased
+Version 4.1.9 (2021-02-10)
 -------------------------
 * [Bug fix] Make the XBlock a subclass of `ScorableXBlockMixin` so
   grades would be calculated correctly for each subsection.
