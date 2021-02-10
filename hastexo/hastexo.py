@@ -6,6 +6,7 @@ import textwrap
 from xblock.core import XBlock, XML_NAMESPACES
 from xblock.fields import Scope, Float, String, Dict, List, Integer, Boolean
 from xblock.fragment import Fragment
+from xblock.scorable import ScorableXBlockMixin, Score
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import (
     NestedXBlockSpec,
@@ -49,6 +50,7 @@ class LaunchError(Exception):
 @XBlock.wants('settings')
 class HastexoXBlock(XBlock,
                     XBlockWithSettingsMixin,
+                    ScorableXBlockMixin,
                     StudioEditableXBlockMixin,
                     StudioContainerWithNestedXBlocksMixin):
     """
@@ -187,6 +189,10 @@ class HastexoXBlock(XBlock,
         default=None,
         scope=Scope.user_state,
         help="The check status")
+    score = Dict(
+        default=None,
+        scope=Scope.user_state,
+        help="Dictionary with the current student score")
 
     editable_fields = (
         'display_name',
@@ -916,12 +922,11 @@ class HastexoXBlock(XBlock,
                         isinstance(result.result, dict) and not
                         result.result.get('error')):
                     status = result.result
+                    score = Score(raw_earned=status['pass'],
+                                  raw_possible=status['total'])
+                    # A publish event is necessary for calculating grades
+                    self.publish_grade(score)
 
-                    # Publish the grade
-                    self.runtime.publish(self, 'grade', {
-                        'value': status['pass'],
-                        'max_value': status['total']
-                    })
                 else:
                     status = {
                         'status': 'ERROR',
@@ -961,6 +966,37 @@ class HastexoXBlock(XBlock,
             status = _process_result(result)
 
         return status
+
+    def max_score(self):
+        """
+        Return the maximum possible score for this XBlock.
+        """
+        return self.weight
+
+    def set_score(self, score):
+        """
+        Persist a score to the XBlock.
+
+        The score is a named tuple with a raw_earned attribute and a
+        raw_possible attribute, reflecting the raw earned score and the maximum
+        raw score the student could have earned respectively.
+
+        Arguments:
+            score: Score(raw_earned=float, raw_possible=float)
+
+        Returns:
+            None
+        """
+        self.score = {
+            'raw_earned': score.raw_earned,
+            'raw_possible': score.raw_possible
+        }
+
+    def publish_grade(self, score):
+        """
+        Publish a grade to the runtime.
+        """
+        self._publish_grade(score=score)
 
     @staticmethod
     def workbench_scenarios():

@@ -1,5 +1,7 @@
 Unreleased
 -------------------------
+* [Bug fix] Make the XBlock a subclass of `ScorableXBlockMixin` so
+  grades would be calculated correctly for each subsection.
 * [Enhancement] Make progress check wait dialog wording more general
   and more suitable for different progress check configurations.
 
