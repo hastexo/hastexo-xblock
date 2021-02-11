@@ -1,4 +1,4 @@
-Unreleased
+Version 4.1.10 (2021-02-11)
 -------------------------
 * [Bug fix] Implement more of `ScorableXBlockMixin` functionality
   for using the grading related instructor tasks like overriding
