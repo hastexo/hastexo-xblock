@@ -1,3 +1,9 @@
+Unreleased
+-------------------------
+* [Bug fix] Implement more of `ScorableXBlockMixin` functionality
+  for using the grading related instructor tasks like overriding
+  and rescoring learner's submissions.
+
 Version 4.1.9 (2021-02-10)
 -------------------------
 * [Bug fix] Make the XBlock a subclass of `ScorableXBlockMixin` so
