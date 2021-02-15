@@ -1,3 +1,9 @@
+Unreleased
+-----------------------------
+* [Enhancement] Allow overriding settings for the
+  `hastexo_guacamole_client` from a configuration file by defining
+  it as `HASTEXO_GUACAMOLE_CFG`.
+
 Version 5.0.0rc0 (2021-02-02)
 -----------------------------
 * [BREAKING CHANGE] Replace Guacamole servlet with a Django ASGI
