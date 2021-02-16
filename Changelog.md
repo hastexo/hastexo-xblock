@@ -1,4 +1,4 @@
-Unreleased
+Version 5.0.0rc1 (2021-02-16)
 -----------------------------
 * [Enhancement] Allow overriding settings for the
   `hastexo_guacamole_client` from a configuration file by defining
