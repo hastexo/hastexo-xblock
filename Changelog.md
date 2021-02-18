@@ -1,3 +1,7 @@
+Unreleased
+-----------------------------
+* [Bug fix] Add missing dependencies for `hastexo_guacamole_client`.
+
 Version 5.0.0rc1 (2021-02-16)
 -----------------------------
 * [Enhancement] Allow overriding settings for the
