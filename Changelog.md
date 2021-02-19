@@ -1,7 +1,10 @@
 Unreleased
------------------------------
+----------------------------- 
+* [Bug fix] Include `stack_protocol` attribute when initializing the
+  javascript code so that the terminal height value will be calculated
+  correctly.
 * [Bug fix] Refactor asyncio task creation logic to also work with
-  python3.5. 
+  python3.5.
 * [Bug fix] Add missing dependencies for `hastexo_guacamole_client`.
 
 Version 5.0.0rc1 (2021-02-16)
