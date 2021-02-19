@@ -1,4 +1,4 @@
-Unreleased
+Version 5.0.0rc2 (2021-02-19)
 -----------------------------
 * [Enhancement] Implement the `read_only` mode in the websocket
   consumer by not passing any `key` or `mouse` events to `guacamole`
