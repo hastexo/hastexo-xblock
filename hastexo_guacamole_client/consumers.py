@@ -46,7 +46,8 @@ class GuacamoleWebSocketConsumer(AsyncWebsocketConsumer):
 
         if self.client.connected:
             # start receiving data from GuacamoleClient
-            self.task = asyncio.create_task(self.open())
+            loop = asyncio.get_event_loop()
+            self.task = loop.create_task(self.open())
 
             # Accept connection
             await self.accept(subprotocol='guacamole')
