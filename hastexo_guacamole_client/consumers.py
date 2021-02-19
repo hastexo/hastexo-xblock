@@ -5,7 +5,7 @@ import os
 from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
-
+from distutils.util import strtobool
 from guacamole.client import GuacamoleClient
 from hastexo.models import Stack
 from hastexo.common import get_xblock_settings
@@ -14,6 +14,7 @@ from hastexo.common import get_xblock_settings
 class GuacamoleWebSocketConsumer(AsyncWebsocketConsumer):
     client = None
     task = None
+    read_only = False
 
     async def connect(self):
         """
@@ -28,6 +29,8 @@ class GuacamoleWebSocketConsumer(AsyncWebsocketConsumer):
         stack_name = params.get('stack')[0]
 
         stack = await database_sync_to_async(self.get_stack)(stack_name)
+
+        self.read_only = bool(strtobool(params.get('read_only')[0]))
 
         self.client = GuacamoleClient(guacd_hostname, guacd_port)
         self.client.handshake(
@@ -69,7 +72,11 @@ class GuacamoleWebSocketConsumer(AsyncWebsocketConsumer):
         Handle data received in the WebSocket, send to GuacamoleClient.
         """
         if text_data is not None:
-            self.client.send(text_data)
+            # ignore all 'key' and 'mouse' events when set to 'read_only" mode
+            if self.read_only and 'key' or 'mouse' in text_data:
+                pass
+            else:
+                self.client.send(text_data)
 
     async def open(self):
         """

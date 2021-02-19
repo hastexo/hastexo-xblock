@@ -1,5 +1,8 @@
 Unreleased
------------------------------ 
+-----------------------------
+* [Enhancement] Implement the `read_only` mode in the websocket
+  consumer by not passing any `key` or `mouse` events to `guacamole`
+  when set to `True`.
 * [Bug fix] Include `stack_protocol` attribute when initializing the
   javascript code so that the terminal height value will be calculated
   correctly.
