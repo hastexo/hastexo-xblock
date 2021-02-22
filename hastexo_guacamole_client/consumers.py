@@ -73,7 +73,7 @@ class GuacamoleWebSocketConsumer(AsyncWebsocketConsumer):
         """
         if text_data is not None:
             # ignore all 'key' and 'mouse' events when set to 'read_only" mode
-            if self.read_only and 'key' or 'mouse' in text_data:
+            if self.read_only and ('key' in text_data or 'mouse' in text_data):
                 pass
             else:
                 self.client.send(text_data)

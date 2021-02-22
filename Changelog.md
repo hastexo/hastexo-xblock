@@ -1,3 +1,8 @@
+Unreleased
+----------------------------
+* [Bug fix] Fix `read_only` mode `key` and `mouse` event filtering
+  logic.
+
 Version 5.0.0rc2 (2021-02-19)
 -----------------------------
 * [Enhancement] Implement the `read_only` mode in the websocket
