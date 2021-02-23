@@ -1,3 +1,8 @@
+Unreleased
+----------------------------
+
+* Merge recent changes from 4.1 into 5.0 RC branch.
+
 Version 5.0.0rc3 (2021-02-22)
 ----------------------------
 * [Bug fix] Fix `read_only` mode `key` and `mouse` event filtering
