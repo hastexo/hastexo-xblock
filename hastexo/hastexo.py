@@ -514,6 +514,12 @@ class HastexoXBlock(XBlock,
             # delete_age value in settings is in days, convert to seconds
             return settings.get("delete_age", 14) * 86400
 
+    def get_stack_name(self):
+        # Get the course id and anonymous user id, and derive the stack name
+        # from them
+        course_id, student_id = self.get_block_ids()
+        return "%s_%s_%s" % (course_id.course, course_id.run, student_id)
+
     def student_view(self, context=None):
         """
         The primary view of the HastexoXBlock, shown to students when viewing
@@ -526,7 +532,7 @@ class HastexoXBlock(XBlock,
         # from them
         course_id, student_id = self.get_block_ids()
         self.stack_run = "%s_%s" % (course_id.course, course_id.run)
-        self.stack_name = "%s_%s" % (self.stack_run, student_id)
+        self.stack_name = self.get_stack_name()
 
         frag = Fragment()
 
@@ -679,6 +685,10 @@ class HastexoXBlock(XBlock,
         in a transaction.
         """
         course_id, student_id = self.get_block_ids()
+        if not self.stack_name:
+            # Stack name can be occasionally end up being empty (after deleting
+            # learners state for example). If so, set it again.
+            self.stack_name = self.get_stack_name()
         update_stack(self.stack_name, course_id, student_id, data)
 
     def get_stack(self, prop=None):

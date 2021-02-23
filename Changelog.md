@@ -1,4 +1,4 @@
-Version 5.0.0rc4 (2021-02-23)
+Unreleased
 ----------------------------
 
 * Merge recent changes from 4.1 into 5.0 RC branch.
@@ -39,6 +39,14 @@ Version 5.0.0rc0 (2021-02-02)
   however, strongly advised that you respin your app servers from
   scratch, in order to keep any residual Tomcat servlet configuration
   from lingering on them.
+
+Version 4.1.11 (2021-02-23)
+-------------------------
+* [Bug fix] When deleting learner state, the `stack_name` value
+  gets wiped out. If we then try to update the stack (for example
+  via `keepalive`) we get `Stack.DoesNotExist` error. Check if
+  `stack_name` has a value before attempting to update and if not,
+  set it again.
 
 Version 4.1.10 (2021-02-11)
 -------------------------

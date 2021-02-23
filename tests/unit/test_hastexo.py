@@ -908,3 +908,17 @@ class TestHastexoXBlock(TestCase):
     def test_keepalive(self):
         self.init_block()
         self.call_handler("keepalive", data={})
+
+    def test_get_stack_name_on_update(self):
+        self.init_block()
+        stack_name = self.block.stack_name
+        self.block.stack_name = None
+        self.assertIsNone(self.block.stack_name)
+
+        self.block.get_stack_name = Mock()
+        self.block.get_stack_name.return_value = stack_name
+
+        self.block.update_stack(data={})
+        self.block.get_stack_name.assert_called()
+        self.assertIsNotNone(self.block.stack_name)
+        self.assertEqual(self.block.stack_name, stack_name)
