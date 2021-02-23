@@ -1,4 +1,4 @@
-Unreleased
+Version 4.1.11 (2021-02-23)
 -------------------------
 * [Bug fix] When deleting learner state, the `stack_name` value
   gets wiped out. If we then try to update the stack (for example
