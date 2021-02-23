@@ -1,3 +1,11 @@
+Unreleased
+-------------------------
+* [Bug fix] When deleting learner state, the `stack_name` value
+  gets wiped out. If we then try to update the stack (for example
+  via `keepalive`) we get `Stack.DoesNotExist` error. Check if
+  `stack_name` has a value before attempting to update and if not,
+  set it again.
+
 Version 4.1.10 (2021-02-11)
 -------------------------
 * [Bug fix] Implement more of `ScorableXBlockMixin` functionality
