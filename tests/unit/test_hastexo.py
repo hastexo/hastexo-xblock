@@ -17,6 +17,7 @@ from workbench.runtime import WorkbenchRuntime
 from xblock.core import XBlock
 from xblock.fields import ScopeIds
 from xblock.runtime import KvsFieldData, DictKeyValueStore
+from xblock.scorable import Score
 from xblock.test.test_parsing import XmlTest
 from sample_xblocks.basic.content import HtmlBlock
 
@@ -859,7 +860,7 @@ class TestHastexoXBlock(TestCase):
                 mock_publish.assert_called_once_with(
                     self.block,
                     'grade',
-                    {'value': 1, 'max_value': 1}
+                    {'value': 1, 'max_value': 1, 'only_if_higher': None}
                 )
 
     def test_get_check_status_doesnt_go_on_forever(self):
@@ -882,6 +883,27 @@ class TestHastexoXBlock(TestCase):
                 time.sleep(check_timeout)
                 result = self.call_handler("get_check_status", {})
                 self.assertEqual(result['status'], 'ERROR')
+
+    def test_set_score(self):
+        self.init_block()
+        self.assertEqual(self.block.score, None)
+
+        new_score = {
+            'raw_earned': 2,
+            'raw_possible': 3
+        }
+
+        self.block.set_score(Score(
+            raw_earned=new_score['raw_earned'],
+            raw_possible=new_score['raw_possible']
+        ))
+        self.assertEqual(self.block.score, new_score)
+
+    def test_max_score(self):
+        self.init_block()
+
+        max_score = self.block.max_score()
+        self.assertEqual(self.block.weight, max_score)
 
     def test_keepalive(self):
         self.init_block()

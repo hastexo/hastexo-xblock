@@ -35,6 +35,19 @@ Version 5.0.0rc0 (2021-02-02)
   scratch, in order to keep any residual Tomcat servlet configuration
   from lingering on them.
 
+Version 4.1.10 (2021-02-11)
+-------------------------
+* [Bug fix] Implement more of `ScorableXBlockMixin` functionality
+  for using the grading related instructor tasks like overriding
+  and rescoring learner's submissions.
+
+Version 4.1.9 (2021-02-10)
+-------------------------
+* [Bug fix] Make the XBlock a subclass of `ScorableXBlockMixin` so
+  grades would be calculated correctly for each subsection.
+* [Enhancement] Make progress check wait dialog wording more general
+  and more suitable for different progress check configurations.
+
 Version 4.1.8 (2021-02-02)
 -------------------------
 [Bug fix] Fix export error, when provider attributes are not defined.
