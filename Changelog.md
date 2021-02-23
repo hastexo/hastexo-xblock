@@ -1,4 +1,4 @@
-Unreleased
+Version 5.0.0rc4 (2021-02-23)
 ----------------------------
 
 * Merge recent changes from 4.1 into 5.0 RC branch.
