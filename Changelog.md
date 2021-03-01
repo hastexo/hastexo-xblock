@@ -1,3 +1,7 @@
+Unreleased
+---------------------------
+* [Bug fix] Add a default `port` value for `rdp` connections.
+
 Version 5.0.0rc5 (2021-02-23)
 ----------------------------
 

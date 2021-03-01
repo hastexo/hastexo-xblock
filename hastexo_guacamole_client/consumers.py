@@ -29,6 +29,7 @@ class GuacamoleWebSocketConsumer(AsyncWebsocketConsumer):
         stack_name = params.get('stack')[0]
 
         stack = await database_sync_to_async(self.get_stack)(stack_name)
+        default_port = 3389 if stack.protocol == 'rdp' else 22
 
         self.read_only = bool(strtobool(params.get('read_only')[0]))
 
@@ -38,7 +39,7 @@ class GuacamoleWebSocketConsumer(AsyncWebsocketConsumer):
             width=params.get('width', [1024])[0],
             height=params.get('height', [768])[0],
             hostname=stack.ip,
-            port=params.get('port', [22])[0],
+            port=params.get('port', [default_port])[0],
             username=stack.user,
             password=stack.password,
             private_key=stack.key,
