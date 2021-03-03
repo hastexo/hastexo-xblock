@@ -1,3 +1,16 @@
+Unreleased
+---------------------------
+* [DEPRECATION] As of this release, the previous implementation that
+  relied on the Guacamole Tomcat servlet is deprecated. A `stable-4.1`
+  branch exists that might still receive bugfixes for some time, but
+  do not count on this being supported any longer than the lifetime of
+  the Open edX Koa release. The [Ansible
+  playbooks](https://github.com/hastexo/edx-configuration/tree/hastexo/juniper/hastexo_xblock)
+  that tie into `edx-configuration` have been updated to “do the right
+  thing” based on the hastexo XBlock version being deployed: for
+  version 5 and up, they deploy Daphne and pyguacamole; for earlier
+  versions, they continue to deploy Tomcat and the Guacamole servlet.
+
 Version 5.0.0rc6 (2021-03-01)
 ---------------------------
 * [Bug fix] Add a default `port` value for `rdp` connections.
