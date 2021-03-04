@@ -4,7 +4,6 @@
 django>=2.2.16,<3.0
 celery>=3.1.25,<4.0
 xblock-utils==2.1.1
-jsonfield2==3.0.3
 six==1.14.0
 lazy==1.4
 django-pyfs==2.1
