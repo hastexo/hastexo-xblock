@@ -1,4 +1,4 @@
-Unreleased
+Version 5.0.1 (2021-03-04)
 ---------------------------
 * [DEPRECATION] As of this release, the previous implementation that
   relied on the Guacamole Tomcat servlet is deprecated. A `stable-4.1`
