@@ -3,6 +3,7 @@ import errno
 
 from django.test import TestCase
 from mock import Mock, patch
+from paramiko.ssh_exception import SSHException
 from hastexo.common import (
     read_from_contentstore,
     ssh_to,
@@ -237,3 +238,42 @@ class TestHastexoCommon(TestCase):
             remote_exec(ssh_mock, "script")
 
         sftp_mock.remove.assert_called()
+
+    def test_remote_exec_retry_ssh_exception(self):
+        # Setup
+        ssh_mock = Mock()
+        sftp_mock = Mock()
+        ssh_mock.open_sftp.return_value = sftp_mock
+        ssh_mock.exec_command.side_effect = [SSHException(),
+                                             SSHException(),
+                                             SSHException()]
+        # Assert that running remote_exec will reraise SSHException
+        # if the exception has been caught 3 times
+        with self.assertRaises(SSHException):
+            remote_exec(ssh_mock, "script")
+
+        # Assert that remote_exec was retried and called 3 times
+        self.assertEqual(ssh_mock.exec_command.call_count, 3)
+
+    def test_remote_exec_retry_success(self):
+        # Setup
+        ssh_mock = Mock()
+        sftp_mock = Mock()
+        ssh_mock.open_sftp.return_value = sftp_mock
+        stdout_mock = Mock()
+        stdout_mock.channel.exit_status_ready.return_value = True
+        stdout_mock.channel.recv_exit_status.return_value = 0
+        ssh_mock.exec_command.side_effect = [SSHException(),
+                                             SSHException(),
+                                             (None, stdout_mock, None)]
+
+        # Run
+        remote_exec(ssh_mock, "script")
+
+        # Assert that remote_exec was retried and called 3 times
+        self.assertEqual(ssh_mock.exec_command.call_count, 3)
+
+        # Assert
+        sftp_mock.open.assert_called()
+        sftp_mock.remove.assert_called()
+        sftp_mock.close.assert_called()
