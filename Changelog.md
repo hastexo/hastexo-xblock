@@ -1,3 +1,8 @@
+Unreleased
+---------------------------
+* [Bug fix] Make Paramiko SSH connections more robust against socket
+  timeouts (and retry the connection if it runs into one).
+
 Version 4.1.11 (2021-02-23)
 -------------------------
 * [Bug fix] When deleting learner state, the `stack_name` value

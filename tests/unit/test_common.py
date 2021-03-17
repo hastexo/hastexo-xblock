@@ -11,6 +11,7 @@ from hastexo.common import (
     RemoteExecTimeout,
 )
 
+from socket import timeout as SocketTimeout
 
 RETRY_SOCKET_ERRNOS = [
     errno.EAGAIN,
@@ -85,7 +86,10 @@ class TestHastexoCommon(TestCase):
 
         # Assert
         self.assertEqual(ssh, ssh_mock)
-        ssh_mock.connect.assert_called_with("ip", username="user", pkey="pkey")
+        ssh_mock.connect.assert_called_with("ip",
+                                            username="user",
+                                            pkey="pkey",
+                                            timeout=10)
 
     def test_ssh_to_retries(self):
         # Setup
@@ -93,6 +97,7 @@ class TestHastexoCommon(TestCase):
         self.mocks["paramiko"].SSHClient.return_value = ssh_mock
         self.mocks["paramiko"].RSAKey.from_private_key.return_value = "pkey"
         ssh_mock.connect.side_effect = [
+            SocketTimeout,
             EOFError(""),
             True,
         ]
@@ -102,7 +107,7 @@ class TestHastexoCommon(TestCase):
 
         # Assert
         self.assertEqual(ssh, ssh_mock)
-        self.assertEqual(2, len(ssh_mock.connect.mock_calls))
+        self.assertEqual(3, len(ssh_mock.connect.mock_calls))
 
     @ddt.data(*RETRY_SOCKET_ERRNOS)
     def test_ssh_to_retries_on_certain_socket_errnos(self, errno):
