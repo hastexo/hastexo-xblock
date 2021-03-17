@@ -75,5 +75,5 @@ setup(
                                "public",
                                "management",
                                "migrations"]),
-    setup_requires=['setuptools-scm'],
+    setup_requires=['setuptools-scm<6'],
 )
