@@ -1,3 +1,8 @@
+Unreleased
+---------------------------
+* [Bug fix] Make Paramiko SSH connections more robust against socket
+  timeouts (and retry the connection if it runs into one).
+
 Version 5.0.1 (2021-03-04)
 ---------------------------
 * [DEPRECATION] As of this release, the previous implementation that

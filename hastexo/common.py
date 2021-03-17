@@ -7,6 +7,7 @@ import logging
 import six
 
 from io import StringIO
+from socket import timeout as SocketTimeout
 from paramiko.ssh_exception import (AuthenticationException,
                                     SSHException,
                                     NoValidConnectionsError)
@@ -164,6 +165,7 @@ DEFAULT_SETTINGS = {
     "delete_interval": 86400,
     "delete_task_timeout": 900,
     "sleep_timeout": 10,
+    "ssh_connect_timeout": 10,
     "js_timeouts": {
         "status": 15000,
         "keepalive": 30000,
@@ -263,19 +265,24 @@ def ssh_to(user, ip, key):
 
     settings = get_xblock_settings()
     sleep_timeout = settings.get("sleep_timeout", 10)
+    ssh_connect_timeout = settings.get("ssh_connect_timeout", 10)
 
     connected = False
     while not connected:
         try:
-            ssh.connect(ip, username=user, pkey=pkey)
+            ssh.connect(ip,
+                        username=user,
+                        pkey=pkey,
+                        timeout=ssh_connect_timeout)
         except (EOFError,
                 AuthenticationException,
                 SSHException,
-                NoValidConnectionsError) as e:
+                NoValidConnectionsError,
+                SocketTimeout) as e:
             # Be more persistent than Paramiko normally
             # is, and keep retrying.
-            logger.debug("Got %s during SSH connection to ip (%s), retrying." %
-                         (e.__class__.__name__, ip))
+            logger.info("Got %s during SSH connection to ip (%s), retrying." %
+                        (e.__class__.__name__, ip))
         except EnvironmentError as enve:
             if enve.errno in (errno.EAGAIN,
                               errno.ENETDOWN,

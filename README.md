@@ -130,6 +130,7 @@ To deploy the hastexo XBlock:
             "delete_age": 14,
             "delete_attempts": 3,
             "delete_task_timeout": 900,
+            "ssh_connect_timeout": 10,
             "sleep_timeout": 10,
             "js_timeouts": {
                 "status": 15000,
