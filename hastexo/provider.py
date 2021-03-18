@@ -2,6 +2,7 @@ import time
 import base64
 import binascii
 import hashlib
+import logging
 import paramiko
 import random
 import string
@@ -68,6 +69,7 @@ class Provider(object):
     def __init__(self, name, config, sleep):
         self.name = name
         self.sleep_seconds = sleep
+        self.reset_logger()
 
         # Get credentials
         if config and isinstance(config, dict):
@@ -79,6 +81,18 @@ class Provider(object):
             error_msg = ("No configuration provided for provider %s" %
                          self.name)
             raise ProviderException(error_msg)
+
+    def set_logger(self, logger):
+        """Set a logger other than the standard one.
+
+        This is meant to be used from Celery tasks, which usually
+        would want to use their task logger for logging.
+        """
+        self.logger = logger
+
+    def reset_logger(self):
+        """Reset the logger back to the standard one."""
+        self.logger = logging.getLogger(__name__)
 
     def set_capacity(self, capacity):
         if capacity in (None, "None"):
@@ -212,6 +226,7 @@ class OpenstackProvider(Provider):
 
     def get_stack(self, name):
         try:
+            self.logger.debug('Fetching information on stack [%s]' % name)
             heat_stack = self.heat_c.stacks.get(stack_id=name)
         except HTTPNotFound:
             status = DELETE_COMPLETE
@@ -231,6 +246,7 @@ class OpenstackProvider(Provider):
                                     self.name)
 
         try:
+            self.logger.info('Creating stack [%s]' % name)
             res = self.heat_c.stacks.create(
                 stack_name=name,
                 template=self.template,
@@ -273,6 +289,7 @@ class OpenstackProvider(Provider):
 
     def resume_stack(self, name):
         try:
+            self.logger.info('Resuming stack [%s]' % name)
             self.heat_c.actions.resume(stack_id=name)
         except (HTTPException, HttpError) as e:
             raise ProviderException(e)
@@ -305,6 +322,7 @@ class OpenstackProvider(Provider):
                 isinstance(reboot_on_resume, list)):
             for server in reboot_on_resume:
                 try:
+                    self.logger.info("Rebooting server %s" % server)
                     self.nova_c.servers.reboot(server, 'HARD')
                 except ClientException as e:
                     raise ProviderException(e)
@@ -314,6 +332,7 @@ class OpenstackProvider(Provider):
 
     def suspend_stack(self, name, wait=True):
         try:
+            self.logger.info("Suspending stack [%s]" % name)
             self.heat_c.actions.suspend(stack_id=name)
         except (HTTPException, HttpError) as e:
             raise ProviderException(e)
@@ -344,6 +363,7 @@ class OpenstackProvider(Provider):
 
     def delete_stack(self, name, wait=True):
         try:
+            self.logger.info("Deleting stack [%s]" % name)
             self.heat_c.stacks.delete(stack_id=name)
         except (HTTPException, HttpError) as e:
             raise ProviderException(e)
@@ -573,6 +593,8 @@ class GcloudProvider(Provider):
         deployment_name = self._encode_name(name)
 
         try:
+            self.logger.debug('Fetching information on '
+                              'deployment [%s]' % deployment_name)
             response = self.ds.deployments().get(
                 project=self.project, deployment=deployment_name
             ).execute()
@@ -655,6 +677,7 @@ class GcloudProvider(Provider):
         }
 
         try:
+            self.logger.info('Creating deployment [%s]' % deployment_name)
             operation = self.ds.deployments().insert(
                 project=self.project, body=body
             ).execute()
@@ -686,6 +709,7 @@ class GcloudProvider(Provider):
         deployment_name = self._encode_name(name)
 
         try:
+            self.logger.info('Deleting deployment [%s]' % deployment_name)
             operation = self.ds.deployments().delete(
                 project=self.project, deployment=deployment_name
             ).execute()
@@ -733,10 +757,14 @@ class GcloudProvider(Provider):
         # Get servers
         servers = self._get_deployment_servers(deployment_name)
 
+        self.logger.info("Stopping servers in "
+                         "deployment [%s]" % deployment_name)
+
         for server in servers:
             status = server.get("status")
             if status == "RUNNING":
                 try:
+                    self.logger.info("Stopping server %s" % server)
                     self.cs.instances().stop(
                         project=self.project,
                         zone=server["zone"].split('/')[-1],
@@ -768,10 +796,15 @@ class GcloudProvider(Provider):
 
         # Start the servers
         servers = self._get_deployment_servers(deployment_name)
+
+        self.logger.info("Starting servers in "
+                         "deployment [%s]" % deployment_name)
+
         for server in servers:
             status = server.get("status")
             if status == "TERMINATED":
                 try:
+                    self.logger.info("Stopping server %s" % server)
                     self.cs.instances().start(
                         project=self.project,
                         zone=server["zone"].split('/')[-1],

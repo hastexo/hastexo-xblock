@@ -2,6 +2,8 @@ Unreleased
 ---------------------------
 * [Bug fix] Update test dependencies to address
   [CVE-2021-3281](https://nvd.nist.gov/vuln/detail/CVE-2021-3281).
+* [Enhancement] Add logging to provider actions, to make interactions
+  with cloud platforms more easily traceable.
 
 Version 4.1.12 (2021-03-17)
 ---------------------------
