@@ -159,6 +159,7 @@ class LaunchStackTask(HastexoTask):
         self.providers = []
         for provider in stack.providers:
             p = Provider.init(provider["name"])
+            p.set_logger(logger)
             p.set_capacity(provider["capacity"])
 
             template = read_from_contentstore(
@@ -646,6 +647,7 @@ class SuspendStackTask(HastexoTask):
 
     def suspend_stack(self, stack):
         provider = Provider.init(stack.provider)
+        provider.set_logger(logger)
         provider_stack = provider.get_stack(stack.name)
 
         if provider_stack["status"] in UP_STATES + (SUSPEND_FAILED,):
@@ -729,6 +731,7 @@ class DeleteStackTask(HastexoTask):
         settings = get_xblock_settings()
         attempts = settings.get("delete_attempts", 3)
         provider = Provider.init(stack.provider)
+        provider.set_logger(logger)
         provider_stack = provider.get_stack(stack.name)
         attempt = 0
 
