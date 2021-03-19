@@ -1,7 +1,7 @@
 -r base.txt
 
 # These package versions must be kept in sync with edx-platform as much as possible.
-django>=2.2.16,<3.0
+django>=2.2.18,<3.0
 celery>=3.1.25,<4.0
 xblock-utils==2.1.1
 jsonfield2==3.0.3
