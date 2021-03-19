@@ -1,3 +1,8 @@
+Unreleased
+---------------------------
+* [Bug fix] Update test dependencies to address
+  [CVE-2021-3281](https://nvd.nist.gov/vuln/detail/CVE-2021-3281).
+
 Version 5.0.2 (2021-03-17)
 ---------------------------
 * [Bug fix] Make Paramiko SSH connections more robust against socket
