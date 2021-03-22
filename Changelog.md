@@ -1,4 +1,4 @@
-Unreleased
+Version 5.0.3 (2021-03-22)
 ---------------------------
 * [Bug fix] Update test dependencies to address
   [CVE-2021-3281](https://nvd.nist.gov/vuln/detail/CVE-2021-3281).
