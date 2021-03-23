@@ -226,7 +226,8 @@ class OpenstackProvider(Provider):
 
     def get_stack(self, name):
         try:
-            self.logger.debug('Fetching information on stack [%s]' % name)
+            self.logger.debug('Fetching information on '
+                              'OpenStack Heat stack [%s]' % name)
             heat_stack = self.heat_c.stacks.get(stack_id=name)
         except HTTPNotFound:
             status = DELETE_COMPLETE
@@ -246,7 +247,7 @@ class OpenstackProvider(Provider):
                                     self.name)
 
         try:
-            self.logger.info('Creating stack [%s]' % name)
+            self.logger.info('Creating OpenStack Heat stack [%s]' % name)
             res = self.heat_c.stacks.create(
                 stack_name=name,
                 template=self.template,
@@ -275,21 +276,22 @@ class OpenstackProvider(Provider):
             try:
                 heat_stack = self.heat_c.stacks.get(stack_id=heat_stack.id)
             except HTTPNotFound:
-                raise ProviderException("Stack disappeared during creation.")
+                raise ProviderException("OpenStack Heat stack "
+                                        "disappeared during creation.")
             except (HTTPException, HttpError) as e:
                 raise ProviderException(e)
 
             status = heat_stack.stack_status
 
         if FAILED in status:
-            raise ProviderException("Failure creating stack.")
+            raise ProviderException("Failure creating OpenStack Heat stack.")
 
         return {"status": status,
                 "outputs": self._get_stack_outputs(heat_stack)}
 
     def resume_stack(self, name):
         try:
-            self.logger.info('Resuming stack [%s]' % name)
+            self.logger.info('Resuming OpenStack Heat stack [%s]' % name)
             self.heat_c.actions.resume(stack_id=name)
         except (HTTPException, HttpError) as e:
             raise ProviderException(e)
@@ -305,14 +307,15 @@ class OpenstackProvider(Provider):
                 heat_stack = self.heat_c.stacks.get(
                     stack_id=name)
             except HTTPNotFound:
-                raise ProviderException("Stack disappeared during resume.")
+                raise ProviderException("OpenStack Heat stack "
+                                        "disappeared during resume.")
             except (HTTPException, HttpError) as e:
                 raise ProviderException(e)
             else:
                 status = heat_stack.stack_status
 
         if FAILED in status:
-            raise ProviderException("Failure resuming stack")
+            raise ProviderException("Failure resuming OpenStack Heat stack")
 
         outputs = self._get_stack_outputs(heat_stack)
 
@@ -322,7 +325,8 @@ class OpenstackProvider(Provider):
                 isinstance(reboot_on_resume, list)):
             for server in reboot_on_resume:
                 try:
-                    self.logger.info("Rebooting server %s" % server)
+                    self.logger.info("Rebooting OpenStack Nova "
+                                     "instance %s" % server)
                     self.nova_c.servers.reboot(server, 'HARD')
                 except ClientException as e:
                     raise ProviderException(e)
@@ -332,7 +336,7 @@ class OpenstackProvider(Provider):
 
     def suspend_stack(self, name, wait=True):
         try:
-            self.logger.info("Suspending stack [%s]" % name)
+            self.logger.info("Suspending OpenStack Heat stack [%s]" % name)
             self.heat_c.actions.suspend(stack_id=name)
         except (HTTPException, HttpError) as e:
             raise ProviderException(e)
@@ -357,13 +361,14 @@ class OpenstackProvider(Provider):
                     status = heat_stack.stack_status
 
             if FAILED in status:
-                raise ProviderException("Failure suspending stack.")
+                raise ProviderException("Failure suspending "
+                                        "OpenStack Heat stack.")
 
         return {"status": status}
 
     def delete_stack(self, name, wait=True):
         try:
-            self.logger.info("Deleting stack [%s]" % name)
+            self.logger.info("Deleting OpenStack Heat stack [%s]" % name)
             self.heat_c.stacks.delete(stack_id=name)
         except (HTTPException, HttpError) as e:
             raise ProviderException(e)
@@ -387,7 +392,8 @@ class OpenstackProvider(Provider):
                     status = heat_stack.stack_status
 
             if FAILED in status:
-                raise ProviderException("Failure deleting stack.")
+                raise ProviderException("Failure deleting "
+                                        "OpenStack Heat stack.")
 
         return {"status": status}
 
@@ -594,7 +600,7 @@ class GcloudProvider(Provider):
 
         try:
             self.logger.debug('Fetching information on '
-                              'deployment [%s]' % deployment_name)
+                              'Google Cloud deployment [%s]' % deployment_name)
             response = self.ds.deployments().get(
                 project=self.project, deployment=deployment_name
             ).execute()
@@ -677,7 +683,8 @@ class GcloudProvider(Provider):
         }
 
         try:
-            self.logger.info('Creating deployment [%s]' % deployment_name)
+            self.logger.info('Creating Google Cloud deployment '
+                             '[%s]' % deployment_name)
             operation = self.ds.deployments().insert(
                 project=self.project, body=body
             ).execute()
@@ -709,7 +716,8 @@ class GcloudProvider(Provider):
         deployment_name = self._encode_name(name)
 
         try:
-            self.logger.info('Deleting deployment [%s]' % deployment_name)
+            self.logger.info('Deleting Google Cloud deployment '
+                             '[%s]' % deployment_name)
             operation = self.ds.deployments().delete(
                 project=self.project, deployment=deployment_name
             ).execute()
@@ -758,13 +766,14 @@ class GcloudProvider(Provider):
         servers = self._get_deployment_servers(deployment_name)
 
         self.logger.info("Stopping servers in "
-                         "deployment [%s]" % deployment_name)
+                         "Google Cloud deployment [%s]" % deployment_name)
 
         for server in servers:
             status = server.get("status")
             if status == "RUNNING":
                 try:
-                    self.logger.info("Stopping server %s" % server)
+                    self.logger.info("Stopping Google Compute "
+                                     "machine %s" % server)
                     self.cs.instances().stop(
                         project=self.project,
                         zone=server["zone"].split('/')[-1],
@@ -774,9 +783,10 @@ class GcloudProvider(Provider):
                     raise ProviderException(e)
             elif (status != "STOPPING" and
                   status != "TERMINATED"):
-                raise ProviderException("Cannot not stop server %s with status"
-                                        " %s" % (server["name"],
-                                                 server["status"]))
+                raise ProviderException("Cannot not stop Google Compute "
+                                        "machine %s with status "
+                                        "%s" % (server["name"],
+                                                server["status"]))
 
         status = SUSPEND_IN_PROGRESS
 
@@ -798,13 +808,14 @@ class GcloudProvider(Provider):
         servers = self._get_deployment_servers(deployment_name)
 
         self.logger.info("Starting servers in "
-                         "deployment [%s]" % deployment_name)
+                         "Google Cloud deployment [%s]" % deployment_name)
 
         for server in servers:
             status = server.get("status")
             if status == "TERMINATED":
                 try:
-                    self.logger.info("Stopping server %s" % server)
+                    self.logger.info("Stopping Google Compute "
+                                     "machine %s" % server)
                     self.cs.instances().start(
                         project=self.project,
                         zone=server["zone"].split('/')[-1],
@@ -814,9 +825,10 @@ class GcloudProvider(Provider):
                     raise ProviderException(e)
             elif (status != "RUNNING" and
                   status != "STAGING"):
-                raise ProviderException("Cannot not stop server %s with status"
-                                        " %s" % (server["name"],
-                                                 server["status"]))
+                raise ProviderException("Cannot not stop Google Compute "
+                                        "machine %s with status "
+                                        "%s" % (server["name"],
+                                                server["status"]))
 
         # Wait until resume finishes.
         while True:
