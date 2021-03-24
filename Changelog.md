@@ -3,6 +3,7 @@ Unreleased
 * [Enhancement] Use full names for common.djangoapps imports from
   edx-platform.
 * [Enhancement] Update requirements for Open EdX Koa release.
+* [Bug fix] Fix two missing defaults in the Stack model.
 
 Version 5.0.3 (2021-03-22)
 ---------------------------
