@@ -1,3 +1,7 @@
+Unreleased
+--------------------------
+* [Enhancement] Update requirements for Open EdX Koa release.
+
 Version 5.0.3 (2021-03-22)
 ---------------------------
 * [Bug fix] Update test dependencies to address
