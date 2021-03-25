@@ -43,7 +43,7 @@ if __name__ == "__main__":
 
     from django.conf import settings
     settings.DEBUG = True
-    settings.INSTALLED_APPS += ("hastexo", "student", )
+    settings.INSTALLED_APPS += ("hastexo", "common.djangoapps.student", )
 
     from django.core.management import execute_from_command_line
     args = sys.argv[1:]

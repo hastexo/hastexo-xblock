@@ -3,7 +3,18 @@ Admin registration for hastexo Xblock models
 """
 from django import forms
 from django.contrib import admin
-from student.models import AnonymousUserId
+# Juniper compatibility: in Juniper, importing from
+# common.djangoapps.student.models raises
+# "RuntimeError: Model class common.djangoapps.student.models.AnonymousUserId
+# doesn't declare an explicit app_label and isn't in an application in
+# INSTALLED_APPS". So as not to rely on admins modifying INSTALLED_APPS,
+# fall back to using the old import syntax.
+#
+# This can be removed once we give up Juniper compatibility.
+try:
+    from common.djangoapps.student.models import AnonymousUserId
+except RuntimeError:
+    from student.models import AnonymousUserId
 
 from .common import DELETE_COMPLETE, VALID_STATES, get_xblock_settings
 from .models import Stack
