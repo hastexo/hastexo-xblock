@@ -1,4 +1,4 @@
-Unreleased
+Version 5.0.4 (2021-03-26)
 --------------------------
 * [Enhancement] Use full names for common.djangoapps imports from
   edx-platform.
