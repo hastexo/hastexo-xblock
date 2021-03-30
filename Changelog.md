@@ -5,6 +5,10 @@ Unreleased
   [CVE-2021-3281](https://nvd.nist.gov/vuln/detail/CVE-2021-3281).
 * [Enhancement] Add logging to provider actions, to make interactions
   with cloud platforms more easily traceable.
+* [Documentation] Update README (and thus, the PyPI project
+  description) to explain that version 4 is not supported beyond
+  Open edX Juniper, and that Open edX Koa and later platforms should
+  instead install version 5.
 
 Version 4.1.12 (2021-03-17)
 ---------------------------
