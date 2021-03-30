@@ -64,8 +64,8 @@ class Stack(StackCommon):
         app_label = 'hastexo'
         unique_together = (('student_id', 'course_id', 'name'),)
 
-    key = models.TextField(blank=True, default='')
-    password = models.CharField(max_length=128, blank=True, default='')
+    key = models.TextField(blank=True, null=True)
+    password = models.CharField(max_length=128, blank=True, null=True)
 
     def __init__(self, *args, **kwargs):
         super(Stack, self).__init__(*args, **kwargs)

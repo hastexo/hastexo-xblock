@@ -1,6 +1,6 @@
 Unreleased
----------------------------
-* [Bug fix] Fix two missing defaults in the Stack model.
+--------------------------
+* [Bug fix] Add `null=True` for `key` and `password` in the Stack model.
 * [Bug fix] Update test dependencies to address
   [CVE-2021-3281](https://nvd.nist.gov/vuln/detail/CVE-2021-3281).
 * [Enhancement] Add logging to provider actions, to make interactions
