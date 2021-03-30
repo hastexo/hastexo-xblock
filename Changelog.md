@@ -1,6 +1,9 @@
 Unreleased
 --------------------------
-* [Bug fix] Add `null=True` for `key` and `password` in the Stack model.
+* [Bug fix] Add `null=True` for `key` and `password` in the Stack
+  model. The fix in 5.0.4 does not lead to the desired schema update
+  on MariaDB 10.2 (it does not change the schema at all), so rather
+  than using a default, allow NULL values instead.
 
 Version 5.0.4 (2021-03-26)
 --------------------------
