@@ -1,4 +1,4 @@
-Unreleased
+Version 5.0.5 (2021-03-30)
 --------------------------
 * [Bug fix] Add `null=True` for `key` and `password` in the Stack
   model. The fix in 5.0.4 does not lead to the desired schema update
