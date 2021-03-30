@@ -1,3 +1,7 @@
+Unreleased
+--------------------------
+* [Bug fix] Add `null=True` for `key` and `password` in the Stack model.
+
 Version 5.0.4 (2021-03-26)
 --------------------------
 * [Enhancement] Use full names for common.djangoapps imports from
