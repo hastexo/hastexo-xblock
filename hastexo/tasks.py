@@ -655,6 +655,7 @@ class SuspendStackTask(HastexoTask):
                     stack.hook_events and
                     isinstance(stack.hook_events, dict) and
                     stack.hook_events.get("suspend", False)):
+                ssh = None
                 try:
                     # If there's a suspend hook, execute it.
                     logger.info("Fetching pre-suspend hook [%s] for stack "
@@ -674,10 +675,8 @@ class SuspendStackTask(HastexoTask):
                     logger.error("Error running pre-suspend hook for stack "
                                  "[%s]: %s" % (stack.name, error_msg))
                 finally:
-                    try:
+                    if ssh:
                         ssh.close()
-                    except Exception:
-                        pass
 
             # Suspend stack
             logger.info("Suspending stack [%s]." % stack.name)
@@ -769,6 +768,7 @@ class DeleteStackTask(HastexoTask):
                         logger.info("Executing pre-delete hook for stack [%s] "
                                     "at [%s]." % (stack.name, stack.ip))
 
+                        ssh = None
                         try:
                             script = read_from_contentstore(stack.course_id,
                                                             stack.hook_script)
@@ -781,7 +781,8 @@ class DeleteStackTask(HastexoTask):
                                          "for stack [%s]: %s" %
                                          (stack.name, str(e)))
                         finally:
-                            ssh.close()
+                            if ssh:
+                                ssh.close()
 
                 try:
                     provider_stack = provider.delete_stack(stack.name)
@@ -818,12 +819,12 @@ class CheckStudentProgressTask(HastexoTask):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+        ssh = None
         try:
             # Open SSH connection to the public facing node
             ssh = ssh_to(self.stack_user_name,
                          self.stack_ip,
                          self.stack_key)
-
             # Run tests on the stack
             res = self.run_tests(ssh)
         except (RemoteExecTimeout, SoftTimeLimitExceeded):
@@ -832,8 +833,9 @@ class CheckStudentProgressTask(HastexoTask):
                 'error': True
             }
         finally:
-            # Close the connection
-            ssh.close()
+            if ssh:
+                # Close the connection
+                ssh.close()
 
         return res
 
