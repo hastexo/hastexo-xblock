@@ -1,3 +1,7 @@
+Unreleased
+--------------------------
+* [Bug fix] Refactor closing ssh connection in `finally` blocks.
+
 Version 5.0.5 (2021-03-30)
 --------------------------
 * [Bug fix] Add `null=True` for `key` and `password` in the Stack
