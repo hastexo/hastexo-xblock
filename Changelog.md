@@ -1,4 +1,4 @@
-Unreleased
+Version 5.0.6 (2021-04-07)
 --------------------------
 * [Bug fix] Refactor closing ssh connection in `finally` blocks.
 
