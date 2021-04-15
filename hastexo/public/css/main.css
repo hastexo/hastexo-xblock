@@ -117,6 +117,10 @@
     margin: 0 0 0.5em 0!important;
 }
 
+.inner .exam-warning {
+    display: none;
+}
+
 .hints_title {
     color: red;
     padding-top: 0.5em;

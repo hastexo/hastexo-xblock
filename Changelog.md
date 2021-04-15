@@ -1,3 +1,10 @@
+Unreleased
+-------------------------
+* [Enhancement] Make the warning learners see when they reset a lab
+  more verbose. Also, add a specific warning in case the XBlock is
+  being displayed in a timed exam, indicating that the exam timer will
+  continue to run while the lab is being reset.
+
 Version 5.0.8 (2021-04-21)
 -------------------------
 * [Bug fix] Revert previous unsuccessful attempt to refactor Celery
