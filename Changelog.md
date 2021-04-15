@@ -1,5 +1,7 @@
 Unreleased
 -------------------------
+* [Enhancement] Display the "check progress" button (if enabled) in
+  blue, to provide greater contrast to the red reset button.
 * [Enhancement] Make the warning learners see when they reset a lab
   more verbose. Also, add a specific warning in case the XBlock is
   being displayed in a timed exam, indicating that the exam timer will
