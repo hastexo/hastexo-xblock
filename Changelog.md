@@ -1,4 +1,4 @@
-Unreleased
+Version 5.0.7 (2021-04-16)
 -------------------------
 * [Bug fix] Refactor Celery tasks logic to define a Celery app
   and register our class based tasks to that app.
