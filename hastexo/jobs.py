@@ -95,7 +95,7 @@ class SuspenderJob(AbstractJob):
         kwargs = {
             "stack_id": stack.id
         }
-        SuspendStackTask().apply_async(
+        SuspendStackTask.apply_async(
             kwargs=kwargs,
             soft_time_limit=soft_time_limit,
             time_limit=hard_time_limit,
@@ -185,7 +185,7 @@ class ReaperJob(AbstractJob):
         kwargs = {
             "stack_id": stack.id
         }
-        DeleteStackTask().apply_async(
+        DeleteStackTask.apply_async(
             kwargs=kwargs,
             soft_time_limit=soft_time_limit,
             time_limit=hard_time_limit,

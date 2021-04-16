@@ -1,3 +1,8 @@
+Unreleased
+-------------------------
+* [Bug fix] Refactor Celery tasks logic to define a Celery app
+  and register our class based tasks to that app.
+
 Version 5.0.6 (2021-04-07)
 --------------------------
 * [Bug fix] Refactor closing ssh connection in `finally` blocks.
