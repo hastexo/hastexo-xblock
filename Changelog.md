@@ -2,6 +2,8 @@ Unreleased
 -------------------------
 * [Bug fix] Revert previous unsuccessful attempt to refactor Celery
  logic.
+* [Bug fix] Use the "old" Celery Task base class, which our tasks
+  were originally built on.
 
 Version 5.0.7 (2021-04-16)
 -------------------------

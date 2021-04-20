@@ -8,7 +8,11 @@ import ipaddress
 from django.db import connection, transaction
 from django.db.utils import OperationalError
 from django.utils import timezone
-from celery import Task
+
+try:
+    from celery.task import Task
+except ImportError:  # Celery <4
+    from celery import Task
 from celery.utils.log import get_task_logger
 from celery.exceptions import SoftTimeLimitExceeded
 from tenacity import (
