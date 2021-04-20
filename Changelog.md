@@ -1,3 +1,7 @@
+Unreleased
+-------------------------
+* [Bug fix] Attempt to register Celery tasks to `lms.celery:APP`
+
 Version 5.0.7 (2021-04-16)
 -------------------------
 * [Bug fix] Refactor Celery tasks logic to define a Celery app

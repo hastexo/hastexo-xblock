@@ -129,7 +129,7 @@ class HastexoTestCase(TestCase):
             "read_from_contentstore": patch(
                 "hastexo.tasks.read_from_contentstore"),
             "remote_exec": patch("hastexo.tasks.remote_exec"),
-            "celery_app": patch("hastexo.celery.app")
+            "celery_app": patch("lms.celery.APP")
         }
         self.mocks = {}
         for mock_name, patcher in patchers.items():
