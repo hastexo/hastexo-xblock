@@ -699,7 +699,7 @@ class HastexoXBlock(XBlock,
         soft_time_limit = self.get_launch_timeout(settings)
         hard_time_limit = soft_time_limit + 30
 
-        return LaunchStackTask.apply_async(
+        return LaunchStackTask().apply_async(
             kwargs=kwargs,
             expires=soft_time_limit,
             soft_time_limit=soft_time_limit,
@@ -707,7 +707,7 @@ class HastexoXBlock(XBlock,
         )
 
     def launch_stack_task_result(self, task_id):
-        return LaunchStackTask.AsyncResult(task_id)
+        return LaunchStackTask().AsyncResult(task_id)
 
     @XBlock.json_handler
     @transaction.atomic
@@ -877,7 +877,7 @@ class HastexoXBlock(XBlock,
         self.update_stack({"port": int(data.get("port"))})
 
     def check_progress_task(self, soft_time_limit, **kwargs):
-        task = CheckStudentProgressTask
+        task = CheckStudentProgressTask()
         time_limit = soft_time_limit + 30
         result = task.apply_async(
             kwargs=kwargs,
@@ -889,7 +889,7 @@ class HastexoXBlock(XBlock,
         return result
 
     def check_progress_task_result(self, check_id):
-        return CheckStudentProgressTask.AsyncResult(check_id)
+        return CheckStudentProgressTask().AsyncResult(check_id)
 
     @XBlock.json_handler
     def get_check_status(self, data, suffix=''):

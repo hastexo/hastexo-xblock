@@ -129,7 +129,6 @@ class HastexoTestCase(TestCase):
             "read_from_contentstore": patch(
                 "hastexo.tasks.read_from_contentstore"),
             "remote_exec": patch("hastexo.tasks.remote_exec"),
-            "celery_app": patch("hastexo.celery.app")
         }
         self.mocks = {}
         for mock_name, patcher in patchers.items():
@@ -185,11 +184,8 @@ class TestLaunchStackTask(HastexoTestCase):
             self.stacks["CREATE_COMPLETE"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -230,16 +226,13 @@ class TestLaunchStackTask(HastexoTestCase):
             self.stacks["CREATE_COMPLETE"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Mock OperationalError 2 times with Stack.objects.filter()
         with patch("hastexo.models.Stack.objects.filter") as filter_patch:
             filter_patch.side_effect = [OperationalError,
                                         OperationalError,
                                         Stack.objects]
             # Run
-            LaunchStackTask.run(**self.kwargs)
+            LaunchStackTask().run(**self.kwargs)
 
         # The filter() method would have to be called 3 times
         # (2 failures with an OperationalError, then 1 success).
@@ -283,9 +276,6 @@ class TestLaunchStackTask(HastexoTestCase):
             self.stacks["CREATE_FAILED"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Mock OperationalError 3 times with Stack.objects.filter()
         with patch("hastexo.models.Stack.objects.filter") as filter_patch:
             filter_patch.side_effect = [OperationalError,
@@ -293,7 +283,7 @@ class TestLaunchStackTask(HastexoTestCase):
                                         OperationalError]
             # Run
             with self.assertRaises(OperationalError):
-                LaunchStackTask.run(**self.kwargs)
+                LaunchStackTask().run(**self.kwargs)
 
             # The filter() method would have to be called 3 times.
             self.assertEqual(filter_patch.call_count, 3)
@@ -317,11 +307,8 @@ class TestLaunchStackTask(HastexoTestCase):
             self.stacks["CREATE_COMPLETE"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -345,11 +332,8 @@ class TestLaunchStackTask(HastexoTestCase):
             self.stacks["CREATE_COMPLETE"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -366,11 +350,8 @@ class TestLaunchStackTask(HastexoTestCase):
                 ProviderException()
             ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -396,11 +377,8 @@ class TestLaunchStackTask(HastexoTestCase):
             self.stacks["CREATE_COMPLETE"],
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -421,11 +399,8 @@ class TestLaunchStackTask(HastexoTestCase):
         })
         self.kwargs["reset"] = True
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -448,11 +423,8 @@ class TestLaunchStackTask(HastexoTestCase):
             "status": "SUSPEND_COMPLETE"
         })
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -482,11 +454,8 @@ class TestLaunchStackTask(HastexoTestCase):
             self.stacks["CREATE_COMPLETE"],
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -510,11 +479,8 @@ class TestLaunchStackTask(HastexoTestCase):
             SoftTimeLimitExceeded()
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -541,11 +507,8 @@ class TestLaunchStackTask(HastexoTestCase):
             "status": "SUSPEND_COMPLETE"
         })
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -560,13 +523,10 @@ class TestLaunchStackTask(HastexoTestCase):
         self.providers[0].pop("capacity")
         self.update_stack({"providers": self.providers})
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Assert LaunchStackTask() fails if capacity is not defined
         # for a provider.
         with self.assertRaises(KeyError):
-            LaunchStackTask.run(**self.kwargs)
+            LaunchStackTask().run(**self.kwargs)
 
     def test_infinite_capacity(self):
         # Setup
@@ -589,11 +549,8 @@ class TestLaunchStackTask(HastexoTestCase):
             student_id = "student_%d" % i
             self.create_stack(name, self.course_id, student_id, data)
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -621,11 +578,8 @@ class TestLaunchStackTask(HastexoTestCase):
             self.stacks["CREATE_COMPLETE"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -662,11 +616,8 @@ class TestLaunchStackTask(HastexoTestCase):
             student_id = "student_%d" % i
             self.create_stack(name, self.course_id, student_id, data)
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -698,11 +649,8 @@ class TestLaunchStackTask(HastexoTestCase):
                 self.create_stack(name, self.course_id, student_id, data)
         self.update_stack({"providers": self.providers})
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -730,11 +678,8 @@ class TestLaunchStackTask(HastexoTestCase):
             self.stacks["CREATE_COMPLETE"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -762,11 +707,8 @@ class TestLaunchStackTask(HastexoTestCase):
             SoftTimeLimitExceeded
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -782,11 +724,8 @@ class TestLaunchStackTask(HastexoTestCase):
             SoftTimeLimitExceeded
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -805,11 +744,8 @@ class TestLaunchStackTask(HastexoTestCase):
                 ProviderException()
             ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -843,11 +779,8 @@ class TestLaunchStackTask(HastexoTestCase):
         })
         self.kwargs["reset"] = True
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -870,11 +803,8 @@ class TestLaunchStackTask(HastexoTestCase):
         ]
         self.kwargs["reset"] = True
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -899,11 +829,8 @@ class TestLaunchStackTask(HastexoTestCase):
         })
         self.kwargs["reset"] = True
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -926,11 +853,8 @@ class TestLaunchStackTask(HastexoTestCase):
             "status": "SUSPEND_COMPLETE"
         })
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -965,15 +889,12 @@ class TestLaunchStackTask(HastexoTestCase):
             "status": "SUSPEND_COMPLETE"
         })
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Mock OperationalError 2 times
         with patch.object(Stack, 'save', side_effect=[OperationalError,
                                                       OperationalError,
                                                       None]) as save_patch:
             # Run
-            LaunchStackTask.run(**self.kwargs)
+            LaunchStackTask().run(**self.kwargs)
 
             # The save() method would have to be called 3 times (2
             # failures with an OperationalError, then 1 success).
@@ -1006,9 +927,6 @@ class TestLaunchStackTask(HastexoTestCase):
             "status": "SUSPEND_COMPLETE"
         })
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Mock OperationalError 3 times
         with patch.object(
             Stack, 'save', side_effect=[OperationalError,
@@ -1016,7 +934,7 @@ class TestLaunchStackTask(HastexoTestCase):
                                         OperationalError]) as save_patch:
             # Run
             with self.assertRaises(OperationalError):
-                LaunchStackTask.run(**self.kwargs)
+                LaunchStackTask().run(**self.kwargs)
 
             # The save() method would have to be called 3 times.
             self.assertEqual(save_patch.call_count, 3)
@@ -1050,11 +968,8 @@ class TestLaunchStackTask(HastexoTestCase):
             "status": "SUSPEND_COMPLETE"
         })
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1078,11 +993,8 @@ class TestLaunchStackTask(HastexoTestCase):
             "status": "SUSPEND_COMPLETE"
         })
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1106,11 +1018,8 @@ class TestLaunchStackTask(HastexoTestCase):
             "hook_events": {},
         })
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1135,11 +1044,8 @@ class TestLaunchStackTask(HastexoTestCase):
         })
         self.mocks["remote_exec"].side_effect = Exception()
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1164,11 +1070,8 @@ class TestLaunchStackTask(HastexoTestCase):
         })
         self.mocks["remote_exec"].side_effect = RemoteExecException
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1190,11 +1093,8 @@ class TestLaunchStackTask(HastexoTestCase):
             "status": "SUSPEND_COMPLETE"
         })
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1215,11 +1115,8 @@ class TestLaunchStackTask(HastexoTestCase):
             "status": "SUSPEND_COMPLETE"
         })
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1244,11 +1141,8 @@ class TestLaunchStackTask(HastexoTestCase):
             "status": "SUSPEND_COMPLETE"
         })
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1272,11 +1166,8 @@ class TestLaunchStackTask(HastexoTestCase):
         self.providers = [self.providers[0]]
         self.update_stack({"providers": self.providers})
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1299,11 +1190,8 @@ class TestLaunchStackTask(HastexoTestCase):
         self.providers = [self.providers[0]]
         self.update_stack({"providers": self.providers})
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1323,11 +1211,8 @@ class TestLaunchStackTask(HastexoTestCase):
         self.mocks["ssh_to"].side_effect = Exception()
         self.update_stack({"provider": self.providers[0]["name"]})
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1349,11 +1234,8 @@ class TestLaunchStackTask(HastexoTestCase):
         ]
         self.update_stack({"provider": self.providers[0]["name"]})
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1370,11 +1252,8 @@ class TestLaunchStackTask(HastexoTestCase):
         self.mocks["ssh_to"].side_effect = Exception()
         self.update_stack({"provider": self.providers[0]["name"]})
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1392,11 +1271,8 @@ class TestLaunchStackTask(HastexoTestCase):
         system.side_effect = SoftTimeLimitExceeded
         self.update_stack({"provider": self.providers[0]["name"]})
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1414,11 +1290,8 @@ class TestLaunchStackTask(HastexoTestCase):
         self.mocks["ssh_to"].side_effect = SoftTimeLimitExceeded
         self.update_stack({"provider": self.providers[0]["name"]})
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1444,11 +1317,8 @@ class TestLaunchStackTask(HastexoTestCase):
         self.protocol = "rdp"
         self.update_stack({"protocol": self.protocol})
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1478,11 +1348,8 @@ class TestLaunchStackTask(HastexoTestCase):
             "port": self.port,
         })
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1504,11 +1371,8 @@ class TestLaunchStackTask(HastexoTestCase):
             "status": "SUSPEND_COMPLETE"
         })
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1527,11 +1391,8 @@ class TestLaunchStackTask(HastexoTestCase):
             SoftTimeLimitExceeded
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1556,11 +1417,8 @@ class TestLaunchStackTask(HastexoTestCase):
             "status": "SUSPEND_COMPLETE"
         })
 
-        self.mocks["celery_app"].register_task.return_value = \
-            LaunchStackTask
-
         # Run
-        LaunchStackTask.run(**self.kwargs)
+        LaunchStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1584,11 +1442,8 @@ class TestSuspendStackTask(HastexoTestCase):
             self.stacks["SUSPEND_COMPLETE"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            SuspendStackTask
-
         # Run
-        SuspendStackTask.run(**self.kwargs)
+        SuspendStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1618,11 +1473,8 @@ class TestSuspendStackTask(HastexoTestCase):
             self.stacks["SUSPEND_COMPLETE"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            SuspendStackTask
-
         # Run
-        SuspendStackTask.run(**self.kwargs)
+        SuspendStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1653,11 +1505,8 @@ class TestSuspendStackTask(HastexoTestCase):
             self.stacks["SUSPEND_COMPLETE"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            SuspendStackTask
-
         # Run
-        SuspendStackTask.run(**self.kwargs)
+        SuspendStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1686,11 +1535,8 @@ class TestSuspendStackTask(HastexoTestCase):
             self.stacks["SUSPEND_COMPLETE"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            SuspendStackTask
-
         # Run
-        SuspendStackTask.run(**self.kwargs)
+        SuspendStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1721,11 +1567,8 @@ class TestSuspendStackTask(HastexoTestCase):
             self.stacks["SUSPEND_COMPLETE"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            SuspendStackTask
-
         # Run
-        SuspendStackTask.run(**self.kwargs)
+        SuspendStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1752,11 +1595,8 @@ class TestSuspendStackTask(HastexoTestCase):
             self.stacks["DELETE_COMPLETE"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            SuspendStackTask
-
         # Run
-        SuspendStackTask.run(**self.kwargs)
+        SuspendStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1778,11 +1618,8 @@ class TestSuspendStackTask(HastexoTestCase):
             self.stacks["RESUME_FAILED"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            SuspendStackTask
-
         # Run
-        SuspendStackTask.run(**self.kwargs)
+        SuspendStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1802,11 +1639,8 @@ class TestSuspendStackTask(HastexoTestCase):
         provider = self.mock_providers[0]
         provider.get_stack.side_effect = Exception()
 
-        self.mocks["celery_app"].register_task.return_value = \
-            SuspendStackTask
-
         # Run
-        SuspendStackTask.run(**self.kwargs)
+        SuspendStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1828,11 +1662,8 @@ class TestSuspendStackTask(HastexoTestCase):
         ]
         provider.suspend_stack.side_effect = SoftTimeLimitExceeded
 
-        self.mocks["celery_app"].register_task.return_value = \
-            SuspendStackTask
-
         # Run
-        SuspendStackTask.run(**self.kwargs)
+        SuspendStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1861,11 +1692,8 @@ class TestDeleteStackTask(HastexoTestCase):
             self.stacks["DELETE_COMPLETE"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            DeleteStackTask
-
         # Run
-        DeleteStackTask.run(**self.kwargs)
+        DeleteStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1896,11 +1724,8 @@ class TestDeleteStackTask(HastexoTestCase):
             self.stacks["DELETE_COMPLETE"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            DeleteStackTask
-
         # Run
-        DeleteStackTask.run(**self.kwargs)
+        DeleteStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1931,11 +1756,8 @@ class TestDeleteStackTask(HastexoTestCase):
             self.stacks["DELETE_COMPLETE"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            DeleteStackTask
-
         # Run
-        DeleteStackTask.run(**self.kwargs)
+        DeleteStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1963,11 +1785,8 @@ class TestDeleteStackTask(HastexoTestCase):
             self.stacks["DELETE_COMPLETE"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            DeleteStackTask
-
         # Run
-        DeleteStackTask.run(**self.kwargs)
+        DeleteStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1995,11 +1814,8 @@ class TestDeleteStackTask(HastexoTestCase):
             self.stacks["DELETE_COMPLETE"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            DeleteStackTask
-
         # Run
-        DeleteStackTask.run(**self.kwargs)
+        DeleteStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -2032,11 +1848,8 @@ class TestDeleteStackTask(HastexoTestCase):
             self.stacks["DELETE_COMPLETE"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            DeleteStackTask
-
         # Run
-        DeleteStackTask.run(**self.kwargs)
+        DeleteStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -2067,11 +1880,8 @@ class TestDeleteStackTask(HastexoTestCase):
             self.stacks["DELETE_COMPLETE"]
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            DeleteStackTask
-
         # Run
-        DeleteStackTask.run(**self.kwargs)
+        DeleteStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -2104,11 +1914,8 @@ class TestDeleteStackTask(HastexoTestCase):
             self.stacks["DELETE_COMPLETE"],
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            DeleteStackTask
-
         # Run
-        DeleteStackTask.run(**self.kwargs)
+        DeleteStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -2138,11 +1945,8 @@ class TestDeleteStackTask(HastexoTestCase):
             Exception(""),
         ]
 
-        self.mocks["celery_app"].register_task.return_value = \
-            DeleteStackTask
-
         # Run
-        DeleteStackTask.run(**self.kwargs)
+        DeleteStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -2167,11 +1971,8 @@ class TestDeleteStackTask(HastexoTestCase):
         ]
         provider.delete_stack.side_effect = SoftTimeLimitExceeded
 
-        self.mocks["celery_app"].register_task.return_value = \
-            DeleteStackTask
-
         # Run
-        DeleteStackTask.run(**self.kwargs)
+        DeleteStackTask().run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -2207,11 +2008,8 @@ class TestCheckStudentProgressTask(HastexoTestCase):
             "stack_user_name": self.stack_user_name
         }
 
-        self.mocks["celery_app"].register_task.return_value = \
-            CheckStudentProgressTask
-
         # Run
-        res = CheckStudentProgressTask.run(**kwargs)
+        res = CheckStudentProgressTask().run(**kwargs)
 
         # Assertions
         self.assertEqual(res["status"], "CHECK_PROGRESS_COMPLETE")
@@ -2234,11 +2032,8 @@ class TestCheckStudentProgressTask(HastexoTestCase):
             "stack_user_name": self.stack_user_name
         }
 
-        self.mocks["celery_app"].register_task.return_value = \
-            CheckStudentProgressTask
-
         # Run
-        res = CheckStudentProgressTask.run(**kwargs)
+        res = CheckStudentProgressTask().run(**kwargs)
 
         # Assertions
         self.assertEqual(res["status"], "CHECK_PROGRESS_COMPLETE")
@@ -2282,11 +2077,8 @@ class TestCheckStudentProgressTask(HastexoTestCase):
             "stack_user_name": self.stack_user_name
         }
 
-        self.mocks["celery_app"].register_task.return_value = \
-            CheckStudentProgressTask
-
         # Run
-        res = CheckStudentProgressTask.run(**kwargs)
+        res = CheckStudentProgressTask().run(**kwargs)
 
         # Assertions
         self.assertEqual(res["status"], "CHECK_PROGRESS_COMPLETE")

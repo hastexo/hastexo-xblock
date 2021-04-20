@@ -1,3 +1,8 @@
+Unreleased
+-------------------------
+* [Bug fix] Revert previous unsuccessful attempt to refactor Celery
+ logic.
+
 Version 5.0.7 (2021-04-16)
 -------------------------
 * [Bug fix] Refactor Celery tasks logic to define a Celery app

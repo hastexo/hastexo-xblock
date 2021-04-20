@@ -19,7 +19,6 @@ from tenacity import (
     before_sleep_log,
 )
 
-from .celery import app
 from .models import Stack
 from .provider import Provider, ProviderException
 from .common import (
@@ -610,9 +609,6 @@ class LaunchStackTask(HastexoTask):
         return check_data
 
 
-LaunchStackTask = app.register_task(LaunchStackTask())
-
-
 class SuspendStackTask(HastexoTask):
     """
     Suspends a stack.
@@ -690,9 +686,6 @@ class SuspendStackTask(HastexoTask):
                          provider_stack["status"])
 
         return provider_stack["status"]
-
-
-SuspendStackTask = app.register_task(SuspendStackTask())
 
 
 class DeleteStackTask(HastexoTask):
@@ -812,9 +805,6 @@ class DeleteStackTask(HastexoTask):
         return provider_stack["status"]
 
 
-DeleteStackTask = app.register_task(DeleteStackTask())
-
-
 class CheckStudentProgressTask(HastexoTask):
     """
     Check student progress by running a set of scripts via SSH.
@@ -874,6 +864,3 @@ class CheckStudentProgressTask(HastexoTask):
             'total': len(self.tests),
             'errors': errors
         }
-
-
-CheckStudentProgressTask = app.register_task(CheckStudentProgressTask())

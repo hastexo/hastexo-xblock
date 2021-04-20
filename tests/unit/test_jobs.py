@@ -62,10 +62,10 @@ class TestHastexoJobs(TestCase):
             self.addCleanup(patcher.stop)
 
     def get_suspend_task_mock(self):
-        return self.mocks["SuspendStackTask"]
+        return self.mocks["SuspendStackTask"].return_value
 
     def get_delete_task_mock(self):
-        return self.mocks["DeleteStackTask"]
+        return self.mocks["DeleteStackTask"].return_value
 
     def test_dont_suspend_stack_with_no_provider(self):
         # Setup
