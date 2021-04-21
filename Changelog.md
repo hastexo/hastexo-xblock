@@ -7,6 +7,9 @@ Unreleased
 
 Version 5.0.7 (2021-04-16)
 -------------------------
+**Do not use this release.** This contains a change breaking Celery
+task invocation, and was never published on PyPI.
+
 * [Bug fix] Refactor Celery tasks logic to define a Celery app
   and register our class based tasks to that app.
 
