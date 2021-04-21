@@ -25,5 +25,4 @@ path.py>=12.4
 ddt
 nose
 mock
-tox
 coverage
