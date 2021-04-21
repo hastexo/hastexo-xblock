@@ -1,4 +1,4 @@
-Unreleased
+Version 5.0.8 (2021-04-21)
 -------------------------
 * [Bug fix] Revert previous unsuccessful attempt to refactor Celery
  logic.
