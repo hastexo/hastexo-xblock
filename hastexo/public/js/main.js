@@ -593,6 +593,11 @@ function HastexoXBlock(runtime, element, configuration) {
     var reset_dialog = function() {
         var dialog = $('#reset_dialog');
 
+        /* add an extra warning text for timed exams */
+        if ($(".exam-timer-clock")[0]){
+            $('.exam-warning').css('display', 'inline-block');
+        }
+
         dialog.find('input.cancel').one('click', function() {
             $.dialog.close();
         });
