@@ -1,4 +1,4 @@
-Unreleased
+Version 5.0.9 (2021-04-22)
 -------------------------
 * [Enhancement] Display the "check progress" button (if enabled) in
   blue, to provide greater contrast to the red reset button.
