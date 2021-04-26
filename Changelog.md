@@ -1,3 +1,10 @@
+Unreleased
+-------------------------
+* [Enhancement] Relax version constraints in `requirements/base.txt`
+  so that the OpenStack Train release becomes our reference point for
+  OpenStack client libraries. Simultaneously, relax the version
+  constraints for Paramiko and Tenacity.
+
 Version 5.0.9 (2021-04-22)
 -------------------------
 * [Enhancement] Display the "check progress" button (if enabled) in
