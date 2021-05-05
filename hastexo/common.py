@@ -346,7 +346,6 @@ def remote_exec(ssh, script, params=None, reuse_sftp=None):
     # Wait for it to complete.
     settings = get_xblock_settings()
     timeout = settings.get("remote_exec_timeout", 300)
-    sleep_timeout = settings.get("sleep_timeout", 10)
     try:
         start = time.time()
         while not stdout.channel.exit_status_ready():
@@ -355,7 +354,7 @@ def remote_exec(ssh, script, params=None, reuse_sftp=None):
                              timeout)
                 raise RemoteExecTimeout(error_msg)
 
-            time.sleep(sleep_timeout)
+            time.sleep(1)
     finally:
         # Remove the file
         sftp.remove(script_file)

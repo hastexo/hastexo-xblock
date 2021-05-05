@@ -852,6 +852,9 @@ class CheckStudentProgressTask(HastexoTask):
         for test in self.tests:
             try:
                 remote_exec(ssh, test, reuse_sftp=sftp)
+            except RemoteExecTimeout as e:
+                logger.warning("Timeout when running test: %s" % e)
+                raise
             except RemoteExecException as e:
                 msg = e.args[0]
                 hint = msg.decode() if isinstance(msg, bytes) else str(msg)

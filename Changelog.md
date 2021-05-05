@@ -1,3 +1,8 @@
+Unreleased
+-------------------------
+* [Enhancement] Speed up progress checks by reducing the sleep time when
+  waiting for a remote execution of a command to finish.
+
 Version 5.0.11 (2021-05-10)
 -------------------------
 * [Bug fix] Add constraints to `dogpile.cache` and `cliff`, so that our
