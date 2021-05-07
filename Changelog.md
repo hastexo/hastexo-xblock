@@ -1,3 +1,8 @@
+Unreleased
+-------------------------
+* [Bug fix] Add constraints to `dogpile.cache` and `cliff`, so that our
+  OpenStack client libraries will not have dependency conflicts.
+
 Version 5.0.10 (2021-04-26)
 -------------------------
 * [Enhancement] Relax version constraints in `requirements/base.txt`
