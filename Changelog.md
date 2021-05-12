@@ -1,4 +1,4 @@
-Unreleased
+Version 5.0.12 (2021-05-12)
 -------------------------
 * [Enhancement] Speed up progress checks by reducing the sleep time when
   waiting for a remote execution of a command to finish.
