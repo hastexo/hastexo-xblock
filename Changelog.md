@@ -1,3 +1,7 @@
+Unreleased
+-------------------------
+* [Bug fix] Restrict stack names to ASCII characters and digits.
+
 Version 5.0.13 (2021-05-21)
 -------------------------
 * [Bug fix] Fix RDP connectivity check for IPv6 stacks.

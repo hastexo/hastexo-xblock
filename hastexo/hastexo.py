@@ -1,6 +1,8 @@
 import time
 import logging
 import os
+import re
+import string
 import textwrap
 
 from xblock.core import XBlock, XML_NAMESPACES
@@ -518,7 +520,14 @@ class HastexoXBlock(XBlock,
         # Get the course id and anonymous user id, and derive the stack name
         # from them
         course_id, student_id = self.get_block_ids()
-        return "%s_%s_%s" % (course_id.course, course_id.run, student_id)
+        stack_name = "%s_%s_%s" % (course_id.course, course_id.run, student_id)
+
+        # Replace anything in the stack name that is not an ASCII letter or
+        # digit with an underscore
+        replace_pattern = '[^%s%s]' % (string.digits, string.ascii_letters)
+        stack_name = re.sub(re.compile(replace_pattern), '_', stack_name)
+
+        return stack_name
 
     def student_view(self, context=None):
         """

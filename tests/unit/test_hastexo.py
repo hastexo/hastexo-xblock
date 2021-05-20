@@ -922,3 +922,17 @@ class TestHastexoXBlock(TestCase):
         self.block.get_stack_name.assert_called()
         self.assertIsNotNone(self.block.stack_name)
         self.assertEqual(self.block.stack_name, stack_name)
+
+    def test_get_stack_name(self):
+        course_id = Mock(course='course', run='run')
+        student_id = 'student'
+        self.block.get_block_ids = Mock(return_value=(course_id, student_id))
+        stack_name = self.block.get_stack_name()
+        self.assertEqual('course_run_student', stack_name)
+
+    def test_get_stack_name_replace_characters(self):
+        course_id = Mock(course='course.name', run='run')
+        student_id = 'student'
+        self.block.get_block_ids = Mock(return_value=(course_id, student_id))
+        stack_name = self.block.get_stack_name()
+        self.assertEqual('course_name_run_student', stack_name)
