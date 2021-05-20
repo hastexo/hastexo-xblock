@@ -155,7 +155,7 @@ class HastexoTestCase(TestCase):
         return self.mocks["ssh_to"]
 
     def get_socket_mock(self):
-        return self.mocks["socket"].socket.return_value
+        return self.mocks["socket"]
 
     def get_stack(self, prop=None):
         return get_stack(self.stack_name, self.course_id, self.student_id,
@@ -1307,7 +1307,7 @@ class TestLaunchStackTask(HastexoTestCase):
             self.stacks["CREATE_COMPLETE"]
         ]
         s = self.get_socket_mock()
-        s.connect.side_effect = [
+        s.create_connection.side_effect = [
             socket.timeout,
             socket.timeout,
             socket.timeout,
@@ -1324,7 +1324,8 @@ class TestLaunchStackTask(HastexoTestCase):
         stack = self.get_stack()
 
         # Assertions
-        s.connect.assert_called_with((self.STACK_IP, 3389))
+        s.create_connection.assert_called_with(
+            (self.STACK_IP, 3389), self.settings['sleep_timeout'])
         self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
 
     def test_dont_wait_forever_for_rdp_on_custom_port(self):
@@ -1334,7 +1335,7 @@ class TestLaunchStackTask(HastexoTestCase):
             self.stacks["CREATE_COMPLETE"]
         ]
         s = self.get_socket_mock()
-        s.connect.side_effect = [
+        s.create_connection.side_effect = [
             socket.timeout,
             socket.timeout,
             socket.timeout,
@@ -1355,7 +1356,8 @@ class TestLaunchStackTask(HastexoTestCase):
         stack = self.get_stack()
 
         # Assertions
-        s.connect.assert_called_with((self.STACK_IP, self.port))
+        s.create_connection.assert_called_with(
+            (self.STACK_IP, self.port), self.settings['sleep_timeout'])
         self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
 
     def test_dont_wait_forever_for_suspension(self):

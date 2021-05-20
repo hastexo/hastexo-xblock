@@ -516,11 +516,11 @@ class LaunchStackTask(HastexoTask):
             port = 3389
 
         connected = False
-        s = socket.socket()
-        s.settimeout(self.get_sleep_timeout())
+        conn = None
         while not connected:
             try:
-                s.connect((stack_ip, port))
+                conn = socket.create_connection((stack_ip, port),
+                                                self.get_sleep_timeout())
             except SoftTimeLimitExceeded:
                 raise
             except Exception:
@@ -528,7 +528,8 @@ class LaunchStackTask(HastexoTask):
             else:
                 connected = True
             finally:
-                s.close()
+                if conn:
+                    conn.close()
 
     def check_stack(self, stack_outputs, was_resumed, provider):
         """

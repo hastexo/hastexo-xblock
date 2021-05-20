@@ -1,3 +1,7 @@
+Unreleased
+-------------------------
+* [Bug fix] Fix RDP connectivity check for IPv6 stacks.
+
 Version 4.1.14 (2021-04-21)
 --------------------------
 * [Bug fix] Refactor closing ssh connection in `finally` blocks.
