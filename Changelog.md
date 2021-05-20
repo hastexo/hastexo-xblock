@@ -1,3 +1,7 @@
+Unreleased
+-------------------------
+* [Bug fix] Fix RDP connectivity check for IPv6 stacks.
+
 Version 5.0.12 (2021-05-12)
 -------------------------
 * [Enhancement] Speed up progress checks by reducing the sleep time when
