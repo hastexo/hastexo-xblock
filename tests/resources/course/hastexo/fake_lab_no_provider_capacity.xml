@@ -1,0 +1,5 @@
+<hastexo>
+  <provider name="provider1" template="bogus_content" environment="bogus_content"/>
+  <provider name="provider2" capacity="" template="bogus_content" environment="bogus_content"/>
+  <provider name="provider3" capacity="None" template="bogus_content" environment="bogus_content"/>
+</hastexo>

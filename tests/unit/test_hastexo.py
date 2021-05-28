@@ -10,6 +10,9 @@ from hastexo.common import (
     get_xblock_settings
 )
 
+from fs.osfs import OSFS
+from lxml import etree
+from markdown_xblock import MarkdownXBlock
 from mock import Mock, patch, DEFAULT
 from webob import Request
 from django.test import TestCase
@@ -296,6 +299,11 @@ class TestHastexoXBlock(TestCase):
             {"name": "server1", "number": 3389},
             {"name": "server2", "number": 3390}
         ]
+        self.block.hook_events = {
+            "suspend": True,
+            "resume": True,
+            "delete": True
+        }
         self.block.tests = ["bogus_test"]
 
         # Set on student view
@@ -936,3 +944,543 @@ class TestHastexoXBlock(TestCase):
         self.block.get_block_ids = Mock(return_value=(course_id, student_id))
         stack_name = self.block.get_stack_name()
         self.assertEqual('course_name_run_student', stack_name)
+
+    def test_xblock_export_to_separate_file(self):
+        # setup
+        self.init_block()
+        self.block.url_name = 'fake_lab'
+        self.block.category = 'hastexo'
+        export_fs = OSFS('fake/course')
+        self.block.runtime.export_fs = export_fs
+
+        # create an empty node
+        node = etree.Element('unknown')
+        # assert that the node is empty, with a tag 'unknown'
+        self.assertEqual(node.items(), [])
+        self.assertEqual(node.tag, 'unknown')
+
+        # run the export
+        self.block.add_xml_to_node(node)
+
+        # assert that the node now contains the xblock information
+        self.assertNotEqual(node.items(), [])
+        self.assertEqual(node.tag, 'hastexo')
+        self.assertEqual(node.get('filename'), 'fake_lab')
+
+        # assert that the exported file exists
+        self.assertTrue(export_fs.exists('hastexo/fake_lab.xml'))
+        export_content = export_fs.readtext('hastexo/fake_lab.xml')
+        expected_content = textwrap.dedent("""\
+    <hastexo>
+      <hook_events suspend="True" resume="True" delete="True"/>
+      <port name="server1" number="3389"/>
+      <port name="server2" number="3390"/>
+      <provider name="provider1" capacity="1" template="bogus_content" environment="bogus_content"/>
+      <provider name="provider2" capacity="2" template="bogus_content" environment="bogus_content"/>
+      <provider name="provider3" capacity="0" template="bogus_content" environment="bogus_content"/>
+      <test><![CDATA[bogus_test]]></test>
+    </hastexo>
+        """) # noqa
+
+        # assert that the exported file content is as expected
+        self.assertEqual(export_content, expected_content)
+
+        # clean up
+        export_fs.remove('hastexo/fake_lab.xml')
+        export_fs.removedir('hastexo')
+
+    def test_export_to_separate_file_no_provider_name(self):
+        # setup
+        self.init_block()
+        self.block.providers[0].pop('name')
+        self.block.url_name = 'fake_lab'
+        self.block.category = 'hastexo'
+        export_fs = OSFS('fake/course')
+        self.block.runtime.export_fs = export_fs
+
+        # create an empty node
+        node = etree.Element('unknown')
+
+        # assert that missing provider name raises KeyError
+        with self.assertRaises(KeyError):
+            self.block.add_xml_to_node(node)
+
+    def test_export_to_separate_file_no_port_name(self):
+        # setup
+        self.init_block()
+        self.block.ports[0].pop('name')
+        self.block.url_name = 'fake_lab'
+        self.block.category = 'hastexo'
+        export_fs = OSFS('fake/course')
+        self.block.runtime.export_fs = export_fs
+
+        # create an empty node
+        node = etree.Element('unknown')
+
+        # assert that missing port name raises KeyError
+        with self.assertRaises(KeyError):
+            self.block.add_xml_to_node(node)
+
+    def test_export_to_separate_file_no_port_number(self):
+        # setup
+        self.init_block()
+        self.block.ports[0].pop('number')
+        self.block.url_name = 'fake_lab'
+        self.block.category = 'hastexo'
+        export_fs = OSFS('fake/course')
+        self.block.runtime.export_fs = export_fs
+
+        # create an empty node
+        node = etree.Element('unknown')
+
+        # assert that missing port number raises KeyError
+        with self.assertRaises(KeyError):
+            self.block.add_xml_to_node(node)
+
+    def test_xblock_export_no_provider_capacity(self):
+        # setup
+        self.init_block()
+        self.block.providers[0].pop('capacity')
+        self.block.url_name = 'fake_lab'
+        self.block.category = 'hastexo'
+        export_fs = OSFS('fake/course')
+        self.block.runtime.export_fs = export_fs
+
+        # create an empty node
+        node = etree.Element('unknown')
+
+        # run the export
+        self.block.add_xml_to_node(node)
+
+        # assert that the exported file exists
+        self.assertTrue(export_fs.exists('hastexo/fake_lab.xml'))
+        export_content = export_fs.readtext('hastexo/fake_lab.xml')
+        expected_content = textwrap.dedent("""\
+    <hastexo>
+      <hook_events suspend="True" resume="True" delete="True"/>
+      <port name="server1" number="3389"/>
+      <port name="server2" number="3390"/>
+      <provider name="provider1" capacity="-1" template="bogus_content" environment="bogus_content"/>
+      <provider name="provider2" capacity="2" template="bogus_content" environment="bogus_content"/>
+      <provider name="provider3" capacity="0" template="bogus_content" environment="bogus_content"/>
+      <test><![CDATA[bogus_test]]></test>
+    </hastexo>
+        """) # noqa
+
+        # assert that the exported file content is as expected and a missing
+        # provider capacity value will be set to "-1" (unlimited)
+        self.assertEqual(export_content, expected_content)
+
+        # clean up
+        export_fs.remove('hastexo/fake_lab.xml')
+        export_fs.removedir('hastexo')
+
+    def test_export_nested_xblock(self):
+        # set up a markdown xblock
+        markdown_xblock = MarkdownXBlock(
+            self.block.runtime,
+            scope_ids=(ScopeIds('user', 'markdown', '.markdown.d0',
+                                '.markdown.d0.u0')))
+        markdown_xblock.url_name = 'fake_lab_instructions'
+        markdown_xblock.category = 'markdown'
+
+        # setup
+        self.init_block()
+        self.block.children.append(markdown_xblock)
+        self.block.url_name = 'fake_lab'
+        self.block.category = 'hastexo'
+        export_fs = OSFS('fake/course')
+        self.block.runtime.export_fs = export_fs
+        self.block.runtime.get_block = Mock()
+        self.block.runtime.get_block.return_value = markdown_xblock
+        self.block.runtime.add_block_as_child_node = Mock()
+
+        # create an empty node
+        node = etree.Element('unknown')
+
+        # run the export
+        self.block.add_xml_to_node(node)
+
+        # assert get_block and add_block_as_child_node were called
+        self.block.runtime.get_block.assert_called_once_with(markdown_xblock)
+        self.block.runtime.add_block_as_child_node.assert_called_once_with(
+            markdown_xblock, node)
+
+        # assert that the exported file exists
+        self.assertTrue(export_fs.exists('hastexo/fake_lab.xml'))
+
+        # clean up
+        export_fs.remove('hastexo/fake_lab.xml')
+        export_fs.removedir('hastexo')
+
+    def test_parse_xblock_from_separate_file(self):
+        block_type = 'hastexo'
+
+        node = etree.Element(block_type)
+        node.set('filename', 'fake_lab_1')
+
+        self.block.runtime.resources_fs = OSFS('tests/resources/course')
+        def_id = self.block.runtime.id_generator.create_definition(block_type)
+        usage_id = self.block.runtime.id_generator.create_usage(def_id)
+        scope_ids = ScopeIds('user', block_type, def_id, usage_id)
+
+        id_generator = Mock()
+        id_generator.create_definition = Mock()
+        fake_location = Mock()
+        fake_location.block_id = 'fake_lab_1'
+        id_generator.create_definition.return_value = fake_location
+
+        # run
+        block = self.block.parse_xml(
+            node, self.block.runtime, scope_ids, id_generator)
+
+        # assertions
+        self.assertIsInstance(block, HastexoXBlock)
+        self.assertEqual(len(block.providers), 3)
+        self.assertEqual(block.providers[0]["name"], "provider1")
+        self.assertEqual(block.providers[0]["capacity"], 1)
+        self.assertEqual(block.providers[0]["template"], "bogus_content")
+        self.assertEqual(block.providers[0]["environment"], "bogus_content")
+        self.assertEqual(block.providers[1]["template"], "bogus_content")
+        self.assertEqual(block.providers[1]["capacity"], 2)
+        self.assertEqual(block.providers[2]["name"], "provider3")
+        self.assertEqual(block.providers[2]["capacity"], 0)
+        self.assertEqual(len(block.ports), 2)
+        self.assertEqual(block.ports[0]["number"], 3389)
+        self.assertEqual(block.ports[1]["name"], "server2")
+        self.assertEqual(len(block.tests), 1)
+        self.assertEqual(block.tests[0], "bogus_test")
+        self.assertEqual(
+            block.hook_events,
+            {"suspend": True, "resume": True, "delete": True})
+
+    def test_parse_xblock_no_filename(self):
+        block_type = 'hastexo'
+
+        node = etree.Element(block_type)
+        node.set('read_only', 'true')
+        node.set('display_name', 'Fake Lab')
+
+        self.block.runtime.resources_fs = Mock()
+        id_generator = Mock()
+        def_id = self.block.runtime.id_generator.create_definition(block_type)
+        usage_id = self.block.runtime.id_generator.create_usage(def_id)
+        scope_ids = ScopeIds('user', block_type, def_id, usage_id)
+
+        block = self.block.parse_xml(
+            node, self.block.runtime, scope_ids, id_generator)
+
+        # assert that since no 'filename' attribute is present,
+        # we don't attempt to open any files.
+        self.block.runtime.resources_fs.assert_not_called()
+
+        # assert that the imported xblock has no hook_events,
+        # ports, providers or tests.
+        self.assertEqual(block.hook_events, None)
+        self.assertEqual(block.ports, [])
+        self.assertEqual(block.providers, [])
+        self.assertEqual(block.tests, [])
+
+        # assert that node attributes are still imported as xblock fields.
+        self.assertEqual(block.read_only, True)
+        self.assertEqual(block.display_name, 'Fake Lab')
+
+        # assert that default values are present
+        self.assertEqual(block.progress_check_label, 'Check Progress')
+        self.assertEqual(block.stack_protocol, 'ssh')
+
+    def test_parse_xblock_missing_capacity(self):
+        block_type = 'hastexo'
+
+        node = etree.Element(block_type)
+        node.set('filename', 'fake_lab_no_provider_capacity')
+
+        self.block.runtime.resources_fs = OSFS('tests/resources/course')
+        def_id = self.block.runtime.id_generator.create_definition(block_type)
+        usage_id = self.block.runtime.id_generator.create_usage(def_id)
+
+        id_generator = Mock()
+        id_generator.create_definition = Mock()
+        fake_location = Mock()
+        fake_location.block_id = 'fake_lab_no_provider_capacity'
+        id_generator.create_definition.return_value = fake_location
+
+        scope_ids = ScopeIds('user', block_type, def_id, usage_id)
+        block = self.block.parse_xml(
+            node, self.block.runtime, scope_ids, id_generator)
+
+        # assert that a missing capacity will result on it being set to -1
+        self.assertEqual(len(block.providers), 3)
+        self.assertEqual(block.providers[0]['capacity'], -1)
+        self.assertEqual(block.providers[1]['capacity'], -1)
+        self.assertEqual(block.providers[2]['capacity'], -1)
+
+    def test_parse_xblock_missing_provider_name(self):
+        block_type = 'hastexo'
+
+        node = etree.Element(block_type)
+        node.set('filename', 'fake_lab_no_provider_name')
+
+        self.block.runtime.resources_fs = OSFS('tests/resources/course')
+        def_id = self.block.runtime.id_generator.create_definition(block_type)
+        usage_id = self.block.runtime.id_generator.create_usage(def_id)
+
+        id_generator = Mock()
+        id_generator.create_definition = Mock()
+        fake_location = Mock()
+        fake_location.block_id = 'fake_lab_no_provider_name'
+        id_generator.create_definition.return_value = fake_location
+
+        scope_ids = ScopeIds('user', block_type, def_id, usage_id)
+
+        # assert that missing provider name raises KeyError
+        with self.assertRaises(KeyError):
+            self.block.parse_xml(
+                node, self.block.runtime, scope_ids, id_generator)
+
+    def test_parse_xblock_missing_port_name(self):
+        block_type = 'hastexo'
+
+        node = etree.Element(block_type)
+        node.set('filename', 'fake_lab_no_port_name')
+
+        self.block.runtime.resources_fs = OSFS('tests/resources/course')
+        def_id = self.block.runtime.id_generator.create_definition(block_type)
+        usage_id = self.block.runtime.id_generator.create_usage(def_id)
+
+        id_generator = Mock()
+        id_generator.create_definition = Mock()
+        fake_location = Mock()
+        fake_location.block_id = 'fake_lab_no_port_name'
+        id_generator.create_definition.return_value = fake_location
+
+        scope_ids = ScopeIds('user', block_type, def_id, usage_id)
+
+        # assert that missing port name raises KeyError
+        with self.assertRaises(KeyError):
+            self.block.parse_xml(
+                node, self.block.runtime, scope_ids, id_generator)
+
+    def test_parse_xblock_missing_port_number(self):
+        block_type = 'hastexo'
+
+        node = etree.Element(block_type)
+        node.set('filename', 'fake_lab_no_port_number')
+
+        self.block.runtime.resources_fs = OSFS('tests/resources/course')
+        def_id = self.block.runtime.id_generator.create_definition(block_type)
+        usage_id = self.block.runtime.id_generator.create_usage(def_id)
+
+        id_generator = Mock()
+        id_generator.create_definition = Mock()
+        fake_location = Mock()
+        fake_location.block_id = 'fake_lab_no_port_number'
+        id_generator.create_definition.return_value = fake_location
+
+        scope_ids = ScopeIds('user', block_type, def_id, usage_id)
+
+        # assert that missing port number raises KeyError
+        with self.assertRaises(KeyError):
+            self.block.parse_xml(
+                node, self.block.runtime, scope_ids, id_generator)
+
+    def test_parse_xblock_hook_events_1(self):
+        block_type = 'hastexo'
+
+        node = etree.Element(block_type)
+        node.set('filename', 'fake_lab_hook_events_1')
+
+        self.block.runtime.resources_fs = OSFS('tests/resources/course')
+        def_id = self.block.runtime.id_generator.create_definition(block_type)
+        usage_id = self.block.runtime.id_generator.create_usage(def_id)
+
+        id_generator = Mock()
+        id_generator.create_definition = Mock()
+        fake_location = Mock()
+        fake_location.block_id = 'fake_lab_hook_events_1'
+        id_generator.create_definition.return_value = fake_location
+
+        scope_ids = ScopeIds('user', block_type, def_id, usage_id)
+        block = self.block.parse_xml(
+            node, self.block.runtime, scope_ids, id_generator)
+
+        # assert that all three definitions will result in being set to True
+        self.assertEqual(block.hook_events['suspend'], True)
+        self.assertEqual(block.hook_events['resume'], True)
+        self.assertEqual(block.hook_events['delete'], True)
+
+    def test_parse_xblock_hook_events_2(self):
+        block_type = 'hastexo'
+
+        node = etree.Element(block_type)
+        node.set('filename', 'fake_lab_hook_events_2')
+
+        self.block.runtime.resources_fs = OSFS('tests/resources/course')
+        def_id = self.block.runtime.id_generator.create_definition(block_type)
+        usage_id = self.block.runtime.id_generator.create_usage(def_id)
+
+        id_generator = Mock()
+        id_generator.create_definition = Mock()
+        fake_location = Mock()
+        fake_location.block_id = 'fake_lab_hook_events_2'
+        id_generator.create_definition.return_value = fake_location
+
+        scope_ids = ScopeIds('user', block_type, def_id, usage_id)
+        block = self.block.parse_xml(
+            node, self.block.runtime, scope_ids, id_generator)
+
+        # assert that 'false' and 'False' will both be set as False,
+        # an undefined attribute ('delete') will default to True
+        self.assertEqual(block.hook_events['suspend'], False)
+        self.assertEqual(block.hook_events['resume'], False)
+        self.assertEqual(block.hook_events['delete'], True)
+
+    def test_parse_xblock_lab_2(self):
+        block_type = 'hastexo'
+
+        node = etree.Element(block_type)
+        node.set('filename', 'fake_lab_2')
+
+        self.block.runtime.resources_fs = OSFS('tests/resources/course')
+        def_id = self.block.runtime.id_generator.create_definition(block_type)
+        usage_id = self.block.runtime.id_generator.create_usage(def_id)
+        scope_ids = ScopeIds('user', block_type, def_id, usage_id)
+
+        id_generator = Mock()
+        id_generator.create_definition = Mock()
+        fake_location = Mock()
+        fake_location.block_id = 'fake_lab_2'
+        id_generator.create_definition.return_value = fake_location
+
+        # run
+        block = self.block.parse_xml(
+            node, self.block.runtime, scope_ids, id_generator)
+
+        # assertions
+        self.assertIsInstance(block, HastexoXBlock)
+        self.assertEqual(len(block.providers), 2)
+        self.assertEqual(block.providers[0]["name"], "provider1")
+        self.assertEqual(block.providers[0]["capacity"], 1)
+        self.assertEqual(block.providers[0]["template"], "bogus_content")
+        self.assertEqual(block.providers[0]["environment"], "bogus_content")
+        self.assertEqual(block.providers[1]["name"], "provider2")
+        self.assertEqual(block.providers[1]["capacity"], 10)
+        self.assertEqual(len(block.ports), 1)
+        self.assertEqual(block.ports[0]["number"], 3389)
+        self.assertEqual(block.ports[0]["name"], "server1")
+        self.assertEqual(block.tests[0], "bogus_test")
+        self.assertEqual(block.tests[0], "bogus_test")
+
+        # assert that template and environment are not mandatory
+        self.assertNotIn("template", block.providers[1])
+        self.assertNotIn("environment", block.providers[1])
+
+    def test_full_round_import_export(self):
+        # import xblock from fake_lab_1.xml
+        # setup
+        block_type = 'hastexo'
+        resources_fs = OSFS('tests/resources/course')
+        self.block.runtime.resources_fs = resources_fs
+        def_id = self.block.runtime.id_generator.create_definition(block_type)
+        usage_id = self.block.runtime.id_generator.create_usage(def_id)
+        scope_ids = ScopeIds('user', block_type, def_id, usage_id)
+        id_generator = Mock()
+        id_generator.create_definition = Mock()
+        fake_location = Mock()
+        fake_location.block_id = 'fake_lab_1'
+        id_generator.create_definition.return_value = fake_location
+
+        # create the hastexo node
+        hastexo_node = etree.Element(block_type)
+        hastexo_node.set('filename', 'fake_lab_1')
+        hastexo_node.set('stack_user_name', 'training')
+
+        # run the import
+        block = self.block.parse_xml(
+            hastexo_node, self.block.runtime, scope_ids, id_generator)
+
+        # export the xblock to fake_lab.xml
+        # setup
+        block.url_name = 'fake_lab'
+        block.category = 'hastexo'
+        export_fs = OSFS('fake/course')
+        block.runtime.export_fs = export_fs
+
+        # create an empty node
+        node = etree.Element('unknown')
+
+        # run the export
+        block.add_xml_to_node(node)
+
+        # assert that the node has the stack_user_name attribute set on import
+        self.assertEqual(node.get('stack_user_name'), 'training')
+
+        # read the exported file content
+        export_content = export_fs.readtext('hastexo/fake_lab.xml')
+        # read the imported file content
+        resource_content = resources_fs.readtext(
+            'hastexo/fake_lab_1.xml')
+
+        # assert that exported content is identical to what was imported
+        self.assertEqual(
+            textwrap.dedent(export_content),
+            textwrap.dedent(resource_content))
+
+        # clean up
+        export_fs.remove('hastexo/fake_lab.xml')
+        export_fs.removedir('hastexo')
+
+    def test_full_round_import_export_2(self):
+        # import xblock from fake_lab_2.xml
+        # setup
+        block_type = 'hastexo'
+        resources_fs = OSFS('tests/resources/course')
+        self.block.runtime.resources_fs = resources_fs
+        def_id = self.block.runtime.id_generator.create_definition(block_type)
+        usage_id = self.block.runtime.id_generator.create_usage(def_id)
+        scope_ids = ScopeIds('user', block_type, def_id, usage_id)
+        id_generator = Mock()
+        id_generator.create_definition = Mock()
+        fake_location = Mock()
+        fake_location.block_id = 'fake_lab_2'
+        id_generator.create_definition.return_value = fake_location
+
+        # create the hastexo node
+        hastexo_node = etree.Element(block_type)
+        hastexo_node.set('filename', 'fake_lab_2')
+        hastexo_node.set('stack_user_name', 'training')
+
+        # run the import
+        block = self.block.parse_xml(
+            hastexo_node, self.block.runtime, scope_ids, id_generator)
+
+        # export the xblock to fake_lab.xml
+        # setup
+        block.url_name = 'fake_lab'
+        block.category = 'hastexo'
+        export_fs = OSFS('fake/course')
+        block.runtime.export_fs = export_fs
+
+        # create an empty node
+        node = etree.Element('unknown')
+
+        # run the export
+        block.add_xml_to_node(node)
+
+        # assert that the node has the stack_user_name attribute set on import
+        self.assertEqual(node.get('stack_user_name'), 'training')
+
+        # read the exported file content
+        export_content = export_fs.readtext('hastexo/fake_lab.xml')
+        # read the imported file content
+        resource_content = resources_fs.readtext(
+            'hastexo/fake_lab_2.xml')
+
+        # assert that exported content is identical to what was imported
+        self.assertEqual(
+            textwrap.dedent(export_content),
+            textwrap.dedent(resource_content))
+
+        # clean up
+        export_fs.remove('hastexo/fake_lab.xml')
+        export_fs.removedir('hastexo')

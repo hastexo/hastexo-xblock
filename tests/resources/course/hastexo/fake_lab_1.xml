@@ -1,0 +1,9 @@
+<hastexo>
+  <hook_events suspend="True" resume="True" delete="True"/>
+  <port name="server1" number="3389"/>
+  <port name="server2" number="3390"/>
+  <provider name="provider1" capacity="1" template="bogus_content" environment="bogus_content"/>
+  <provider name="provider2" capacity="2" template="bogus_content" environment="bogus_content"/>
+  <provider name="provider3" capacity="0" template="bogus_content" environment="bogus_content"/>
+  <test><![CDATA[bogus_test]]></test>
+</hastexo>

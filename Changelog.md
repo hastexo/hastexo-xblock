@@ -1,5 +1,6 @@
 Unreleased
 -------------------------
+* [Enhancement] Add tests for the new export/import logic.
 * [Bug fix] Restrict stack names to ASCII characters and digits.
 
 Version 5.0.13 (2021-05-21)
