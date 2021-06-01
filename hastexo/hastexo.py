@@ -237,21 +237,16 @@ class HastexoXBlock(XBlock,
             block.tests.append(text)
 
         elif tag == "port":
-            name = node.attrib["name"]
-            if not name:
-                raise KeyError("name")
-            number = node.attrib["number"]
-            if not number:
-                raise KeyError("number")
-            number = int(number)
-            port = {"name": name,
-                    "number": number}
+            # port must have values for 'name' and 'number'
+            # raises KeyError for each if not defined
+            port = {"name": node.attrib["name"],
+                    "number": int(node.attrib["number"])}
             block.ports.append(port)
 
         elif tag == "provider":
+            # raises KeyError if 'name' is not defined
+            # one must not add a provider without a name
             name = node.attrib["name"]
-            if not name:
-                raise KeyError("name")
             capacity = node.attrib.get("capacity", None)
             if capacity in (None, "None", ""):
                 # capacity should not be undefined
@@ -263,6 +258,8 @@ class HastexoXBlock(XBlock,
                 capacity = int(capacity)
             provider = {"name": name,
                         "capacity": capacity}
+            # template and environment are not required
+            # add to provider only when they have non empty values
             template = node.attrib.get("template", None)
             if template not in (None, "None"):
                 provider["template"] = template
@@ -343,14 +340,6 @@ class HastexoXBlock(XBlock,
 
         return block
 
-    def add_dict_properties_to_node(self, properties, node):
-        """
-        Add properties from a dictionary as attributes to `node`.
-
-        """
-        for key in properties.keys():
-            node.set(key, str(properties.get(key, '')))
-
     def add_xml_to_node(self, node):
         """
         For exporting, set data on etree.Element `node`.
@@ -372,36 +361,42 @@ class HastexoXBlock(XBlock,
 
             if self.hook_events:
                 hook_events_node = etree.SubElement(root, 'hook_events')
-                self.add_dict_properties_to_node(
-                    self.hook_events, hook_events_node)
+                hook_events_node.set(
+                    'suspend', str(self.hook_events.get("suspend", True)))
+                hook_events_node.set(
+                    'resume', str(self.hook_events.get("resume", True)))
+                hook_events_node.set(
+                    'delete', str(self.hook_events.get("delete", True)))
 
             if self.ports:
                 for port in self.ports:
+                    # port must have values for 'name' and 'number',
+                    # raises KeyError if not defined.
                     port_node = etree.SubElement(root, 'port')
-                    self.add_dict_properties_to_node(port, port_node)
+                    port_node.set('name', port['name'])
+                    port_node.set('number', str(port['number']))
 
             if self.providers:
                 for provider in self.providers:
                     provider_node = etree.SubElement(root, 'provider')
-                    # Not having a 'template' or an 'environment' defined for
-                    # a provider is a valid option.
-                    # Only try to remove these when defined but values are
-                    # None or "None" to avoid breaking the export.
-                    if 'template' in provider:
-                        provider_template = provider.get("template", None)
-                        if provider_template in (None, "None"):
-                            provider.pop("template")
-                    if 'environment' in provider:
-                        provider_environment = provider.get("environment",
-                                                            None)
-                        if provider_environment in (None, "None"):
-                            provider.pop("environment")
-                    provider_capacity = provider.get("capacity", None)
-                    if provider_capacity in (None, "None", ""):
+                    # raises KeyError if 'name' is not defined
+                    # one must not add a provider without a name
+                    provider_node.set('name', provider['name'])
+                    capacity = provider.get("capacity", None)
+                    if capacity in (None, "None", ""):
                         # capacity should not be undefined
                         # set to -1 (unlimited) in case it is
-                        provider["capacity"] = -1
-                    self.add_dict_properties_to_node(provider, provider_node)
+                        capacity = -1
+                    provider_node.set('capacity', str(capacity))
+                    # Not having a 'template' or an 'environment' defined for
+                    # a provider is a valid option.
+                    # Only add to node when defined a non-empty value.
+                    template = provider.get("template", None)
+                    if template not in (None, "None"):
+                        provider_node.set('template', template)
+                    environment = provider.get("environment", None)
+                    if environment not in (None, "None"):
+                        provider_node.set('environment', environment)
 
             if self.tests:
                 for test in self.tests:

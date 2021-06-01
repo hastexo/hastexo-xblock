@@ -1484,3 +1484,78 @@ class TestHastexoXBlock(TestCase):
         # clean up
         export_fs.remove('hastexo/fake_lab.xml')
         export_fs.removedir('hastexo')
+
+    def test_export_import_export(self):
+        # Test that two exported files are identical
+        # if the same file is imported (while unmodified)
+        # before the second export.
+
+        export_location = 'fake/course'
+
+        # set up an xblock and export to fake_lab_1.xml
+        self.init_block()
+        self.block.url_name = 'fake_lab_1'
+        self.block.category = 'hastexo'
+        export_fs = OSFS(export_location)
+        self.block.runtime.export_fs = export_fs
+
+        # create an empty node
+        node = etree.Element('unknown')
+        # assert that the node is empty, with a tag 'unknown'
+        self.assertEqual(node.items(), [])
+        self.assertEqual(node.tag, 'unknown')
+
+        # run the export
+        self.block.add_xml_to_node(node)
+
+        # assert that the exported file exists and read the content
+        self.assertTrue(export_fs.exists('hastexo/fake_lab_1.xml'))
+        export_content_1 = export_fs.readtext('hastexo/fake_lab_1.xml')
+
+        # import the exported file from export location
+        block_type = 'hastexo'
+        resources_fs = OSFS(export_location)
+        self.block.runtime.resources_fs = resources_fs
+        def_id = self.block.runtime.id_generator.create_definition(block_type)
+        usage_id = self.block.runtime.id_generator.create_usage(def_id)
+        scope_ids = ScopeIds('user', block_type, def_id, usage_id)
+        id_generator = Mock()
+        id_generator.create_definition = Mock()
+        fake_location = Mock()
+        fake_location.block_id = 'fake_lab_1'
+        id_generator.create_definition.return_value = fake_location
+
+        # create the hastexo node
+        hastexo_node = etree.Element(block_type)
+        hastexo_node.set('filename', 'fake_lab_1')
+        hastexo_node.set('stack_user_name', 'training')
+
+        # run the import
+        block = self.block.parse_xml(
+            hastexo_node, self.block.runtime, scope_ids, id_generator)
+
+        # export the imported xblock to fake_lab_2.xml
+        block.url_name = 'fake_lab_2'
+        block.category = 'hastexo'
+        export_fs = OSFS(export_location)
+        block.runtime.export_fs = export_fs
+
+        # create an empty node
+        node = etree.Element('unknown')
+
+        # run the export
+        block.add_xml_to_node(node)
+
+        # assert that the exported file exists and read the content
+        self.assertTrue(export_fs.exists('hastexo/fake_lab_2.xml'))
+        export_content_2 = export_fs.readtext('hastexo/fake_lab_2.xml')
+
+        # assert that the content of both exported files is identical
+        self.assertEqual(
+            textwrap.dedent(export_content_1),
+            textwrap.dedent(export_content_2))
+
+        # clean up
+        export_fs.remove('hastexo/fake_lab_1.xml')
+        export_fs.remove('hastexo/fake_lab_2.xml')
+        export_fs.removedir('hastexo')

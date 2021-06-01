@@ -1,5 +1,7 @@
 Unreleased
 -------------------------
+* [Bug fix] Make XBlock exports (from Studio or its REST API)
+  deterministic and predictable.
 * [Enhancement] Add tests for the new export/import logic.
 * [Bug fix] Restrict stack names to ASCII characters and digits.
 
