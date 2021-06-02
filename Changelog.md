@@ -1,4 +1,4 @@
-Unreleased
+Version 5.0.14 (2021-06-02)
 -------------------------
 * [Bug fix] Make XBlock exports (from Studio or its REST API)
   deterministic and predictable.
