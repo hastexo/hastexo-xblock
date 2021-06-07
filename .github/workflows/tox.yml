@@ -52,10 +52,13 @@ jobs:
         mv coverage-*/.coverage* .
         coverage combine
         coverage html
+        coverage xml
         coverage report
-    - name: Upload coverage report
+    - name: Upload htmlcov archive
       uses: actions/upload-artifact@v2
       with:
         name: htmlcov
         path: htmlcov
         retention-days: 7
+    - name: Upload to codecov
+      uses: codecov/codecov-action@v1
