@@ -1,3 +1,9 @@
+Unreleased
+-------------------------
+* [Bug fix] Truncate the error message for `LaunchError` to fit
+  256 characters and thus, could be added to the `error_msg` field
+  of a `Stack`.
+
 Version 5.0.14 (2021-06-02)
 -------------------------
 * [Bug fix] Make XBlock exports (from Studio or its REST API)
