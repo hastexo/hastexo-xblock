@@ -1,4 +1,4 @@
-Unreleased
+Version 5.0.15 (2021-06-11)
 -------------------------
 * [Bug fix] Truncate the error message for `LaunchError` to fit
   256 characters and thus, could be added to the `error_msg` field
