@@ -1,5 +1,7 @@
 Unreleased
 -------------------------
+* [EOL] This is the final release in the 4.1 series. Everyone should
+  upgrade to at least version 5.
 * [Bug fix] Truncate the error message for `LaunchError` to fit
   256 characters and thus, could be added to the `error_msg` field
   of a `Stack`.

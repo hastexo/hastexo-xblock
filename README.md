@@ -14,11 +14,9 @@ browser-based connection mechanism, which includes the ability to connect to
 graphical user environments (via VNC and RDP), in addition to terminals (via
 SSH).
 
-> **Important notice for versions 4 and earlier**
+> **This release series has reached its end of life.**
 >
-> The latest Open edX release supported by hastexo XBlock versions 4
-> and earlier is [**Open edX
-> Juniper**](https://edx.readthedocs.io/projects/open-edx-release-notes/en/latest/juniper.html). Open
+> Open
 > edX deployments using [Open edX
 > Koa](https://edx.readthedocs.io/projects/open-edx-release-notes/en/latest/koa.html)
 > and later should at least use hastexo XBlock version 5.
