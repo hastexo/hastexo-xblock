@@ -840,6 +840,38 @@ class TestHastexoXBlock(TestCase):
         self.assertFalse(mock_launch_stack_task.called)
         self.assertEqual(response["status"], "RESUME_FAILED")
 
+    def test_get_user_stack_status_long_error_message(self):
+        self.init_block()
+        self.update_stack({"status": "SUSPEND_COMPLETE"})
+
+        long_error_message = (
+            "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. "
+            "Aenean commodo ligula eget dolor. Aenean massa. Cum sociis"
+            "natoque penatibus et magnis dis parturient montes, "
+            "nascetur ridiculus mus. Donec quam felis, ultricies nec, "
+            "pellentesque eu, pretium quis, sem. Nulla consequat massa "
+            "quis enim. Donec pede justo, fringilla ve. ")
+        mock_result = Mock()
+        mock_result.id = 'bogus_task_id'
+        mock_result.ready.return_value = True
+        mock_result.successful.return_value = False
+        mock_result.result = long_error_message
+        mock_launch_stack_task = Mock(return_value=mock_result)
+
+        with patch.multiple(
+                self.block,
+                launch_stack_task=mock_launch_stack_task):
+            response = self.call_handler("get_user_stack_status", {})
+
+        self.assertTrue(mock_launch_stack_task.called)
+        self.assertEqual(response["status"], "LAUNCH_ERROR")
+        # assert that the full error message was not set to the
+        # error_msg field.
+        self.assertNotEqual(response["error_msg"], long_error_message)
+        # assert that the error message was shortened to fit 256 characters
+        self.assertTrue(len(response["error_msg"]) <= 256)
+        self.assertIn('[...]', response["error_msg"])
+
     def test_get_check_status(self):
         self.init_block()
         mock_result = Mock()

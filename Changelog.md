@@ -1,5 +1,8 @@
 Unreleased
 -------------------------
+* [Bug fix] Truncate the error message for `LaunchError` to fit
+  256 characters and thus, could be added to the `error_msg` field
+  of a `Stack`.
 * [Bug fix] Fix RDP connectivity check for IPv6 stacks.
 
 Version 4.1.14 (2021-04-21)
