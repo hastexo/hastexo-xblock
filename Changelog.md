@@ -1,4 +1,4 @@
-Unreleased
+Version 4.1.15 (2021-06-14)
 -------------------------
 * [EOL] This is the final release in the 4.1 series. Everyone should
   upgrade to at least version 5.
