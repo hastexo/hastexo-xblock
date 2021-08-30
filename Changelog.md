@@ -1,3 +1,8 @@
+Unreleased
+-------------------------
+* [Bug fix] Make sure that any error message that is added to the
+  `error_msg` filed of a stack, gets truncated before a stack update.
+
 Version 5.0.15 (2021-06-11)
 -------------------------
 * [Bug fix] Truncate the error message for `LaunchError` to fit

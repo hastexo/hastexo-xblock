@@ -4,6 +4,7 @@ import traceback
 import socket
 import logging
 import ipaddress
+import textwrap
 
 from django.db import connection, transaction
 from django.db.utils import OperationalError
@@ -196,7 +197,7 @@ class LaunchStackTask(HastexoTask):
 
             stack_data = {
                 'status': e.status,
-                'error_msg': e.error_msg,
+                'error_msg': textwrap.shorten(e.error_msg, width=256),
                 'ip': None,
                 'user': "",
                 'key': "",
@@ -640,7 +641,7 @@ class SuspendStackTask(HastexoTask):
         # The suspender doesn't check task results, so just save status in the
         # database.
         stack_data = {
-            'error_msg': error_msg,
+            'error_msg': textwrap.shorten(error_msg, width=256),
             'status': status,
         }
 
@@ -723,7 +724,7 @@ class DeleteStackTask(HastexoTask):
         stack_data = {
             'status': status,
             'provider': provider,
-            'error_msg': error_msg,
+            'error_msg': textwrap.shorten(error_msg, width=256),
         }
         self.update_stack(stack_data)
 

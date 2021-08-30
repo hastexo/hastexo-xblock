@@ -26,6 +26,13 @@ from django.db.utils import OperationalError
 class HastexoTestCase(TestCase):
     STACK_IP = "127.0.0.1"
     PING_BINARY = 'ping'
+    LONG_ERROR_MSG = (
+        "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. "
+        "Aenean commodo ligula eget dolor. Aenean massa. Cum sociis"
+        "natoque penatibus et magnis dis parturient montes, "
+        "nascetur ridiculus mus. Donec quam felis, ultricies nec, "
+        "pellentesque eu, pretium quis, sem. Nulla consequat massa "
+        "quis enim. Donec pede justo, fringilla ve. ")
 
     def setUp(self):
         self.stack_name = "bogus_stack_name"
@@ -208,6 +215,25 @@ class TestLaunchStackTask(HastexoTestCase):
             self.stack_key
         )
         self.assertFalse(self.mocks["remote_exec"].called)
+
+    def test_create_failed_long_error_msg(self):
+        # Setup
+        for m in self.mock_providers:
+            m.get_stack.side_effect = [
+                ProviderException(self.LONG_ERROR_MSG)
+            ]
+
+        # Run
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "CREATE_FAILED")
+        self.assertNotEqual(stack.error_msg, self.LONG_ERROR_MSG)
+        self.assertTrue(len(stack.error_msg) <= 256)
+        self.assertIn('[...]', stack.error_msg)
 
     def test_create_stack_transient_database_error(self):
         """
@@ -1675,6 +1701,29 @@ class TestSuspendStackTask(HastexoTestCase):
         self.assertIsNotNone(stack.delete_by)
         self.assertNotEqual(stack.error_msg, u"")
 
+    def test_suspend_failed_long_error_msg(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "SUSPEND_PENDING"
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            ProviderException(self.LONG_ERROR_MSG)
+        ]
+
+        # Run
+        SuspendStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "SUSPEND_FAILED")
+        self.assertNotEqual(stack.error_msg, self.LONG_ERROR_MSG)
+        self.assertTrue(len(stack.error_msg) <= 256)
+        self.assertIn('[...]', stack.error_msg)
+
 
 class TestDeleteStackTask(HastexoTestCase):
     def test_delete_suspended_stack(self):
@@ -1711,6 +1760,29 @@ class TestDeleteStackTask(HastexoTestCase):
             params="delete"
         )
         provider.delete_stack.assert_called()
+
+    def test_delete_failed_long_error_msg(self):
+        # Setup
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "DELETE_PENDING"
+        })
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            ProviderException(self.LONG_ERROR_MSG)
+        ]
+
+        # Run
+        DeleteStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "DELETE_FAILED")
+        self.assertNotEqual(stack.error_msg, self.LONG_ERROR_MSG)
+        self.assertTrue(len(stack.error_msg) <= 256)
+        self.assertIn('[...]', stack.error_msg)
 
     def test_delete_up_stack(self):
         # Setup
