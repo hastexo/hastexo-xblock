@@ -2,6 +2,9 @@ Unreleased
 -------------------------
 * [Bug fix] Make sure that any error message that is added to the
   `error_msg` field of a stack, gets truncated before a stack update.
+* [Testing] Include XBlock 1.5 in the test matrix, remove XBlock 1.3.
+* [Testing] Include Python 3.9 in the test matrix, remove remnants of
+  Python 3.5 test coverage.
 
 Version 5.0.15 (2021-06-11)
 -------------------------
