@@ -476,7 +476,7 @@ class GcloudProvider(Provider):
                 # Decode private key, if in base64
                 if name == "private_key":
                     try:
-                        value = base64.decodestring(value).decode("utf-8")
+                        value = base64.decodebytes(value).decode("utf-8")
                     except binascii.Error:
                         pass
 
