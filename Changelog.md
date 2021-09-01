@@ -1,4 +1,4 @@
-Unreleased
+Version 5.0.16 (2021-09-01)
 -------------------------
 * [Bug fix] Make sure that any error message that is added to the
   `error_msg` field of a stack, gets truncated before a stack update.
