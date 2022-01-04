@@ -1,3 +1,8 @@
+Unreleased
+-------------------------
+* [Enhancement] Add contraints to Django version requirement for
+  the `hastexo_guacamole_client`.
+
 Version 5.0.16 (2021-09-01)
 -------------------------
 * [Bug fix] Make sure that any error message that is added to the
