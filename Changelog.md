@@ -1,4 +1,4 @@
-Unreleased
+Version 5.0.17 (2022-01-04)
 -------------------------
 * [Enhancement] Add contraints to Django version requirement for
   the `hastexo_guacamole_client`.
