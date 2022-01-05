@@ -1,3 +1,9 @@
+Unreleased
+-------------------------
+* [Bug fix] Fix unbalanced tags (`<p>` vs. `<div>`) in the static
+  `main.html` template.
+* [Testing] Add basic HTML validation for static templates.
+
 Version 5.0.17 (2022-01-04)
 -------------------------
 * [Enhancement] Add contraints to Django version requirement for

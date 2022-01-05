@@ -1,6 +1,9 @@
 import time
 import json
 import textwrap
+import pkg_resources
+import os
+
 from hastexo.models import Stack
 from hastexo.hastexo import HastexoXBlock
 from hastexo.common import (
@@ -35,6 +38,24 @@ def make_request(data, method='POST'):
     request.body = json.dumps(data).encode('utf-8') if data is not None else ""
     request.method = method
     return request
+
+
+class TestHastexoXBlockHTML(TestCase):
+    """
+    Basic lint/validation checks for the static content bundled with
+    the XBlock.
+
+    """
+
+    def test_static(self):
+        static_files = ['main.html']
+        for static_file in static_files:
+            source = pkg_resources.resource_stream(
+                'hastexo',
+                os.path.join('static', 'html', static_file)
+            )
+            etree.parse(source,
+                        etree.HTMLParser(recover=False))
 
 
 class TestHastexoXBlockParsing(XmlTest, TestCase):
