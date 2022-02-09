@@ -563,9 +563,12 @@ class HastexoXBlock(XBlock,
         frag.add_javascript_url(
             self.runtime.local_resource_url(self, 'public/js/main.js')
         )
+        guac_js_version = settings.get("guacamole_js_version",
+                                       "0.9.13-incubating")
         frag.add_javascript_url(
             self.runtime.local_resource_url(
-                self, 'public/js/guacamole-common-js/all.min.js')
+                self,
+                f'public/js/guacamole-common-js/{guac_js_version}-all.min.js')
         )
 
         # Create the stack in the database

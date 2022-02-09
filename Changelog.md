@@ -1,5 +1,7 @@
 Unreleased
 -------------------------
+* [Enhancement] Make the `guacamole-common-js` library version
+  configurable by the `guacamole_js_version` setting.
 * [Bug fix] Fix unbalanced tags (`<p>` vs. `<div>`) in the static
   `main.html` template.
 * [Testing] Add basic HTML validation for static templates.

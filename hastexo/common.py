@@ -172,7 +172,8 @@ DEFAULT_SETTINGS = {
         "idle": 3600000,
         "check": 5000
     },
-    "providers": {}
+    "providers": {},
+    "guacamole_js_version": '0.9.13-incubating',
 }
 
 

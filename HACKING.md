@@ -77,3 +77,12 @@ rm dist/* -f
 ./setup.py sdist
 twine upload dist/*
 ```
+
+How to add support for new Apache Guacamole versions
+----------------------------------------------------
+
+Download the minified `guacamole-common-js` file from [maven](https://repo1.maven.org/maven2/org/apache/guacamole/guacamole-common-js/)
+and add it to the `/hastexo/public/js/guacamole-common-js/` directory, prepending the version number
+to the `all.min.js` file name, separated by a hyphen ("-").
+
+The desired guacamole version can then be selected via the `guacamole_js_version` setting.
