@@ -13,7 +13,6 @@ from hastexo.common import (
     RemoteExecException,
 )
 from hastexo.tasks import (
-    PING_COMMAND,
     LaunchStackTask,
     SuspendStackTask,
     DeleteStackTask,
@@ -25,7 +24,6 @@ from django.db.utils import OperationalError
 
 class HastexoTestCase(TestCase):
     STACK_IP = "127.0.0.1"
-    PING_BINARY = 'ping'
     LONG_ERROR_MSG = (
         "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. "
         "Aenean commodo ligula eget dolor. Aenean massa. Cum sociis"
@@ -127,7 +125,6 @@ class HastexoTestCase(TestCase):
 
         # Patchers
         patchers = {
-            "os": patch("hastexo.tasks.os"),
             "socket": patch("hastexo.tasks.socket"),
             "Provider": patch("hastexo.tasks.Provider"),
             "settings": patch.dict("hastexo.common.DEFAULT_SETTINGS",
@@ -142,7 +139,6 @@ class HastexoTestCase(TestCase):
             self.mocks[mock_name] = patcher.start()
             self.addCleanup(patcher.stop)
 
-        self.mocks["os"].system.return_value = 0
         self.mocks["read_from_contentstore"].return_value = \
             self.read_from_contentstore
         self.mocks["remote_exec"].return_value = 0
@@ -205,10 +201,6 @@ class TestLaunchStackTask(HastexoTestCase):
             self.stack_name,
             self.stack_run
         )
-        ping_command = PING_COMMAND % (self.PING_BINARY,
-                                       0,
-                                       self.STACK_IP)
-        self.mocks["os"].system.assert_called_with(ping_command)
         self.mocks["ssh_to"].assert_called_with(
             self.stack_user_name,
             self.STACK_IP,
@@ -275,10 +267,6 @@ class TestLaunchStackTask(HastexoTestCase):
             self.stack_name,
             self.stack_run
         )
-        ping_command = PING_COMMAND % (self.PING_BINARY,
-                                       0,
-                                       self.STACK_IP)
-        self.mocks["os"].system.assert_called_with(ping_command)
         self.mocks["ssh_to"].assert_called_with(
             self.stack_user_name,
             self.STACK_IP,
@@ -1287,26 +1275,6 @@ class TestLaunchStackTask(HastexoTestCase):
         # Assertions
         self.assertEqual(stack.status, "CREATE_FAILED")
 
-    def test_dont_wait_forever_for_ping(self):
-        # Setup
-        provider = self.mock_providers[0]
-        provider.get_stack.side_effect = [
-            self.stacks["CREATE_COMPLETE"]
-        ]
-        system = self.mocks["os"].system
-        system.side_effect = SoftTimeLimitExceeded
-        self.update_stack({"provider": self.providers[0]["name"]})
-
-        # Run
-        LaunchStackTask().run(**self.kwargs)
-
-        # Fetch stack
-        stack = self.get_stack()
-
-        # Assertions
-        system.assert_called()
-        self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
-
     def test_dont_wait_forever_for_ssh(self):
         # Setup
         provider = self.mock_providers[0]
@@ -2171,7 +2139,6 @@ class TestCheckStudentProgressTask(HastexoTestCase):
 
 class HastexoIPv6TestCase(HastexoTestCase):
     STACK_IP = "::1"
-    PING_BINARY = 'ping6'
 
 
 class TestLaunchStackTaskIPv6(TestLaunchStackTask,

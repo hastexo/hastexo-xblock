@@ -1,5 +1,7 @@
 Unreleased
 -------------------------
+* [Enhancement] Add support for Tutor deployment, by dropping the
+  `wait_for_ping` logic.
 * [Enhancement] Add support for Apache Guacamole version `1.4.0`,
   make it the new default.
 * [Enhancement] Make the `guacamole-common-js` library version

@@ -1,9 +1,7 @@
 import time
-import os
 import traceback
 import socket
 import logging
-import ipaddress
 import textwrap
 
 from django.db import connection, transaction
@@ -53,8 +51,6 @@ logger = get_task_logger(__name__)
 
 CLEANUP_SUSPEND = 1
 CLEANUP_DELETE = 2
-
-PING_COMMAND = "%s -c 1 -W %d %s >/dev/null 2>&1"
 
 
 def close_connection_on_retry(retry_state):
@@ -476,22 +472,6 @@ class LaunchStackTask(HastexoTask):
                                  "[%s], with error [%s]." % (
                                      self.stack_name, e))
 
-    def wait_for_ping(self, stack_ip):
-        # The "ping" utility on Ubuntu Xenial does not work with
-        # IPv6. We thus have to parse the IP address, and use ping6 if
-        # it's an IPv6 one.
-        ping_command = PING_COMMAND % (
-            'ping6' if ipaddress.ip_address(stack_ip).version == 6 else 'ping',
-            self.get_sleep_timeout(),
-            stack_ip
-        )
-        logger.debug(
-            'Testing connectivity to stack [%s] with "%s"' % (self.stack_name,
-                                                              ping_command)
-        )
-        while os.system(ping_command) != 0:
-            self.sleep()
-
     def wait_for_ssh(self, stack_key, stack_ip, was_resumed, provider):
         try:
             ssh = ssh_to(self.stack_user_name, stack_ip, stack_key)
@@ -566,12 +546,6 @@ class LaunchStackTask(HastexoTask):
             error_msg = ("Stack [%s] did not provide "
                          "IP or private key." % self.stack_name)
             raise LaunchStackFailed(provider, error_status, error_msg, cleanup)
-
-        # Wait until stack is network accessible
-        logger.info("Waiting for stack [%s] "
-                    "to become network accessible "
-                    "at [%s]" % (self.stack_name, stack_ip))
-        self.wait_for_ping(stack_ip)
 
         # Now wait until environment is fully provisioned.  One of the
         # requirements for the Heat template is for it to disallow SSH
