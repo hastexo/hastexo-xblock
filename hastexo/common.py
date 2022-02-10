@@ -173,7 +173,7 @@ DEFAULT_SETTINGS = {
         "check": 5000
     },
     "providers": {},
-    "guacamole_js_version": '0.9.13-incubating',
+    "guacamole_js_version": '1.4.0',
 }
 
 

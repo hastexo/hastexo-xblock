@@ -1,5 +1,7 @@
 Unreleased
 -------------------------
+* [Enhancement] Add support for Apache Guacamole version `1.4.0`,
+  make it the new default.
 * [Enhancement] Make the `guacamole-common-js` library version
   configurable by the `guacamole_js_version` setting.
 * [Bug fix] Fix unbalanced tags (`<p>` vs. `<div>`) in the static
