@@ -30,6 +30,17 @@ SSH).
 > your Open edX frontend servers, rather than attempt to reconfigure
 > them in-place.
 
+> **Important changes in version 6**
+>
+> As of version 6, this XBlock only supports the Open edX versions `Maple`
+> and higher. Starting with the Maple release, the Open edX community has
+> switched the supported deployment method from edx-configuration playbooks
+> to [Tutor](https://docs.tutor.overhang.io) and the same applies
+> for this XBlock.
+>
+> Instructions for deploying this XBlock with Tutor can be found below,
+> in the Deployment section.
+
 ## Purpose
 
 The hastexo XBlock orchestrates a virtual environment (a "stack") that runs on
@@ -55,6 +66,91 @@ limited by the feature set of the cloud's deployment features.
 
 
 ## Deployment
+
+### Deployment with [Tutor](https://docs.tutor.overhang.io)
+
+Running this XBlock with Tutor requires two steps:
+1. Install the XBlock to your Tutor environment by adding it to the
+  `OPENEDX_EXTRA_PIP_REQUIREMENTS` list in `config.yml`:
+  ```
+  OPENEDX_EXTRA_PIP_REQUIREMENTS:
+    - "git+https://github.com/hastexo/hastexo-xblock.git" 
+  ```
+  For additional information, please refer to the [official documentation](https://docs.tutor.overhang.io/configuration.html?highlight=xblock#installing-extra-xblocks-and-requirements)
+
+
+2. Install and enable the `tutor-contrib-hastexo` plugin:
+  ```
+  pip install git+https://github.com/hastexo/tutor-contrib-hastexo
+  tutor plugins enable hastexo
+  ```
+  Add the necessary configurations to your `config.yml`. Unless you want
+  to change the default configurations, you'll only need to add the
+  settings for the XBlock via `HASTEXO_XBLOCK_SETTINGS`, for example:
+  ```
+  HASTEXO_XBLOCK_SETTINGS:
+    check_timeout: 120
+    delete_age: 0
+    delete_attempts: 3
+    delete_interval: 3600
+    delete_task_timeout: 900
+    guacamole_js_version: 1.4.0
+    instructions_layout: above
+    js_timeouts:
+      check: 5000
+      idle: 3600000
+      keepalive: 30000
+      status: 15000
+    launch_timeout: 900
+    providers:
+      default:
+        type: openstack,
+        os_auth_url: "",
+        os_auth_token: "",
+        os_username: "",
+        os_password: "",
+        os_user_id: "",
+        os_user_domain_id: "",
+        os_user_domain_name: "",
+        os_project_id: "",
+        os_project_name: "",
+        os_project_domain_id: "",
+        os_project_domain_name: "",
+        os_region_name: ""
+      provider2:
+        type: "gcloud",
+        gc_type: "service_account",
+        gc_project_id: "",
+        gc_private_key_id: "",
+        gc_private_key: "",
+        gc_client_email: "",
+        gc_client_id: "",
+        gc_auth_uri: "",
+        gc_token_uri: "",
+        gc_auth_provider_x509_cert_url: "",
+        gc_client_x509_cert_url: "",
+        gc_region_id: ""
+    remote_exec_timeout: 300
+    sleep_timeout: 10
+    suspend_concurrency: 4
+    suspend_interval: 60
+    suspend_task_timeout: 900
+    suspend_timeout: 120
+    terminal_color_scheme: white-black
+    terminal_font_name: monospace
+    terminal_font_size: '10'
+    terminal_url: /hastexo-xblock/
+  ```
+  Before starting Tutor, build the docker image for the `hastexo` service:
+  ```
+  tutor images build hastexo
+  ```
+  For more details about each settings, please refer to the XBlock settings
+  section below.
+  For more information about the plugin configurations, please refer to the
+  plugin README.
+
+### Deployment with edx-configuration playbooks
 
 The easiest way for platform administrators to deploy the hastexo XBlock and
 its dependencies to an Open edX installation is to pip install it to the `edxapp`

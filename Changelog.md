@@ -1,5 +1,12 @@
 Unreleased
 -------------------------
+* [BREAKING CHANGE] Update dependencies that should be in sync with
+  `edx-platform` to support the `Maple` release.
+  As of 6.0, this XBlock only supports Open edX versions Maple and
+  higher. As the community has switched the supported deployment method
+  from edx-configuration playbooks to Tutor, this XBlock can also
+  be deployed with Tutor only. Instructions for the latter can be found
+  in the README.
 * [Enhancement] Add support for Tutor deployment, by dropping the
   `wait_for_ping` logic.
 * [Enhancement] Add support for Apache Guacamole version `1.4.0`,
