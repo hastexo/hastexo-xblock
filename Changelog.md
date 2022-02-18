@@ -1,5 +1,7 @@
 Unreleased
 -------------------------
+* [Enhancement] Update the README to have a correct example for settings
+  when using the `tutor-contrib-hastexo` plugin.
 * [BREAKING CHANGE] Update dependencies that should be in sync with
   `edx-platform` to support the `Maple` release.
   As of 6.0, this XBlock only supports Open edX versions Maple and
