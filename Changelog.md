@@ -1,5 +1,11 @@
 Unreleased
 -------------------------
+* [BREAKING CHANGE] Update the `GUACD_*` environment variables to
+  better suit a Tutor deployment. Rename the variables to
+  `GUACD_SERVICE_HOST` and `GUACD_SERVICE_PORT` to directly read
+  values set for the guacd service with the `tutor k8s` deployment.
+  Update the default values to support the `tutor local`/
+  `tutor dev` deployment.
 * [BREAKING CHANGE] Update dependencies that should be in sync with
   `edx-platform` to support the `Maple` release.
   As of 6.0, this XBlock only supports Open edX versions Maple and

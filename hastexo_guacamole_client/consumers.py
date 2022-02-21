@@ -20,8 +20,8 @@ class GuacamoleWebSocketConsumer(AsyncWebsocketConsumer):
         """
         Initiate the GuacamoleClient and create a connection to it.
         """
-        guacd_hostname = os.getenv('GUACD_HOSTNAME', 'localhost')
-        guacd_port = os.getenv('GUACD_PORT', 4822)
+        guacd_hostname = os.getenv('GUACD_SERVICE_HOST', 'guacd')
+        guacd_port = int(os.getenv('GUACD_SERVICE_PORT', '4822'))
 
         settings = get_xblock_settings()
 
