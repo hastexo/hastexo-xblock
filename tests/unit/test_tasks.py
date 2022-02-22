@@ -774,6 +774,46 @@ class TestLaunchStackTask(HastexoTestCase):
                 self.stack_run
             )
 
+    def test_only_one_provider_configured(self):
+        # Setup
+        provider = self.mock_providers[2]
+        provider.get_stack.side_effect = [
+            self.stacks["DELETE_COMPLETE"]
+        ]
+        provider.create_stack.side_effect = [
+            self.stacks["CREATE_COMPLETE"]
+        ]
+        self.mocks["Provider"].init.side_effect = [
+            None,
+            None,
+            provider,
+        ]
+
+        # Run
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        # Assert that if at least one provider is configured
+        # LaunchStackTask can still succeed
+        self.assertEqual(stack.status, "CREATE_COMPLETE")
+
+    def test_no_providers_configured(self):
+        # Setup
+        self.mocks["Provider"].init.side_effect = [
+            None,
+            None,
+            None,
+        ]
+
+        # Run
+        # Assert that if no providers are configured
+        # LaunchStackTask will raise a ProviderException
+        with self.assertRaises(ProviderException):
+            LaunchStackTask().run(**self.kwargs)
+
     def test_reset_stack(self):
         # Setup
         provider = self.mock_providers[0]

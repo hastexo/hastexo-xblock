@@ -1,5 +1,8 @@
 Unreleased
 -------------------------
+* [Bug fix] Don't fail to run if a listed provider is not
+  configured. Allow to move on to the next provider and log a
+  warning message for the provider initialisation failure.
 * [BREAKING CHANGE] Update the `GUACD_*` environment variables to
   better suit a Tutor deployment. Rename the variables to
   `GUACD_SERVICE_HOST` and `GUACD_SERVICE_PORT` to directly read
