@@ -1,5 +1,8 @@
 Unreleased
 -------------------------
+* [Bug fix] Don't fail to run if a listed provider is not
+  configured. Allow to move on to the next provider and log a
+  warning message for the provider initialisation failure.
 * [Bug fix] Fix unbalanced tags (`<p>` vs. `<div>`) in the static
   `main.html` template.
 * [Testing] Add basic HTML validation for static templates.

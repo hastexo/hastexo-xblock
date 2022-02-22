@@ -164,24 +164,34 @@ class LaunchStackTask(HastexoTask):
         self.providers = []
         for provider in stack.providers:
             p = Provider.init(provider["name"])
-            p.set_logger(logger)
-            p.set_capacity(provider["capacity"])
+            if p:
+                p.set_logger(logger)
+                p.set_capacity(provider["capacity"])
 
-            template = read_from_contentstore(
-                stack.course_id,
-                provider["template"]
-            )
-            p.set_template(template)
-
-            environment_path = provider.get("environment")
-            if environment_path:
-                environment = read_from_contentstore(
+                template = read_from_contentstore(
                     stack.course_id,
-                    environment_path
+                    provider["template"]
                 )
-                p.set_environment(environment)
+                p.set_template(template)
 
-            self.providers.append(p)
+                environment_path = provider.get("environment")
+                if environment_path:
+                    environment = read_from_contentstore(
+                        stack.course_id,
+                        environment_path
+                    )
+                    p.set_environment(environment)
+
+                self.providers.append(p)
+            else:
+                logger.warning(
+                    f'Failed to initialize provider: {provider["name"]}, '
+                    'make sure the necessary settings are in place, or remove '
+                    'the provider from the list to silence this warning.')
+        if not self.providers:
+            logger.error("No providers were successfully initialized, "
+                         "make sure you have the necessary settings in place.")
+            raise ProviderException()
 
         try:
             # Launch the stack and wait for it to complete.
