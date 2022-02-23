@@ -39,8 +39,9 @@ How to cut a release
 --------------------
 
 This repository uses
-[bumpversion](https://pypi.org/project/bumpversion/) for managing new
-releases.
+[bump2version](https://pypi.org/project/bump2version/) (the maintained
+fork of [bumpversion](https://github.com/peritus/bumpversion)) for
+managing new releases.
 
 Before cutting a new release, open `Changelog.md` and add a new
 section like this:
@@ -55,11 +56,11 @@ Unreleased
 
 Commit these changes on `master` as you normally would.
 
-Then, use `bumpversion` to increase the version number:
+Then, use `tox -e bumpversion` to increase the version number:
 
--   `bumpversion patch`: creates a new point release (such as 3.6.1)
--   `bumpversion minor`: creates a new minor release, with the patch level set to 0 (such as 3.7.0)
--   `bumpversion major`: creates a new major release, with the minor and patch levels set to 0 (such as 4.0.0)
+-   `tox -e bumpversion patch`: creates a new point release (such as 3.6.1)
+-   `tox -e bumpversion minor`: creates a new minor release, with the patch level set to 0 (such as 3.7.0)
+-   `tox -e bumpversion major`: creates a new major release, with the minor and patch levels set to 0 (such as 4.0.0)
 
 This creates a new commit, and also a new tag, named `v<num>`, where
 `<num>` is the new version number.
