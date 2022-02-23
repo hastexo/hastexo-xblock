@@ -1,4 +1,4 @@
-Unreleased
+Version 6.0.0rc0 (2022-02-23)
 -------------------------
 * [Bug fix] Don't fail to run if a listed provider is not
   configured. Allow to move on to the next provider and log a
