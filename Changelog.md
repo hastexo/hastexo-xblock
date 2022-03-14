@@ -1,3 +1,8 @@
+Unreleased
+-------------------------
+* [Documentation] Update README with improved instructions for Open
+  edX Maple (using Tutor) and Lilac (using edx-configuration).
+
 Version 6.0.0rc0 (2022-02-23)
 -------------------------
 * [Bug fix] Don't fail to run if a listed provider is not

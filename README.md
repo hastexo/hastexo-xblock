@@ -15,21 +15,6 @@ graphical user environments (via VNC and RDP), in addition to terminals (via
 SSH).
 
 
-> **Important changes in version 5**
->
-> As of version 5, this XBlock uses a different interaction mechanism
-> with Guacamole than it did in prior releases: rather than relying on
-> [a separately deployed Apache Tomcat
-> servlet](https://guacamole.apache.org/doc/gug/installing-guacamole.html#deploying-guacamole),
-> it now uses the [Daphne ASGI
-> server](https://github.com/django/daphne).
->
-> If you follow the suggestions in this README, you will still be able
-> to use the edx-configuration Ansible playbooks to deploy this XBlock
-> to your Open edX instance, but we strongly suggest that you redeploy
-> your Open edX frontend servers, rather than attempt to reconfigure
-> them in-place.
-
 > **Important changes in version 6**
 >
 > As of version 6, this XBlock only supports the Open edX versions `Maple`
@@ -69,12 +54,14 @@ limited by the feature set of the cloud's deployment features.
 
 ### Deployment with [Tutor](https://docs.tutor.overhang.io)
 
-Running this XBlock with Tutor requires two steps:
+Running this XBlock with Tutor (for Open edX Maple and later) requires
+two steps:
+
 1. Install the XBlock to your Tutor environment by adding it to the
   `OPENEDX_EXTRA_PIP_REQUIREMENTS` list in `config.yml`:
   ```
   OPENEDX_EXTRA_PIP_REQUIREMENTS:
-    - "git+https://github.com/hastexo/hastexo-xblock.git" 
+    - "hastexo-xblock>=6"
   ```
   For additional information, please refer to the [official documentation](https://docs.tutor.overhang.io/configuration.html?highlight=xblock#installing-extra-xblocks-and-requirements)
 
@@ -152,10 +139,12 @@ Running this XBlock with Tutor requires two steps:
 
 ### Deployment with edx-configuration playbooks
 
-The easiest way for platform administrators to deploy the hastexo XBlock and
-its dependencies to an Open edX installation is to pip install it to the `edxapp`
-virtualenv, and then to use the `hastexo_xblock` role included in the
-[hastexo\_xblock branch](https://github.com/hastexo/edx-configuration/tree/hastexo/juniper/hastexo_xblock)
+For Open edX Lilac and earlier, the easiest way for platform
+administrators to deploy the hastexo XBlock and its dependencies to an
+Open edX installation is to pip install it to the `edxapp` virtualenv,
+and then to use the `hastexo_xblock` role included in the
+[hastexo\_xblock
+branch](https://github.com/hastexo/edx-configuration/tree/hastexo/lilac/hastexo_xblock)
 of `edx/configuration`.
 
 To deploy the hastexo XBlock:
@@ -163,7 +152,7 @@ To deploy the hastexo XBlock:
 1. Install it via pip:
 
     ```
-    $ sudo /edx/bin/pip.edxapp install hastexo-xblock
+    $ sudo /edx/bin/pip.edxapp install "hastexo-xblock<6"
     ```
 
     > Do **not** run `pip install` with `--upgrade`, however, as this will
@@ -305,9 +294,10 @@ To deploy the hastexo XBlock:
 ## XBlock settings
 
 The hastexo XBlock must be configured via `XBLOCK_SETTINGS` in
-`lms.env.json`, under the `hastexo` key.  At the very minimum, you must
-configure a single "default" provider with the credentials specific to the
-cloud you will be using.  All other variables can be left at their defaults.
+`lms.env.json` (or `lms.yml), under the `hastexo` key.  At the very
+minimum, you must configure a single "default" provider with the
+credentials specific to the cloud you will be using.  All other
+variables can be left at their defaults.
 
 This is a brief explanation of each:
 
