@@ -1,4 +1,5 @@
 from mock import patch
+from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
 
@@ -50,6 +51,11 @@ class TestHastexoJobs(TestCase):
         self.course_id = 'bogus_course_id'
         self.stack_name = 'bogus_stack_name'
 
+        self.learner, _ = User.objects.get_or_create(
+            username="fake_user",
+            email="user@example.com"
+        )
+
         # Patchers
         patchers = {
             "Provider": patch("hastexo.jobs.Provider"),
@@ -78,7 +84,8 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             suspend_timestamp=suspend_timestamp,
             name=self.stack_name,
-            status=state
+            status=state,
+            learner=self.learner
         )
         stack.save()
         mock_suspend_task = self.get_suspend_task_mock()
@@ -104,7 +111,8 @@ class TestHastexoJobs(TestCase):
             suspend_timestamp=suspend_timestamp,
             name=self.stack_name,
             provider="provider1",
-            status=state
+            status=state,
+            learner=self.learner
         )
         stack.save()
         mock_suspend_task = self.get_suspend_task_mock()
@@ -130,7 +138,8 @@ class TestHastexoJobs(TestCase):
             suspend_timestamp=suspend_timestamp,
             name=self.stack_name,
             provider="provider1",
-            status=state
+            status=state,
+            learner=self.learner
         )
         stack.save()
         mock_suspend_task = self.get_suspend_task_mock()
@@ -167,7 +176,8 @@ class TestHastexoJobs(TestCase):
             suspend_timestamp=suspend_timestamp,
             name=self.stack_name,
             provider="provider1",
-            status=state
+            status=state,
+            learner=self.learner
         )
         stack.save()
         mock_suspend_task = self.get_suspend_task_mock()
@@ -192,7 +202,8 @@ class TestHastexoJobs(TestCase):
             suspend_timestamp=suspend_timestamp,
             name=self.stack_name,
             provider="provider1",
-            status=state
+            status=state,
+            learner=self.learner
         )
         stack.save()
         mock_suspend_task = self.get_suspend_task_mock()
@@ -218,7 +229,8 @@ class TestHastexoJobs(TestCase):
             suspend_timestamp=suspend_timestamp,
             name=self.stack_name,
             provider="provider1",
-            status=state
+            status=state,
+            learner=self.learner
         )
         stack.save()
         mock_suspend_task = self.get_suspend_task_mock()
@@ -246,7 +258,8 @@ class TestHastexoJobs(TestCase):
             name=stack1_name,
             suspend_timestamp=suspend_timestamp,
             provider="provider1",
-            status=state
+            status=state,
+            learner=self.learner
         )
         stack1.save()
         stack2_name = "bogus_stack_2"
@@ -256,7 +269,8 @@ class TestHastexoJobs(TestCase):
             name=stack2_name,
             suspend_timestamp=suspend_timestamp,
             provider="provider2",
-            status=state
+            status=state,
+            learner=self.learner
         )
         stack2.save()
         stack3_name = "bogus_stack_3"
@@ -266,7 +280,8 @@ class TestHastexoJobs(TestCase):
             name=stack3_name,
             suspend_timestamp=suspend_timestamp,
             provider="provider3",
-            status=state
+            status=state,
+            learner=self.learner
         )
         stack3.save()
         mock_suspend_task = self.get_suspend_task_mock()
@@ -302,7 +317,8 @@ class TestHastexoJobs(TestCase):
             provider="provider1",
             status=state,
             delete_age=delete_age,
-            delete_by=suspend_timestamp
+            delete_by=suspend_timestamp,
+            learner=self.learner
         )
         stack1.save()
         stack2_name = "bogus_stack_2"
@@ -314,7 +330,8 @@ class TestHastexoJobs(TestCase):
             provider="provider2",
             status=state,
             delete_age=delete_age,
-            delete_by=suspend_timestamp
+            delete_by=suspend_timestamp,
+            learner=self.learner
         )
         stack2.save()
         stack3_name = "bogus_stack_3"
@@ -326,7 +343,8 @@ class TestHastexoJobs(TestCase):
             provider='provider3',
             status=state,
             delete_age=dont_delete_age,
-            delete_by=dont_delete_timestamp
+            delete_by=dont_delete_timestamp,
+            learner=self.learner
         )
         stack3.save()
         mock_delete_task = self.get_delete_task_mock()
@@ -358,7 +376,8 @@ class TestHastexoJobs(TestCase):
             provider="provider1",
             status=DELETE_PENDING,
             delete_age=delete_age,
-            delete_by=suspend_timestamp
+            delete_by=suspend_timestamp,
+            learner=self.learner
         )
         stack1.save()
         stack2_name = "bogus_stack_2"
@@ -370,7 +389,8 @@ class TestHastexoJobs(TestCase):
             provider="provider2",
             status=DELETE_IN_PROGRESS,
             delete_age=delete_age,
-            delete_by=suspend_timestamp
+            delete_by=suspend_timestamp,
+            learner=self.learner
         )
         stack2.save()
         stack3_name = "bogus_stack_3"
@@ -382,7 +402,8 @@ class TestHastexoJobs(TestCase):
             provider="provider3",
             status=DELETE_COMPLETE,
             delete_age=delete_age,
-            delete_by=suspend_timestamp
+            delete_by=suspend_timestamp,
+            learner=self.learner
         )
         stack3.save()
         stack4_name = "bogus_stack_4"
@@ -393,7 +414,8 @@ class TestHastexoJobs(TestCase):
             suspend_timestamp=suspend_timestamp,
             status="CREATE_FAILED",
             delete_age=delete_age,
-            delete_by=suspend_timestamp
+            delete_by=suspend_timestamp,
+            learner=self.learner
         )
         stack4.save()
         stack5_name = "bogus_stack_5"
@@ -405,7 +427,8 @@ class TestHastexoJobs(TestCase):
             provider="provider2",
             status=CREATE_COMPLETE,
             delete_age=delete_age,
-            delete_by=suspend_timestamp
+            delete_by=suspend_timestamp,
+            learner=self.learner
         )
         stack5.save()
         stack6_name = "bogus_stack_6"
@@ -417,7 +440,8 @@ class TestHastexoJobs(TestCase):
             provider="provider3",
             status="LAUNCH_PENDING",
             delete_age=delete_age,
-            delete_by=suspend_timestamp
+            delete_by=suspend_timestamp,
+            learner=self.learner
         )
         stack6.save()
         mock_delete_task = self.get_delete_task_mock()
@@ -454,7 +478,8 @@ class TestHastexoJobs(TestCase):
             provider='provider1',
             status=state,
             delete_age=0,
-            delete_by=suspend_timestamp
+            delete_by=suspend_timestamp,
+            learner=self.learner
         )
         stack.save()
         mock_delete_task = self.get_delete_task_mock()
@@ -489,7 +514,8 @@ class TestHastexoJobs(TestCase):
                 course_id=self.course_id,
                 name=stack_names[i],
                 suspend_timestamp=delete_timestamp,
-                status=DELETE_COMPLETE
+                status=DELETE_COMPLETE,
+                learner=self.learner
             )
             _stack.save()
 
@@ -499,7 +525,8 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             name=stack_names[4],
             suspend_timestamp=dont_delete_timestamp,
-            status=CREATE_COMPLETE
+            status=CREATE_COMPLETE,
+            learner=self.learner
         )
         _stack.save()
 
@@ -570,7 +597,8 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             suspend_timestamp=suspend_timestamp,
             provider='provider1',
-            name=self.stack_name
+            name=self.stack_name,
+            learner=self.learner
         )
         stack.status = state
         stack.save()

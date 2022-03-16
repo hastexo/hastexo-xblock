@@ -402,6 +402,17 @@ function HastexoXBlock(runtime, element, configuration) {
 
     var update_user_stack_status = function (stack) {
         if (stack.status == 'CREATE_COMPLETE' || stack.status == 'RESUME_COMPLETE') {
+            if (stack.error_msg && stack.error_msg.includes("You've reached the time limit")) {
+                var dialog = $('#launch_error');
+                dialog.find('.header').html('Attention!');
+                dialog.find('.message').html(stack.error_msg);
+                dialog.find('.error_msg').hide()
+                dialog.find('input.retry').hide()
+                dialog.find('input.ok').one('click', function() {
+                    $.dialog.close();
+                });
+                dialog.dialog(dialog_container);
+            }
             /* Connect to the terminal server. */
             try {
                 terminal_connect(stack, configuration.port);
@@ -439,8 +450,10 @@ function HastexoXBlock(runtime, element, configuration) {
                 }
             }
 
-            /* Close the dialog. */
-            $.dialog.close();
+            /* Close the dialog when user acknowledgement is not required. */
+            if (!stack.error_msg && !stack.error_msg.includes("You've reached the time limit")) {
+                $.dialog.close();
+            };
         } else if (stack.status == 'LAUNCH_PENDING') {
             if (status_timer) clearTimeout(status_timer);
             status_timer = setTimeout(

@@ -1,3 +1,13 @@
+Unreleased
+-------------------------
+* [Enhancement] Add an option to track and limit a learners lab
+  usage. To support time tracking, link a learner to their stacks
+  across the platform by adding a Foreign Key field for user to
+  the Stack object.
+  Add configuration options for setting a time limit for using labs
+  (`lab_usage_limit`) in seconds and how to handle a breach of the
+  set limit (`lab_usage_limit_breach_policy`).
+
 Version 6.0.1 (2022-03-14)
 -------------------------
 * [Documentation] Update README with improved instructions for Open

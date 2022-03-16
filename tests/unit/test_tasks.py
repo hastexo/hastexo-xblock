@@ -19,7 +19,9 @@ from hastexo.tasks import (
     CheckStudentProgressTask,
 )
 from celery.exceptions import SoftTimeLimitExceeded
+from django.contrib.auth.models import User
 from django.db.utils import OperationalError
+from django.utils import timezone
 
 
 class HastexoTestCase(TestCase):
@@ -100,10 +102,16 @@ class HastexoTestCase(TestCase):
         # Clear database
         Stack.objects.all().delete()
 
+        self.learner, _ = User.objects.get_or_create(
+            username="fake_user",
+            email="user@example.com"
+        )
+
         # Create stack in the database
         stack, _ = Stack.objects.get_or_create(
             student_id=self.student_id,
             course_id=self.course_id,
+            learner=self.learner,
             name=self.stack_name,
             status="LAUNCH_PENDING",
             protocol=self.protocol,
@@ -120,7 +128,8 @@ class HastexoTestCase(TestCase):
         # Run kwargs
         self.kwargs = {
             "stack_id": stack.id,
-            "reset": False
+            "reset": False,
+            "learner_id": self.learner.id
         }
 
         # Patchers
@@ -171,7 +180,8 @@ class HastexoTestCase(TestCase):
         stack, _ = Stack.objects.get_or_create(
             student_id=student_id,
             course_id=course_id,
-            name=name)
+            name=name,
+            learner=self.learner)
         update_stack_fields(stack, data)
         stack.save()
 
@@ -1461,6 +1471,68 @@ class TestLaunchStackTask(HastexoTestCase):
 
         # Assertions
         self.assertEqual(stack.status, "RESUME_FAILED")
+
+    def test_launch_stack_limit_breach_warn(self):
+        # Setup
+        self.mocks["settings"]['lab_usage_limit'] = 300
+        self.mocks["settings"]['lab_usage_limit_breach_policy'] = 'warn'
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+        provider.resume_stack.side_effect = [
+            self.stacks["RESUME_COMPLETE"]
+        ]
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "SUSPEND_COMPLETE",
+            "launch_timestamp": (
+                timezone.now() - timezone.timedelta(seconds=500)),
+            "suspend_timestamp": timezone.now()
+        })
+
+        # Run
+        LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        # Assert that a warning message was added about breached time limit
+        # but stack was resumed
+        self.assertEqual(stack.status, "RESUME_COMPLETE")
+        self.assertEqual(stack.error_msg,
+                         "You've reached the time limit allocated to you "
+                         "for using labs.")
+
+    def test_launch_stack_limit_breach_block(self):
+        # Setup
+        self.mocks["settings"]['lab_usage_limit'] = 300
+        self.mocks["settings"]['lab_usage_limit_breach_policy'] = 'block'
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "status": "SUSPEND_COMPLETE",
+            "launch_timestamp": (
+                timezone.now() - timezone.timedelta(seconds=500)),
+            "suspend_timestamp": timezone.now()
+        })
+
+        # Run
+        # Assert LaunchStackTask() raises an exception when time
+        # limit is breached and the breach policy is set to 'block'
+        with self.assertRaises(Exception):
+            LaunchStackTask().run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assert that the stack was not resumed
+        self.assertEqual(stack.status, "SUSPEND_COMPLETE")
+        provider.resume_stack.assert_not_called()
 
 
 class TestSuspendStackTask(HastexoTestCase):

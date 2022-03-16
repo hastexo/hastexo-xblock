@@ -1,4 +1,7 @@
+from django.contrib.auth.models import User
 from django.test import TestCase
+
+from common.djangoapps.student.models import AnonymousUserId
 
 from hastexo.models import Stack, StackLog
 
@@ -9,6 +12,17 @@ class TestHastexoModels(TestCase):
         self.course_id = 'bogus_course_id'
         self.stack_name = 'bogus_stack_name'
 
+        user = User.objects.create_user(
+            "fake_user",
+            "user@example.com",
+            "password"
+        )
+        learner = AnonymousUserId.objects.create(
+            user=user,
+            anonymous_user_id=self.student_id).user
+
+        self.learner = learner
+
     def test_logging(self):
         log = StackLog.objects.all()
         self.assertEqual(len(log), 0)
@@ -16,7 +30,8 @@ class TestHastexoModels(TestCase):
         stack, _ = Stack.objects.get_or_create(
             student_id=self.student_id,
             course_id=self.course_id,
-            name=self.stack_name
+            name=self.stack_name,
+            learner=self.learner
         )
         stack.status = 'CREATE_IN_PROGRESS'
         stack.save(update_fields=["status"])

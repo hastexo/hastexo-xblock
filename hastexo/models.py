@@ -66,6 +66,9 @@ class Stack(StackCommon):
 
     key = models.TextField(blank=True, null=True)
     password = models.CharField(max_length=128, blank=True, null=True)
+    learner = models.ForeignKey(django_settings.AUTH_USER_MODEL,
+                                db_index=True,
+                                on_delete=models.PROTECT)
 
     def __init__(self, *args, **kwargs):
         super(Stack, self).__init__(*args, **kwargs)

@@ -22,7 +22,7 @@ from tenacity import (
     before_sleep_log,
 )
 
-from .models import Stack
+from .models import Stack, StackLog
 from .provider import Provider, ProviderException
 from .common import (
     DELETE,
@@ -135,6 +135,57 @@ class LaunchStackTask(HastexoTask):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+        # If a time limit is set for using labs,
+        # check how much time learner has already spent
+        settings = get_xblock_settings()
+        lab_usage_limit = settings.get("lab_usage_limit", None)
+
+        policy_warn_message = None
+        if lab_usage_limit:
+            # don't look further than 365 days for lab launch
+            cutoff = timezone.now() - timezone.timedelta(days=365)
+
+            # get all learner stacks across the platform
+            stacks = Stack.objects.filter(learner__id=self.learner_id
+                ).filter(launch_timestamp__gt=cutoff)
+
+            # add up total time spent on labs in seconds
+            total_time_spent = 0
+            for stack in stacks:
+                # A stacklog is saved each time the stack status changes,
+                # we only need to look at log entires with SUSPEND_COMPLETE
+                # status to get all records of active lab sessions with
+                # launch and suspend timestamps.
+                stacklog = StackLog.objects.filter(stack_id=stack.id
+                    ).filter(status="SUSPEND_COMPLETE")
+
+                # add up time spent on labs for one stack in seconds
+                time_spent = 0
+                for logentry in stacklog:
+                    time = (
+                        logentry.suspend_timestamp - logentry.launch_timestamp)
+                    time_spent += time.total_seconds()
+                total_time_spent += time_spent
+
+            if total_time_spent > lab_usage_limit:
+                policy = settings.get("lab_usage_limit_breach_policy",
+                                      "").lower()
+
+                if policy:
+                    logger.error(
+                        f'Learner {stacks[0].learner.email} has gone over '
+                        'the lab usage limit!')
+
+                if policy == 'block':
+                    raise Exception(
+                        "You've reached the time limit allocated to you "
+                        "for using labs.")
+
+                elif policy == 'warn':
+                    policy_warn_message = (
+                        "You've reached the time limit allocated to you "
+                        "for using labs.")
+
         # Get the stack
         stack = Stack.objects.get(id=self.stack_id)
 
@@ -216,6 +267,8 @@ class LaunchStackTask(HastexoTask):
 
         # Don't wait for the user to check results.  Update the database
         # immediately.
+        if policy_warn_message:
+            stack_data["error_msg"] = policy_warn_message
         self.update_stack(stack_data)
 
     def get_provider(self, name):

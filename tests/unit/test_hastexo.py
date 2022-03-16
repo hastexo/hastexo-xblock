@@ -13,11 +13,13 @@ from hastexo.common import (
     get_xblock_settings
 )
 
+from common.djangoapps.student.models import AnonymousUserId
 from fs.osfs import OSFS
 from lxml import etree
 from markdown_xblock import MarkdownXBlock
 from mock import Mock, patch, DEFAULT
 from webob import Request
+from django.contrib.auth.models import User
 from django.test import TestCase
 from workbench.runtime import WorkbenchRuntime
 from xblock.core import XBlock
@@ -340,6 +342,15 @@ class TestHastexoXBlock(TestCase):
     def create_stack(self):
         course_id, student_id = self.block.get_block_ids()
         settings = get_xblock_settings()
+        user = User.objects.create_user(
+            "fake_user",
+            "user@example.com",
+            "password"
+        )
+        AnonymousUserId.objects.create(
+            user=user,
+            anonymous_user_id=student_id)
+
         return self.block.create_stack(settings, course_id, student_id)
 
     def update_stack(self, data):
@@ -482,7 +493,9 @@ class TestHastexoXBlock(TestCase):
 
         mock_launch_stack_task.assert_called_with(
             get_xblock_settings(),
-            {"stack_id": stack.id, "reset": False}
+            {"stack_id": stack.id,
+             "reset": False,
+             "learner_id": stack.learner.id}
         )
         self.assertEqual(response["status"], "LAUNCH_PENDING")
 

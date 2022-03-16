@@ -63,6 +63,7 @@ class TestHastexoStackAdmin(TestCase):
             student_id=self.student_id,
             course_id=self.course_id,
             name=self.stack_name,
+            learner=self.user,
             status="CREATE_COMPLETE",
             provider=self.provider,
             providers=self.providers
@@ -122,9 +123,3 @@ class TestHastexoStackAdmin(TestCase):
         url = reverse('admin:hastexo_stack_change', args=(self.stack.id,))
         response = self.client.get(url)
         self.assertContains(response, self.email)
-
-    def test_no_email_in_change_page(self):
-        self.anonymous_user_id.delete()
-        url = reverse('admin:hastexo_stack_change', args=(self.stack.id,))
-        response = self.client.get(url)
-        self.assertNotContains(response, self.email)

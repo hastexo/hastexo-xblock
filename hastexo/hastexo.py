@@ -22,6 +22,8 @@ from django.db import transaction
 from django.utils import timezone
 from lxml import etree
 
+from common.djangoapps.student.models import AnonymousUserId
+
 from .models import Stack
 from .common import (
     UP_STATES,
@@ -593,10 +595,15 @@ class HastexoXBlock(XBlock,
 
     @transaction.atomic
     def create_stack(self, settings, course_id, student_id):
+        # use the 'student_id' to link the stack to user
+        learner = AnonymousUserId.objects.get(
+            anonymous_user_id=student_id).user
+
         stack, _ = Stack.objects.select_for_update().get_or_create(
             student_id=student_id,
             course_id=course_id,
-            name=self.stack_name
+            name=self.stack_name,
+            learner=learner
         )
 
         # Set the port
@@ -737,7 +744,8 @@ class HastexoXBlock(XBlock,
             # Run
             result = self.launch_stack_task(settings, {
                 "stack_id": stack.id,
-                "reset": reset
+                "reset": reset,
+                "learner_id": stack.learner.id
             })
 
             # Update stack

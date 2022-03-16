@@ -3,18 +3,6 @@ Admin registration for hastexo Xblock models
 """
 from django import forms
 from django.contrib import admin
-# Juniper compatibility: in Juniper, importing from
-# common.djangoapps.student.models raises
-# "RuntimeError: Model class common.djangoapps.student.models.AnonymousUserId
-# doesn't declare an explicit app_label and isn't in an application in
-# INSTALLED_APPS". So as not to rely on admins modifying INSTALLED_APPS,
-# fall back to using the old import syntax.
-#
-# This can be removed once we give up Juniper compatibility.
-try:
-    from common.djangoapps.student.models import AnonymousUserId
-except RuntimeError:
-    from student.models import AnonymousUserId
 
 from .common import DELETE_COMPLETE, VALID_STATES, get_xblock_settings
 from .models import Stack
@@ -33,23 +21,10 @@ mark_deleted.short_description = "Mark selected stacks as DELETE_COMPLETE"
 
 def student_email(stack):
     """
-    Fetch the student's email.  This callable should not be used in
-    `list_display`, as it would issue a query for every record on the page.
-
-    (Making `student_id` a ForeignKey wouldn't improve performance, as Django
-    doesn't support related field lookups (a.k.a. JOINs) on `list_display`.
-    However, doing so would allow searching or ordering by email, which is why
-    this parenthetical note is here: though not without drawbacks, it may be
-    deemed desirable in the future.)
+    Display the learner email for admin page.
 
     """
-    try:
-        anonymous_user_id = AnonymousUserId.objects.get(
-            anonymous_user_id=stack.student_id)
-    except AnonymousUserId.DoesNotExist:
-        return None
-
-    return anonymous_user_id.user.email
+    return stack.learner.email
 
 
 student_email.short_description = "Email"
@@ -113,7 +88,7 @@ class StackAdmin(admin.ModelAdmin):
                        "port", "ip", "launch_timestamp", "suspend_timestamp",
                        "created_on", "error_msg", "delete_age",)
     exclude = ("student_id", "providers", "hook_script", "hook_events",
-               "launch_task_id", "user", "key", "password",)
+               "launch_task_id", "user", "key", "password", "learner")
     ordering = ("-launch_timestamp",)
 
     def get_changelist_form(self, request, **kwargs):
