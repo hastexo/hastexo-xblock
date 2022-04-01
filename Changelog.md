@@ -1,3 +1,8 @@
+=======
+Unreleased
+-------------------------
+* [Testing] Include XBlock 1.6 in the test matrix.
+
 Version 6.0.1 (2022-03-14)
 -------------------------
 * [Documentation] Update README with improved instructions for Open
