@@ -9,6 +9,7 @@ Unreleased
   Add configuration options for setting a time limit for using labs
   (`lab_usage_limit`) in seconds and how to handle a breach of the
   set limit (`lab_usage_limit_breach_policy`).
+* [Testing] Include XBlock 1.6 in the test matrix.
 
 Version 6.0.1 (2022-03-14)
 -------------------------

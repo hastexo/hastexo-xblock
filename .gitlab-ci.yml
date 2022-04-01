@@ -5,7 +5,7 @@ py38:
   stage: build
   script:
     - pip install tox
-    - tox -e py38-xblock14,py38-xblock15,flake8
+    - tox -e py38-xblock14,py38-xblock15,py38-xblock16,flake8
   artifacts:
     paths:
       - .coverage*
@@ -16,7 +16,7 @@ py39:
   stage: build
   script:
     - pip install tox
-    - tox -e py39-xblock14,py39-xblock15,flake8
+    - tox -e py39-xblock14,py39-xblock15,py39-xblock16,flake8
   artifacts:
     paths:
       - .coverage*
