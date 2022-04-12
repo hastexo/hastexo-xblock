@@ -79,6 +79,13 @@ class LaunchStackFailed(Exception):
             self.delete = True
 
 
+class LabAccessRestricted(Exception):
+    error_msg = ""
+
+    def __init__(self, error_msg):
+        self.error_msg = error_msg
+
+
 class HastexoTask(Task):
     """
     Abstract task.
@@ -177,7 +184,7 @@ class LaunchStackTask(HastexoTask):
                         'the lab usage limit!')
 
                 if policy == 'block':
-                    raise Exception(
+                    raise LabAccessRestricted(
                         "You've reached the time limit allocated to you "
                         "for using labs.")
 

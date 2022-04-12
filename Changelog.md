@@ -1,5 +1,7 @@
 Unreleased
 -------------------------
+* [Enhancement] Be more specific when raising the exception for
+  restricting lab access due to lab usage limit being reached.
 * [Enhancement] Add an option to track and limit a learners lab
   usage. To support time tracking, link a learner to their stacks
   across the platform by adding a Foreign Key field for user to
