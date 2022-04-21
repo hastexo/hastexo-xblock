@@ -1,4 +1,4 @@
-Unreleased
+Version 6.1.0 (2022-04-21)
 -------------------------
 * [Enhancement] Be more specific when raising the exception for
   restricting lab access due to lab usage limit being reached.
