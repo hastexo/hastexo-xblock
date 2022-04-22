@@ -14,8 +14,14 @@ function HastexoXBlock(runtime, element, configuration) {
     var dialog_container = undefined;
 
     var init = function() {
-        /* Construct the layout for instructions and terminal */
-        construct_layout();
+
+        if (configuration.hidden) {
+            $('.xblock-student_view-hastexo').hide();
+            get_user_stack_status(true);
+        } else {
+            /* Construct the layout for instructions and terminal */
+            construct_layout();
+        }
 
         /* Set dialog container. */
         dialog_container = $(element).find('.hastexblock')[0];
@@ -361,7 +367,7 @@ function HastexoXBlock(runtime, element, configuration) {
                 changed = true;
                 stack = data;
             }
-            if (changed) {
+            if (changed && !configuration.hidden) {
                 update_user_stack_status(stack);
             } else if (stack.status == 'LAUNCH_PENDING') {
                 if (status_timer) clearTimeout(status_timer);

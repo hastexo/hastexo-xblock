@@ -110,6 +110,11 @@ class HastexoXBlock(XBlock,
         scope=Scope.settings,
         help="Display the terminal window in read-only mode"
     )
+    hidden = Boolean(
+        default=False,
+        scope=Scope.settings,
+        help="Hide the terminal window while running the background tasks. "
+    )
     progress_check_label = String(
         default='Check Progress',
         scope=Scope.settings,
@@ -215,7 +220,8 @@ class HastexoXBlock(XBlock,
         'ports',
         'providers',
         'tests',
-        'read_only')
+        'read_only',
+        'hidden')
 
     has_author_view = True
     has_score = True
@@ -584,7 +590,8 @@ class HastexoXBlock(XBlock,
             "ports": self.ports,
             "port": stack.port,
             "instructions_layout": settings.get("instructions_layout"),
-            "read_only": self.read_only,
+            "read_only": self.read_only or self.hidden,
+            "hidden": self.hidden,
             "progress_check_label": self.progress_check_label,
             "show_hints_on_error": self.show_hints_on_error,
             "show_feedback": self.show_feedback,

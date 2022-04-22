@@ -633,6 +633,9 @@ The following are optional:
   a lab stack will be created or resumed as usual, the student can see the lab
   terminal but is not able to interact with it. Default is `False`.
 
+* `hidden`: An option to hide the lab itself in the browser while spinning up
+  the lab environment in the background. Default is `False`.
+
 * `progress_check_label`: Set a label for the progress check button.
   For example: `Submit Answer` or `Check Progress` (Default).
 
