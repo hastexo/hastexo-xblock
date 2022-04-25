@@ -1,4 +1,4 @@
-Unreleased
+Version 6.1.1 (2022-04-25)
 -------------------------
 * [Enhancement] Add `hidden` option for spinning up a lab
   environment in the background while the lab itself is hidden.
