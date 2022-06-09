@@ -91,31 +91,31 @@ two steps:
     launch_timeout: 900
     providers:
       default:
-        type: openstack,
-        os_auth_url: "",
-        os_auth_token: "",
-        os_username: "",
-        os_password: "",
-        os_user_id: "",
-        os_user_domain_id: "",
-        os_user_domain_name: "",
-        os_project_id: "",
-        os_project_name: "",
-        os_project_domain_id: "",
-        os_project_domain_name: "",
+        type: openstack
+        os_auth_url: ""
+        os_auth_token: ""
+        os_username: ""
+        os_password: ""
+        os_user_id: ""
+        os_user_domain_id: ""
+        os_user_domain_name: ""
+        os_project_id: ""
+        os_project_name: ""
+        os_project_domain_id: ""
+        os_project_domain_name: ""
         os_region_name: ""
       provider2:
-        type: "gcloud",
-        gc_type: "service_account",
-        gc_project_id: "",
-        gc_private_key_id: "",
-        gc_private_key: "",
-        gc_client_email: "",
-        gc_client_id: "",
-        gc_auth_uri: "",
-        gc_token_uri: "",
-        gc_auth_provider_x509_cert_url: "",
-        gc_client_x509_cert_url: "",
+        type: "gcloud"
+        gc_type: "service_account"
+        gc_project_id: ""
+        gc_private_key_id: ""
+        gc_private_key: ""
+        gc_client_email: ""
+        gc_client_id: ""
+        gc_auth_uri: ""
+        gc_token_uri: ""
+        gc_auth_provider_x509_cert_url: ""
+        gc_client_x509_cert_url: ""
         gc_region_id: ""
     remote_exec_timeout: 300
     sleep_timeout: 10
