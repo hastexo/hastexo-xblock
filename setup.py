@@ -56,13 +56,13 @@ setup(
         'hastexo',
     ],
     install_requires=[
-        'apscheduler',
-        'google-api-python-client',
-        'paramiko',
-        'python-heatclient',
-        'python-keystoneclient',
-        'python-novaclient',
-        'tenacity',
+        'apscheduler<3.8',
+        'google-api-python-client<1.8',
+        'paramiko<2.8',
+        'python-heatclient<2',
+        'python-keystoneclient<3.22',
+        'python-novaclient<16',
+        'tenacity<8',
     ],
     entry_points={
         'xblock.v1': [

@@ -1,3 +1,13 @@
+Unreleased
+-------------------------
+
+* [Bug fix] Set upper bounds for the `install_requires` list in
+  `setup.py`, to match those set in `requirements.txt`. This fixes a
+  version incompatibility problem when the package is installed by pip
+  version 20 and earlier, which would lead to
+  `pkg_resources.ContextualVersionConflict` errors when deployed on
+  Open edX Maple.
+
 Version 6.1.1 (2022-04-25)
 -------------------------
 * [Enhancement] Add `hidden` option for spinning up a lab
