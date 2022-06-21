@@ -1,6 +1,11 @@
-=======
 Unreleased
 -------------------------
+* [Bug fix] Set upper bounds for the `install_requires` list in
+  `setup.py`, to match those set in `requirements.txt`. This fixes a
+  version incompatibility problem when the package is installed by pip
+  version 20 and earlier, which would lead to
+  `pkg_resources.ContextualVersionConflict` errors when deployed on
+  Open edX Maple.
 * [Testing] Include XBlock 1.6 in the test matrix.
 
 Version 6.0.1 (2022-03-14)
