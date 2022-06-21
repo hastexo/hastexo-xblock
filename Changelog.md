@@ -6,6 +6,9 @@ Unreleased
   version 20 and earlier, which would lead to
   `pkg_resources.ContextualVersionConflict` errors when deployed on
   Open edX Maple.
+* [Testing] Enhance the test matrix to include the pip versions used
+  in Open edX Maple (20.0.2) and Nutmeg (22.0.4), and use pipdeptree
+  to automatically flag dependency version inconsistencies.
 * [Testing] Include XBlock 1.6 in the test matrix.
 
 Version 6.0.1 (2022-03-14)
