@@ -1,4 +1,4 @@
-Unreleased
+Version 6.0.2 (2022-06-22)
 -------------------------
 * [Enhancement] Install a newer version of the Paramiko library.
 * [Bug fix] Set upper bounds for the `install_requires` list in
