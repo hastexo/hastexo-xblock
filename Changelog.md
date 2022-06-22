@@ -1,4 +1,4 @@
-Unreleased
+Version 6.1.2 (2022-06-22)
 -------------------------
 
 * [Enhancement] Install a newer version of the Paramiko library.
