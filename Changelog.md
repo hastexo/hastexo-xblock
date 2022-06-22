@@ -1,6 +1,7 @@
 Unreleased
 -------------------------
 
+* [Enhancement] Install a newer version of the Paramiko library.
 * [Bug fix] Set upper bounds for the `install_requires` list in
   `setup.py`, to match those set in `requirements.txt`. This fixes a
   version incompatibility problem when the package is installed by pip
