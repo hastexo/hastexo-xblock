@@ -1,3 +1,12 @@
+Unreleased
+-------------------------
+
+* [Bug fix] Add a check to the `add_user_foreign_key` migration
+  file to find stacks that are missing a link to a real user account.
+  If such stack(s) exist, do not attempt to apply the migration,
+  instead raise an exception and provide an error message with
+  guidance on how to proceed.
+
 Version 6.1.2 (2022-06-22)
 -------------------------
 
