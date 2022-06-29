@@ -1,4 +1,4 @@
-Unreleased
+Version 6.1.3 (2022-06-29)
 -------------------------
 
 * [Bug fix] Add a check to the `add_user_foreign_key` migration
