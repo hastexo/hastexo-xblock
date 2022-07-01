@@ -67,6 +67,7 @@ class Stack(StackCommon):
     key = models.TextField(blank=True, null=True)
     password = models.CharField(max_length=128, blank=True, null=True)
     learner = models.ForeignKey(django_settings.AUTH_USER_MODEL,
+                                null=True,
                                 db_index=True,
                                 on_delete=models.PROTECT)
 

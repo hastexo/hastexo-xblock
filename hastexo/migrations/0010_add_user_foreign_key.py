@@ -1,30 +1,13 @@
 from django.conf import settings
-from django.db import migrations, models, OperationalError
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import migrations, models
 import django.db.models.deletion
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 class Migration(migrations.Migration):
-
-    def check_stacks(apps, schema_editor):
-        """
-        Check if all stacks can be linked to a real user account.
-        If not, error out with a suggestion how to proceed.
-        """
-        Stack = apps.get_model("hastexo", "Stack")
-        AnonymousUserId = apps.get_model("student", "AnonymousUserId")
-        anonymous_user_ids = AnonymousUserId.objects.values(
-            'anonymous_user_id').distinct()
-        problematic_stacks = Stack.objects.exclude(
-            student_id__in=anonymous_user_ids)
-
-        if len(problematic_stacks) > 0:
-            raise OperationalError(
-                'Unable to link stacks to users; please make sure that '
-                'the following stacks have a student_id that corresponds '
-                'to a real user account: '
-                f'{[s.name for s in problematic_stacks]}. '
-                'Please update or delete the stacks manually and rerun '
-                'the migration.')
 
     def backfill_learner(apps, schema_editor):
         """
@@ -33,9 +16,13 @@ class Migration(migrations.Migration):
         Stack = apps.get_model("hastexo", "Stack")
         AnonymousUserId = apps.get_model("student", "AnonymousUserId")
         for stack in Stack.objects.all():
-            stack.learner = AnonymousUserId.objects.get(
-                anonymous_user_id=stack.student_id).user
-            stack.save(update_fields=['learner'])
+            try:
+                stack.learner = AnonymousUserId.objects.get(
+                    anonymous_user_id=stack.student_id).user
+                stack.save(update_fields=['learner'])
+            except ObjectDoesNotExist:
+                logger.warning('Unable to link stack to user: '
+                               f'{stack.name}')
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
@@ -43,7 +30,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(check_stacks),
         migrations.AddField(
             model_name='stack',
             name='learner',
@@ -54,12 +40,4 @@ class Migration(migrations.Migration):
                 to=settings.AUTH_USER_MODEL),
         ),
         migrations.RunPython(backfill_learner),
-        migrations.AlterField(
-            model_name='stack',
-            name='learner',
-            field=models.ForeignKey(
-                db_constraint=True,
-                on_delete=django.db.models.deletion.PROTECT,
-                to=settings.AUTH_USER_MODEL),
-        ),
     ]

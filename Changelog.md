@@ -1,3 +1,10 @@
+Unreleased
+-------------------------
+
+* [Bug fix] Fix migrations around the `lab_usage_limit` feature
+  introduced in 6.1.0. This unbreaks migrations in the event that some
+  stacks cannot be linked to an existing user account.
+
 Version 6.1.4 (2022-07-06)
 -------------------------
 

@@ -24,7 +24,10 @@ def student_email(stack):
     Display the learner email for admin page.
 
     """
-    return stack.learner.email
+    if stack.learner:
+        return stack.learner.email
+    else:
+        return ""
 
 
 student_email.short_description = "Email"
