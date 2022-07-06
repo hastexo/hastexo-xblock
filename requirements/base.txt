@@ -17,6 +17,7 @@ tenacity>=6.2,<8
 
 # for hastexo_guacamole_client
 django<4
+asgiref<3.4
 channels>=2.4.0,<3
 mysqlclient<2.1.0  # keep in sync with edx-platform
 jsonfield>=3.1.0,<4   # keep in sync with edx-platform
