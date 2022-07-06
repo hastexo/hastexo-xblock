@@ -1,4 +1,4 @@
-Unreleased
+Version 6.1.4 (2022-07-06)
 -------------------------
 
 * [Bug fix] Bring back `asgiref` constraint and lower
