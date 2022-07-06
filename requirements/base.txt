@@ -16,8 +16,9 @@ python-novaclient>=7.1.2,<16
 tenacity>=6.2,<8
 
 # for hastexo_guacamole_client
-django<4
+django<3.2
 channels>=2.4.0,<3
+asgiref~=3.2.0 # depends on our channels version
 mysqlclient<2.1.0  # keep in sync with edx-platform
 jsonfield>=3.1.0,<4   # keep in sync with edx-platform
 pyguacamole>=0.11

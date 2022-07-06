@@ -1,3 +1,10 @@
+Unreleased
+-------------------------
+
+* [Bug fix] Bring back `asgiref` constraint and lower
+  `Django` constraint. These need to be
+  in sync with the `channels` version requirements.
+
 Version 6.1.3 (2022-06-29)
 -------------------------
 
