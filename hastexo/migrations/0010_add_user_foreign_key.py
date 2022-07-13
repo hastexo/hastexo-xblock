@@ -40,4 +40,13 @@ class Migration(migrations.Migration):
                 to=settings.AUTH_USER_MODEL),
         ),
         migrations.RunPython(backfill_learner),
+        migrations.AlterField(
+            model_name='stack',
+            name='learner',
+            field=models.ForeignKey(
+                db_constraint=True,
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                to=settings.AUTH_USER_MODEL),
+        ),
     ]
