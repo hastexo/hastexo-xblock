@@ -1,4 +1,4 @@
-Unreleased
+Version 6.1.5 (2022-07-13)
 -------------------------
 
 * [Bug fix] Fix migrations around the `lab_usage_limit` feature
