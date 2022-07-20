@@ -66,15 +66,33 @@ class SuspenderJob(AbstractJob):
 
         # Get stacks to suspend
         with transaction.atomic():
-            stacks = Stack.objects.select_for_update().filter(
+            stacks_without_suspend_by = Stack.objects.select_for_update().filter(  # noqa: E501
                 suspend_timestamp__isnull=False
+            ).filter(
+                suspend_by__isnull=True
             ).filter(
                 suspend_timestamp__lt=cutoff
             ).filter(
                 status__in=states
             ).exclude(
                 provider__exact=''
-            ).order_by('suspend_timestamp')[:concurrency]
+            )
+
+            stacks_with_suspend_by = Stack.objects.select_for_update().filter(
+                suspend_timestamp__isnull=False
+            ).filter(
+                suspend_by__isnull=False
+            ).filter(
+                suspend_by__lt=timezone.now()
+            ).filter(
+                status__in=states
+            ).exclude(
+                provider__exact=''
+            )
+
+            stacks = stacks_without_suspend_by.union(
+                stacks_with_suspend_by).order_by(
+                    'suspend_timestamp')[:concurrency]
 
             for stack in stacks:
                 stack.status = SUSPEND_PENDING

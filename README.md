@@ -623,6 +623,10 @@ The following are optional:
 * `launch_timeout`: How long to wait for a stack to be launched, in seconds.
   If unset, the global timeout will be used.
 
+* `suspend_timeout`: Timeout for how long to wait before suspending a stack,
+  after the last keepalive was received from the browser, in seconds.
+  Takes precedence over the globally defined timeout."
+
 * `delete_age`: Delete stacks that haven't been resumed in this many seconds.
   Overrides the globally defined setting. The global setting currently only
   supports days but will begin to support suffixes `d`, `h`, `m`, `s` in future

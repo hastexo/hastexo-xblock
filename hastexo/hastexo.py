@@ -95,6 +95,12 @@ class HastexoXBlock(XBlock,
         scope=Scope.settings,
         help="Timeout for a launch operation, in seconds.  Takes precedence"
              "over the globally defined timeout.")
+    suspend_timeout = Integer(
+        default=None,
+        scope=Scope.settings,
+        help="Timeout for how long to wait before suspending a stack, after "
+             "the last keepalive was received from the browser, in seconds. "
+             "Takes precedence over the globally defined timeout.")
     hook_script = String(
         scope=Scope.settings,
         help="The relative path to an uploaded executable script. "
@@ -216,6 +222,7 @@ class HastexoXBlock(XBlock,
         'stack_user_name',
         'stack_protocol',
         'launch_timeout',
+        'suspend_timeout',
         'delete_age',
         'ports',
         'providers',
@@ -431,6 +438,7 @@ class HastexoXBlock(XBlock,
         node.set('stack_protocol', self.stack_protocol)
         node.set('stack_template_path', self.stack_template_path or '')
         node.set('launch_timeout', str(self.launch_timeout or ''))
+        node.set('suspend_timeout', str(self.suspend_timeout or ''))
         node.set('hook_script', self.hook_script or '')
         node.set('delete_age', str(self.delete_age or ''))
         node.set('read_only', str(self.read_only))
@@ -518,6 +526,17 @@ class HastexoXBlock(XBlock,
         else:
             # delete_age value in settings is in days, convert to seconds
             return settings.get("delete_age", 14) * 86400
+
+    def get_suspend_timeout(self):
+        """
+        Return 'suspend_timeout' in seconds.
+        XBlock attribute overrides the global setting.
+        """
+        if self.suspend_timeout:
+            return int(self.suspend_timeout)
+        else:
+            settings = get_xblock_settings()
+            return settings.get("suspend_timeout", 120)
 
     def get_stack_name(self):
         # Get the course id and anonymous user id, and derive the stack name
@@ -869,6 +888,9 @@ class HastexoXBlock(XBlock,
 
         # Reset the dead man's switch
         stack.suspend_timestamp = timezone.now()
+        stack.suspend_by = timezone.now() + timezone.timedelta(
+            seconds=self.get_suspend_timeout()
+        )
 
         # Save changes to the database
         stack.save()
@@ -886,7 +908,11 @@ class HastexoXBlock(XBlock,
         Reset the dead man's switch.
 
         """
-        self.update_stack({"suspend_timestamp": timezone.now()})
+        self.update_stack({
+            "suspend_timestamp": timezone.now(),
+            "suspend_by": timezone.now() + timezone.timedelta(
+                seconds=self.get_suspend_timeout())
+        })
 
     @XBlock.json_handler
     @transaction.atomic

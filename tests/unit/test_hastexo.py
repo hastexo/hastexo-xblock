@@ -1004,6 +1004,14 @@ class TestHastexoXBlock(TestCase):
         stack_name = self.block.get_stack_name()
         self.assertEqual('course_run_student', stack_name)
 
+    def test_get_suspend_timeout(self):
+        self.init_block()
+        self.assertEqual(self.block.get_suspend_timeout(),
+                         DEFAULT_SETTINGS["suspend_timeout"])
+        self.block.suspend_timeout = 1800
+        self.assertEqual(self.block.get_suspend_timeout(),
+                         self.block.suspend_timeout)
+
     def test_get_stack_name_replace_characters(self):
         course_id = Mock(course='course.name', run='run')
         student_id = 'student'

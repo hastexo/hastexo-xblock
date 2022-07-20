@@ -1,3 +1,9 @@
+Unreleased
+-------------------------
+
+* [Enhancement] Add an option to override the `suspend_timeout`
+  global setting via an XBlock attribute, in seconds.
+
 Version 6.1.5 (2022-07-13)
 -------------------------
 

@@ -153,6 +153,35 @@ class TestHastexoJobs(TestCase):
         stack = Stack.objects.get(name=self.stack_name)
         self.assertEqual(stack.status, SUSPEND_PENDING)
 
+    def test_suspend_stack_suspend_by(self):
+        # Setup
+        suspend_timeout = self.settings.get("suspend_timeout")
+        timedelta = timezone.timedelta(seconds=(suspend_timeout + 1))
+        suspend_timestamp = timezone.now() - timedelta
+        suspend_by = suspend_timestamp + timedelta
+        state = "CREATE_COMPLETE"
+        stack = Stack(
+            student_id=self.student_id,
+            course_id=self.course_id,
+            suspend_timestamp=suspend_timestamp,
+            suspend_by=suspend_by,
+            name=self.stack_name,
+            provider="provider1",
+            status=state,
+            learner=self.learner
+        )
+        stack.save()
+        mock_suspend_task = self.get_suspend_task_mock()
+
+        # Run
+        job = SuspenderJob(self.settings)
+        job.run()
+
+        # Assert
+        mock_suspend_task.apply_async.assert_called()
+        stack = Stack.objects.get(name=self.stack_name)
+        self.assertEqual(stack.status, SUSPEND_PENDING)
+
     def test_dont_suspend_unexistent_stack(self):
         # Setup
         mock_suspend_task = self.get_suspend_task_mock()
@@ -250,6 +279,7 @@ class TestHastexoJobs(TestCase):
         suspend_timeout = self.settings.get("suspend_timeout")
         timedelta = timezone.timedelta(seconds=(suspend_timeout + 1))
         suspend_timestamp = timezone.now() - timedelta
+        suspend_by = suspend_timestamp + timedelta
         state = "CREATE_COMPLETE"
         stack1_name = "bogus_stack_1"
         stack1 = Stack(
@@ -268,6 +298,7 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             name=stack2_name,
             suspend_timestamp=suspend_timestamp,
+            suspend_by=suspend_by,
             provider="provider2",
             status=state,
             learner=self.learner
@@ -279,6 +310,7 @@ class TestHastexoJobs(TestCase):
             course_id=self.course_id,
             name=stack3_name,
             suspend_timestamp=suspend_timestamp,
+            suspend_by=suspend_by,
             provider="provider3",
             status=state,
             learner=self.learner

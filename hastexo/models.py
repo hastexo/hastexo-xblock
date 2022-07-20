@@ -49,6 +49,7 @@ class StackCommon(models.Model):
     launch_task_id = models.CharField(max_length=40, blank=True)
     launch_timestamp = models.DateTimeField(null=True, db_index=True)
     suspend_timestamp = models.DateTimeField(null=True, db_index=True)
+    suspend_by = models.DateTimeField(null=True, db_index=True)
     created_on = models.DateTimeField(auto_now_add=True, db_index=True)
     delete_age = models.IntegerField(null=True)
     delete_by = models.DateTimeField(null=True, db_index=True,

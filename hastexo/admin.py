@@ -89,7 +89,7 @@ class StackAdmin(admin.ModelAdmin):
     search_fields = ("name", "course_id", "status", "provider")
     readonly_fields = ("name", student_email, "course_id", "run", "protocol",
                        "port", "ip", "launch_timestamp", "suspend_timestamp",
-                       "created_on", "error_msg", "delete_age",)
+                       "suspend_by", "created_on", "error_msg", "delete_age",)
     exclude = ("student_id", "providers", "hook_script", "hook_events",
                "launch_task_id", "user", "key", "password", "learner")
     ordering = ("-launch_timestamp",)
