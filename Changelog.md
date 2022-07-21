@@ -1,4 +1,4 @@
-Unreleased
+Version 6.2.0 (2022-07-21)
 -------------------------
 
 * [Enhancement] Add an option to override the `suspend_timeout`
