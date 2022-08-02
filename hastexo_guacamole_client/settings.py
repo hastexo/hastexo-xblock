@@ -65,7 +65,7 @@ INSTALLED_APPS = [
     'hastexo_guacamole_client'
 ]
 
-ASGI_APPLICATION = 'hastexo_guacamole_client.routing.application'
+ASGI_APPLICATION = 'hastexo_guacamole_client.asgi:application'
 
 CONFIG_FILE = os.environ.get('HASTEXO_GUACAMOLE_CFG', None)
 if CONFIG_FILE:

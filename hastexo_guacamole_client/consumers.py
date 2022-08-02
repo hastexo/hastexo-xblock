@@ -50,7 +50,7 @@ class GuacamoleWebSocketConsumer(AsyncWebsocketConsumer):
 
         if self.client.connected:
             # start receiving data from GuacamoleClient
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             self.task = loop.create_task(self.open())
 
             # Accept connection
@@ -66,7 +66,9 @@ class GuacamoleWebSocketConsumer(AsyncWebsocketConsumer):
         Close the GuacamoleClient connection on WebSocket disconnect.
         """
         self.task.cancel()
-        await sync_to_async(self.client.close)()
+        # explicitly set thread_sensitive=False here to allow concurrent
+        # GuacamoleClient connections
+        await sync_to_async(self.client.close, thread_sensitive=False)()
 
     async def receive(self, text_data=None, bytes_data=None):
         """
@@ -84,6 +86,9 @@ class GuacamoleWebSocketConsumer(AsyncWebsocketConsumer):
         Receive data from GuacamoleClient and pass it to the WebSocket
         """
         while True:
-            content = await sync_to_async(self.client.receive)()
+            # explicitly set thread_sensitive=False here to allow
+            # concurrent GuacamoleClient connections
+            content = await sync_to_async(
+                self.client.receive, thread_sensitive=False)()
             if content:
                 await self.send(text_data=content)
