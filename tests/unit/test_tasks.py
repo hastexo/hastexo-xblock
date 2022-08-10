@@ -198,7 +198,7 @@ class TestLaunchStackTask(HastexoTestCase):
         ]
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -226,7 +226,7 @@ class TestLaunchStackTask(HastexoTestCase):
             ]
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -260,7 +260,7 @@ class TestLaunchStackTask(HastexoTestCase):
                                         OperationalError,
                                         Stack.objects]
             # Run
-            LaunchStackTask().run(**self.kwargs)
+            LaunchStackTask.run(**self.kwargs)
 
         # The filter() method would have to be called 3 times
         # (2 failures with an OperationalError, then 1 success).
@@ -307,7 +307,7 @@ class TestLaunchStackTask(HastexoTestCase):
                                         OperationalError]
             # Run
             with self.assertRaises(OperationalError):
-                LaunchStackTask().run(**self.kwargs)
+                LaunchStackTask.run(**self.kwargs)
 
             # The filter() method would have to be called 3 times.
             self.assertEqual(filter_patch.call_count, 3)
@@ -332,7 +332,7 @@ class TestLaunchStackTask(HastexoTestCase):
         ]
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -357,7 +357,7 @@ class TestLaunchStackTask(HastexoTestCase):
         ]
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -375,7 +375,7 @@ class TestLaunchStackTask(HastexoTestCase):
             ]
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -402,7 +402,7 @@ class TestLaunchStackTask(HastexoTestCase):
         ]
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -424,7 +424,7 @@ class TestLaunchStackTask(HastexoTestCase):
         self.kwargs["reset"] = True
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -448,7 +448,7 @@ class TestLaunchStackTask(HastexoTestCase):
         })
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -479,7 +479,7 @@ class TestLaunchStackTask(HastexoTestCase):
         ]
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -504,7 +504,7 @@ class TestLaunchStackTask(HastexoTestCase):
         ]
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -532,7 +532,7 @@ class TestLaunchStackTask(HastexoTestCase):
         })
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -547,10 +547,10 @@ class TestLaunchStackTask(HastexoTestCase):
         self.providers[0].pop("capacity")
         self.update_stack({"providers": self.providers})
 
-        # Assert LaunchStackTask() fails if capacity is not defined
+        # Assert LaunchStackTask fails if capacity is not defined
         # for a provider.
         with self.assertRaises(KeyError):
-            LaunchStackTask().run(**self.kwargs)
+            LaunchStackTask.run(**self.kwargs)
 
     def test_infinite_capacity(self):
         # Setup
@@ -574,7 +574,7 @@ class TestLaunchStackTask(HastexoTestCase):
             self.create_stack(name, self.course_id, student_id, data)
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -603,7 +603,7 @@ class TestLaunchStackTask(HastexoTestCase):
         ]
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -641,7 +641,7 @@ class TestLaunchStackTask(HastexoTestCase):
             self.create_stack(name, self.course_id, student_id, data)
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -674,7 +674,7 @@ class TestLaunchStackTask(HastexoTestCase):
         self.update_stack({"providers": self.providers})
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -703,7 +703,7 @@ class TestLaunchStackTask(HastexoTestCase):
         ]
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -732,7 +732,7 @@ class TestLaunchStackTask(HastexoTestCase):
         ]
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -749,7 +749,7 @@ class TestLaunchStackTask(HastexoTestCase):
         ]
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -769,7 +769,7 @@ class TestLaunchStackTask(HastexoTestCase):
             ]
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -800,7 +800,7 @@ class TestLaunchStackTask(HastexoTestCase):
         ]
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -822,7 +822,7 @@ class TestLaunchStackTask(HastexoTestCase):
         # Assert that if no providers are configured
         # LaunchStackTask will raise a ProviderException
         with self.assertRaises(ProviderException):
-            LaunchStackTask().run(**self.kwargs)
+            LaunchStackTask.run(**self.kwargs)
 
     def test_reset_stack(self):
         # Setup
@@ -844,7 +844,7 @@ class TestLaunchStackTask(HastexoTestCase):
         self.kwargs["reset"] = True
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -868,7 +868,7 @@ class TestLaunchStackTask(HastexoTestCase):
         self.kwargs["reset"] = True
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -894,7 +894,7 @@ class TestLaunchStackTask(HastexoTestCase):
         self.kwargs["reset"] = True
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -918,7 +918,7 @@ class TestLaunchStackTask(HastexoTestCase):
         })
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -958,7 +958,7 @@ class TestLaunchStackTask(HastexoTestCase):
                                                       OperationalError,
                                                       None]) as save_patch:
             # Run
-            LaunchStackTask().run(**self.kwargs)
+            LaunchStackTask.run(**self.kwargs)
 
             # The save() method would have to be called 3 times (2
             # failures with an OperationalError, then 1 success).
@@ -998,7 +998,7 @@ class TestLaunchStackTask(HastexoTestCase):
                                         OperationalError]) as save_patch:
             # Run
             with self.assertRaises(OperationalError):
-                LaunchStackTask().run(**self.kwargs)
+                LaunchStackTask.run(**self.kwargs)
 
             # The save() method would have to be called 3 times.
             self.assertEqual(save_patch.call_count, 3)
@@ -1033,7 +1033,7 @@ class TestLaunchStackTask(HastexoTestCase):
         })
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1058,7 +1058,7 @@ class TestLaunchStackTask(HastexoTestCase):
         })
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1083,7 +1083,7 @@ class TestLaunchStackTask(HastexoTestCase):
         })
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1109,7 +1109,7 @@ class TestLaunchStackTask(HastexoTestCase):
         self.mocks["remote_exec"].side_effect = Exception()
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1135,7 +1135,7 @@ class TestLaunchStackTask(HastexoTestCase):
         self.mocks["remote_exec"].side_effect = RemoteExecException
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1158,7 +1158,7 @@ class TestLaunchStackTask(HastexoTestCase):
         })
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1180,7 +1180,7 @@ class TestLaunchStackTask(HastexoTestCase):
         })
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1206,7 +1206,7 @@ class TestLaunchStackTask(HastexoTestCase):
         })
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1231,7 +1231,7 @@ class TestLaunchStackTask(HastexoTestCase):
         self.update_stack({"providers": self.providers})
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1255,7 +1255,7 @@ class TestLaunchStackTask(HastexoTestCase):
         self.update_stack({"providers": self.providers})
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1276,7 +1276,7 @@ class TestLaunchStackTask(HastexoTestCase):
         self.update_stack({"provider": self.providers[0]["name"]})
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1299,7 +1299,7 @@ class TestLaunchStackTask(HastexoTestCase):
         self.update_stack({"provider": self.providers[0]["name"]})
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1317,7 +1317,7 @@ class TestLaunchStackTask(HastexoTestCase):
         self.update_stack({"provider": self.providers[0]["name"]})
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1335,7 +1335,7 @@ class TestLaunchStackTask(HastexoTestCase):
         self.update_stack({"provider": self.providers[0]["name"]})
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1362,7 +1362,7 @@ class TestLaunchStackTask(HastexoTestCase):
         self.update_stack({"protocol": self.protocol})
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1394,7 +1394,7 @@ class TestLaunchStackTask(HastexoTestCase):
         })
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1418,7 +1418,7 @@ class TestLaunchStackTask(HastexoTestCase):
         })
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1438,7 +1438,7 @@ class TestLaunchStackTask(HastexoTestCase):
         ]
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1464,7 +1464,7 @@ class TestLaunchStackTask(HastexoTestCase):
         })
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1492,7 +1492,7 @@ class TestLaunchStackTask(HastexoTestCase):
         })
 
         # Run
-        LaunchStackTask().run(**self.kwargs)
+        LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1522,10 +1522,10 @@ class TestLaunchStackTask(HastexoTestCase):
         })
 
         # Run
-        # Assert LaunchStackTask() raises an exception when time
+        # Assert LaunchStackTask raises an exception when time
         # limit is breached and the breach policy is set to 'block'
         with self.assertRaises(Exception):
-            LaunchStackTask().run(**self.kwargs)
+            LaunchStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1551,7 +1551,7 @@ class TestSuspendStackTask(HastexoTestCase):
         ]
 
         # Run
-        SuspendStackTask().run(**self.kwargs)
+        SuspendStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1582,7 +1582,7 @@ class TestSuspendStackTask(HastexoTestCase):
         ]
 
         # Run
-        SuspendStackTask().run(**self.kwargs)
+        SuspendStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1614,7 +1614,7 @@ class TestSuspendStackTask(HastexoTestCase):
         ]
 
         # Run
-        SuspendStackTask().run(**self.kwargs)
+        SuspendStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1644,7 +1644,7 @@ class TestSuspendStackTask(HastexoTestCase):
         ]
 
         # Run
-        SuspendStackTask().run(**self.kwargs)
+        SuspendStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1676,7 +1676,7 @@ class TestSuspendStackTask(HastexoTestCase):
         ]
 
         # Run
-        SuspendStackTask().run(**self.kwargs)
+        SuspendStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1704,7 +1704,7 @@ class TestSuspendStackTask(HastexoTestCase):
         ]
 
         # Run
-        SuspendStackTask().run(**self.kwargs)
+        SuspendStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1727,7 +1727,7 @@ class TestSuspendStackTask(HastexoTestCase):
         ]
 
         # Run
-        SuspendStackTask().run(**self.kwargs)
+        SuspendStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1748,7 +1748,7 @@ class TestSuspendStackTask(HastexoTestCase):
         provider.get_stack.side_effect = Exception()
 
         # Run
-        SuspendStackTask().run(**self.kwargs)
+        SuspendStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1771,7 +1771,7 @@ class TestSuspendStackTask(HastexoTestCase):
         provider.suspend_stack.side_effect = SoftTimeLimitExceeded
 
         # Run
-        SuspendStackTask().run(**self.kwargs)
+        SuspendStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1793,7 +1793,7 @@ class TestSuspendStackTask(HastexoTestCase):
         ]
 
         # Run
-        SuspendStackTask().run(**self.kwargs)
+        SuspendStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1824,7 +1824,7 @@ class TestDeleteStackTask(HastexoTestCase):
         ]
 
         # Run
-        DeleteStackTask().run(**self.kwargs)
+        DeleteStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1853,7 +1853,7 @@ class TestDeleteStackTask(HastexoTestCase):
         ]
 
         # Run
-        DeleteStackTask().run(**self.kwargs)
+        DeleteStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1879,7 +1879,7 @@ class TestDeleteStackTask(HastexoTestCase):
         ]
 
         # Run
-        DeleteStackTask().run(**self.kwargs)
+        DeleteStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1911,7 +1911,7 @@ class TestDeleteStackTask(HastexoTestCase):
         ]
 
         # Run
-        DeleteStackTask().run(**self.kwargs)
+        DeleteStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1940,7 +1940,7 @@ class TestDeleteStackTask(HastexoTestCase):
         ]
 
         # Run
-        DeleteStackTask().run(**self.kwargs)
+        DeleteStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -1969,7 +1969,7 @@ class TestDeleteStackTask(HastexoTestCase):
         ]
 
         # Run
-        DeleteStackTask().run(**self.kwargs)
+        DeleteStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -2003,7 +2003,7 @@ class TestDeleteStackTask(HastexoTestCase):
         ]
 
         # Run
-        DeleteStackTask().run(**self.kwargs)
+        DeleteStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -2035,7 +2035,7 @@ class TestDeleteStackTask(HastexoTestCase):
         ]
 
         # Run
-        DeleteStackTask().run(**self.kwargs)
+        DeleteStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -2069,7 +2069,7 @@ class TestDeleteStackTask(HastexoTestCase):
         ]
 
         # Run
-        DeleteStackTask().run(**self.kwargs)
+        DeleteStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -2100,7 +2100,7 @@ class TestDeleteStackTask(HastexoTestCase):
         ]
 
         # Run
-        DeleteStackTask().run(**self.kwargs)
+        DeleteStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -2126,7 +2126,7 @@ class TestDeleteStackTask(HastexoTestCase):
         provider.delete_stack.side_effect = SoftTimeLimitExceeded
 
         # Run
-        DeleteStackTask().run(**self.kwargs)
+        DeleteStackTask.run(**self.kwargs)
 
         # Fetch stack
         stack = self.get_stack()
@@ -2163,7 +2163,7 @@ class TestCheckStudentProgressTask(HastexoTestCase):
         }
 
         # Run
-        res = CheckStudentProgressTask().run(**kwargs)
+        res = CheckStudentProgressTask.run(**kwargs)
 
         # Assertions
         self.assertEqual(res["status"], "CHECK_PROGRESS_COMPLETE")
@@ -2187,7 +2187,7 @@ class TestCheckStudentProgressTask(HastexoTestCase):
         }
 
         # Run
-        res = CheckStudentProgressTask().run(**kwargs)
+        res = CheckStudentProgressTask.run(**kwargs)
 
         # Assertions
         self.assertEqual(res["status"], "CHECK_PROGRESS_COMPLETE")
@@ -2232,7 +2232,7 @@ class TestCheckStudentProgressTask(HastexoTestCase):
         }
 
         # Run
-        res = CheckStudentProgressTask().run(**kwargs)
+        res = CheckStudentProgressTask.run(**kwargs)
 
         # Assertions
         self.assertEqual(res["status"], "CHECK_PROGRESS_COMPLETE")

@@ -1,6 +1,10 @@
 Unreleased
 -------------------------
-
+* [Bug fix] From Celery 5.0.0 the legacy task API was discontinued.
+  This meant that the Task base class no longer automatically registered 
+  child tasks in Open edX Nutmeg (which uses Celery 5.2.6). 
+  Manually register the class-based tasks on the Celery app instance.
+  
 * [BREAKING CHANGE] Update the `hastexo_guacamole_client` to
   Channels 3. The asgi root application (`ASGI_APPLICATION`)
   is now defined in the `asgi.py` file instead of `routing.py` file.
