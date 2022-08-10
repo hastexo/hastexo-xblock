@@ -1,3 +1,10 @@
+Unreleased
+-------------------------
+* [Bug fix] From Celery 5.0.0 the legacy task API was discontinued.
+  This meant that the Task base class no longer automatically registered 
+  child tasks in Open edX Nutmeg (which uses Celery 5.2.6). 
+  Manually register the class-based tasks on the Celery app instance.
+  
 Version 6.2.0 (2022-07-21)
 -------------------------
 

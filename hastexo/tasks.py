@@ -8,10 +8,7 @@ from django.db import connection, transaction
 from django.db.utils import OperationalError
 from django.utils import timezone
 
-try:
-    from celery.task import Task
-except ImportError:  # Celery <4
-    from celery import Task
+from celery import Task
 from celery.utils.log import get_task_logger
 from celery.exceptions import SoftTimeLimitExceeded
 from tenacity import (
@@ -46,6 +43,7 @@ from .common import (
     RemoteExecException,
     RemoteExecTimeout,
 )
+from celery import current_app
 
 logger = get_task_logger(__name__)
 
@@ -132,6 +130,8 @@ class LaunchStackTask(HastexoTask):
     user.
 
     """
+
+    name = "hastexo.tasks.launch_stack_task"
 
     def run(self, **kwargs):
         """
@@ -664,6 +664,9 @@ class SuspendStackTask(HastexoTask):
     Suspends a stack.
 
     """
+
+    name = "hastexo.tasks.suspend_stack_task"
+
     def run(self, **kwargs):
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -743,6 +746,9 @@ class DeleteStackTask(HastexoTask):
     Deletes a stack.
 
     """
+
+    name = "hastexo.tasks.delete_stack_task"
+
     def run(self, **kwargs):
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -861,6 +867,8 @@ class CheckStudentProgressTask(HastexoTask):
 
     """
 
+    name = "hastexo.tasks.check_student_progress_task"
+
     def run(self, **kwargs):
         """
         Run the celery task.
@@ -917,3 +925,10 @@ class CheckStudentProgressTask(HastexoTask):
             'total': len(self.tests),
             'errors': errors
         }
+
+
+LaunchStackTask = current_app.register_task(LaunchStackTask())
+SuspendStackTask = current_app.register_task(SuspendStackTask())
+DeleteStackTask = current_app.register_task(DeleteStackTask())
+CheckStudentProgressTask = current_app.register_task(
+    CheckStudentProgressTask())

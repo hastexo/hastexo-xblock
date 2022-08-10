@@ -1,7 +1,6 @@
 -r base.txt
 
 # These package versions must be kept in sync with edx-platform as much as possible.
-celery>=4.4.7,<5
 xblock-utils==2.2.0
 six==1.16.0
 lazy==1.4
