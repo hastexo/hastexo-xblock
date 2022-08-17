@@ -50,238 +50,100 @@ Course authors can fully define and customize the lab environment. It is only
 limited by the feature set of the cloud's deployment features.
 
 
-## Deployment
-
-### Deployment with [Tutor](https://docs.tutor.overhang.io)
+## Deployment with [Tutor](https://docs.tutor.overhang.io)
 
 Running this XBlock with Tutor (for Open edX Maple and later) requires
 two steps:
 
 1. Install the XBlock to your Tutor environment by adding it to the
-  `OPENEDX_EXTRA_PIP_REQUIREMENTS` list in `config.yml`:
-  ```
-  OPENEDX_EXTRA_PIP_REQUIREMENTS:
-    - "hastexo-xblock>=6"
-  ```
-  For additional information, please refer to the [official documentation](https://docs.tutor.overhang.io/configuration.html?highlight=xblock#installing-extra-xblocks-and-requirements)
+   `OPENEDX_EXTRA_PIP_REQUIREMENTS` list in `config.yml`:
+   ```
+   OPENEDX_EXTRA_PIP_REQUIREMENTS:
+     - "hastexo-xblock>=6"
+   ```
+   For additional information, please refer to the [official
+   documentation](https://docs.tutor.overhang.io/configuration.html#installing-extra-xblocks-and-requirements).
 
 
 2. Install and enable the `tutor-contrib-hastexo` plugin:
-  ```
-  pip install git+https://github.com/hastexo/tutor-contrib-hastexo
-  tutor plugins enable hastexo
-  ```
-  Add the necessary configurations to your `config.yml`. Unless you want
-  to change the default configurations, you'll only need to add the
-  settings for the XBlock via `HASTEXO_XBLOCK_SETTINGS`, for example:
-  ```
-  HASTEXO_XBLOCK_SETTINGS:
-    check_timeout: 120
-    delete_age: 0
-    delete_attempts: 3
-    delete_interval: 3600
-    delete_task_timeout: 900
-    guacamole_js_version: 1.4.0
-    instructions_layout: above
-    js_timeouts:
-      check: 5000
-      idle: 3600000
-      keepalive: 30000
-      status: 15000
-    launch_timeout: 900
-    providers:
-      default:
-        type: openstack
-        os_auth_url: ""
-        os_auth_token: ""
-        os_username: ""
-        os_password: ""
-        os_user_id: ""
-        os_user_domain_id: ""
-        os_user_domain_name: ""
-        os_project_id: ""
-        os_project_name: ""
-        os_project_domain_id: ""
-        os_project_domain_name: ""
-        os_region_name: ""
-      provider2:
-        type: "gcloud"
-        gc_type: "service_account"
-        gc_project_id: ""
-        gc_private_key_id: ""
-        gc_private_key: ""
-        gc_client_email: ""
-        gc_client_id: ""
-        gc_auth_uri: ""
-        gc_token_uri: ""
-        gc_auth_provider_x509_cert_url: ""
-        gc_client_x509_cert_url: ""
-        gc_region_id: ""
-    remote_exec_timeout: 300
-    sleep_timeout: 10
-    suspend_concurrency: 4
-    suspend_interval: 60
-    suspend_task_timeout: 900
-    suspend_timeout: 120
-    terminal_color_scheme: white-black
-    terminal_font_name: monospace
-    terminal_font_size: '10'
-    terminal_url: /hastexo-xblock/
-  ```
-  Before starting Tutor, build the docker image for the `hastexo` service:
-  ```
-  tutor images build hastexo
-  ```
-  For more details about each settings, please refer to the XBlock settings
-  section below.
-  For more information about the plugin configurations, please refer to the
-  plugin README.
-
-### Deployment with edx-configuration playbooks
-
-For Open edX Lilac and earlier, the easiest way for platform
-administrators to deploy the hastexo XBlock and its dependencies to an
-Open edX installation is to pip install it to the `edxapp` virtualenv,
-and then to use the `hastexo_xblock` role included in the
-[hastexo\_xblock
-branch](https://github.com/hastexo/edx-configuration/tree/hastexo/lilac/hastexo_xblock)
-of `edx/configuration`.
-
-To deploy the hastexo XBlock:
-
-1. Install it via pip:
-
-    ```
-    $ sudo /edx/bin/pip.edxapp install "hastexo-xblock<6"
-    ```
-
-    > Do **not** run `pip install` with `--upgrade`, however, as this will
-    > break edx-platform's own dependencies.
-
-2. Collect static assets:
-
-    ```
-    $ sudo /edx/bin/edxapp-update-assets
-    ```
-
-3. Add it to the `ADDL_INSTALLED_APPS` of your LMS environment, by editing
-   `/edx/app/edxapp/lms.env.json` and adding:
-
-    ```
-    "ADDL_INSTALLED_APPS": [
-        "hastexo"
-    ],
-    ```
-
-4. If you're going to use it in a content library, also add it to the
-   `ADVANCED_PROBLEM_TYPES` of your Studio environment, by editing
-   `/edx/app/edxapp/cms.env.json` and adding:
-
-    ```
-    "ADVANCED_PROBLEM_TYPES": [
-        {
-            "boilerplate_name": null,
-            "component": "hastexo"
-        }
-    ],
-    ```
-
-5. This xblock uses a Django model to synchronize stack information across
-   instances.  Migrate the `edxapp` database so the `hastexo_stack` table is
-   created:
-
    ```
-   $ sudo /edx/bin/edxapp-migrate-lms
+   pip install git+https://github.com/hastexo/tutor-contrib-hastexo
+   tutor plugins enable hastexo
    ```
+   Add the necessary configurations to your Tutor `config.yml`. Unless
+   you want to change the default configurations, you'll only need to
+   add the settings for the XBlock via `HASTEXO_XBLOCK_SETTINGS`, for
+   example:
+   ```
+   HASTEXO_XBLOCK_SETTINGS:
+     check_timeout: 120
+     delete_age: 0
+     delete_attempts: 3
+     delete_interval: 3600
+     delete_task_timeout: 900
+     guacamole_js_version: 1.4.0
+     instructions_layout: above
+     js_timeouts:
+       check: 5000
+       idle: 3600000
+       keepalive: 30000
+       status: 15000
+     launch_timeout: 900
+     providers:
+       default:
+         type: openstack
+         os_auth_url: ""
+         os_auth_token: ""
+         os_username: ""
+         os_password: ""
+         os_user_id: ""
+         os_user_domain_id: ""
+         os_user_domain_name: ""
+         os_project_id: ""
+         os_project_name: ""
+         os_project_domain_id: ""
+         os_project_domain_name: ""
+         os_region_name: ""
+       provider2:
+         type: "gcloud"
+         gc_type: "service_account"
+         gc_project_id: ""
+         gc_private_key_id: ""
+         gc_private_key: ""
+         gc_client_email: ""
+         gc_client_id: ""
+         gc_auth_uri: ""
+         gc_token_uri: ""
+         gc_auth_provider_x509_cert_url: ""
+         gc_client_x509_cert_url: ""
+         gc_region_id: ""
+     remote_exec_timeout: 300
+     sleep_timeout: 10
+     suspend_concurrency: 4
+     suspend_interval: 60
+     suspend_task_timeout: 900
+     suspend_timeout: 120
+     terminal_color_scheme: white-black
+     terminal_font_name: monospace
+     terminal_font_size: '10'
+     terminal_url: /hastexo-xblock/
+   ```
+   For more details about each setting, please refer to [the *XBlock
+   settings* section](#xblock-settings) below.
 
-6. Add configuration to `XBLOCK_SETTINGS` on `/edx/app/edxapp/lms.env.json`:
+3. Before deploying services with Tutor, build the Docker image for
+   the `hastexo` service, and also build a custom `openedx` image:
+   ```
+   tutor images build openedx hastexo
+   ```
+   For more information about the plugin configuration, please refer
+   to [the plugin
+   README](https://github.com/hastexo/tutor-contrib-hastexo).
 
-    ```
-    "XBLOCK_SETTINGS": {
-        "hastexo": {
-            "terminal_url": "/hastexo-xblock/",
-            "terminal_color_scheme": "white-black",
-            "terminal_font_name": "monospace",
-            "terminal_font_size": "10",
-            "instructions_layout": "above",
-            "launch_timeout": 900,
-            "remote_exec_timeout": 300,
-            "suspend_timeout": 120,
-            "suspend_interval": 60,
-            "suspend_concurrency": 4,
-            "suspend_task_timeout": 900,
-            "check_timeout": 120,
-            "delete_interval": 86400,
-            "delete_age": 14,
-            "delete_attempts": 3,
-            "delete_task_timeout": 900,
-            "ssh_connect_timeout": 10,
-            "sleep_timeout": 10,
-            "js_timeouts": {
-                "status": 15000,
-                "keepalive": 30000,
-                "idle": 3600000,
-                "check": 5000
-            },
-            "providers": {
-                "default": {
-                    "type": "openstack",
-                    "os_auth_url": "",
-                    "os_auth_token": "",
-                    "os_username": "",
-                    "os_password": "",
-                    "os_user_id": "",
-                    "os_user_domain_id": "",
-                    "os_user_domain_name": "",
-                    "os_project_id": "",
-                    "os_project_name": "",
-                    "os_project_domain_id": "",
-                    "os_project_domain_name": "",
-                    "os_region_name": ""
-                },
-                "provider2": {
-                    "type": "gcloud",
-                    "gc_type": "service_account",
-                    "gc_project_id": "",
-                    "gc_private_key_id": "",
-                    "gc_private_key": "",
-                    "gc_client_email": "",
-                    "gc_client_id": "",
-                    "gc_auth_uri": "",
-                    "gc_token_uri": "",
-                    "gc_auth_provider_x509_cert_url": "",
-                    "gc_client_x509_cert_url": "",
-                    "gc_region_id": ""
-                },
-            }
-        }
-    }
-    ```
-
-7. Now install the Guacamole web app and stack supervisor scripts by cloning
-   the `hastexo_xblock` fork of edx/configuration and assigning that role to
-   the machine:
-
-    ```
-    $ git clone -b hastexo/juniper/hastexo_xblock https://github.com/hastexo/edx-configuration.git
-    $ cd edx-configuration/playbooks
-    $ ansible-playbook -c local -i "localhost," run_role.yml -e role=hastexo_xblock
-    ```
-
-8. At this point restart the LMS, the CMS, and the Celery workers, and
-   also make sure the stack management jobs are running:
-
-    ```
-    sudo /edx/bin/supervisorctl restart lms:
-    sudo /edx/bin/supervisorctl restart cms:
-    sudo /edx/bin/supervisorctl restart edxapp_worker:
-    sudo /edx/bin/supervisorctl start suspender:
-    sudo /edx/bin/supervisorctl start reaper:
-    ```
-
-9. Finally, in your course, go to the advanced settings and add the hastexo
-   module to the "Advanced Module List" like so:
-
+4. After you have deployed Open edX with Tutor, your platform is
+   operational, and you have created a course in Open edX Studio, go
+   to *Settings* → *Advanced Settings* and add the `hastexo` module to
+   *Advanced Module List,* like so:
    ```
    [
     "annotatable",
@@ -289,7 +151,6 @@ To deploy the hastexo XBlock:
     "hastexo"
    ]
    ```
-
 
 ## XBlock settings
 
