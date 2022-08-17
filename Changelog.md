@@ -4,13 +4,14 @@ Unreleased
   This meant that the Task base class no longer automatically registered 
   child tasks in Open edX Nutmeg (which uses Celery 5.2.6). 
   Manually register the class-based tasks on the Celery app instance.
-  
 * [BREAKING CHANGE] Update the `hastexo_guacamole_client` to
   Channels 3. The asgi root application (`ASGI_APPLICATION`)
   is now defined in the `asgi.py` file instead of `routing.py` file.
   The asgi application now also checks for allowed hosts,
   meaning if you want to allow the LMS to connect to labs via the `hastexo_guacamole_client`, the LMS host has to be listed in
   `ALLOWED_HOSTS` at `hastexo_guacamole_client.settings.py`.
+* [Documentation] Remove obsolete deployment instructions for the
+  old “native” (Ansible-based) installation.
 
 Version 6.2.0 (2022-07-21)
 -------------------------
