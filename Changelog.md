@@ -5,7 +5,7 @@ Unreleased
   child tasks in Open edX Nutmeg (which uses Celery 5.2.6). 
   Manually register the class-based tasks on the Celery app instance.
 * [Documentation] Remove obsolete deployment instructions for the
-  old “native” (Ansible-based) installation.
+  old “native” (Ansible-based) installation, and the old Devstack.
 
 Version 6.2.0 (2022-07-21)
 -------------------------
