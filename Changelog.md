@@ -11,7 +11,7 @@ Unreleased
   meaning if you want to allow the LMS to connect to labs via the `hastexo_guacamole_client`, the LMS host has to be listed in
   `ALLOWED_HOSTS` at `hastexo_guacamole_client.settings.py`.
 * [Documentation] Remove obsolete deployment instructions for the
-  old “native” (Ansible-based) installation.
+  old “native” (Ansible-based) installation, and the old Devstack.
 
 Version 6.2.0 (2022-07-21)
 -------------------------

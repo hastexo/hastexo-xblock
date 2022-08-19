@@ -712,33 +712,6 @@ actual stack states in case of failure.  It should not be necessary to do so in
 day-to-day usage of the XBlock.
 
 
-## Usage in devstack
-
-It is possible to use this XBlock in devstack.  To do so, however, requires
-tweaking a few settings.
-
-First, devstacks don't install nginx.  Therefore, the Guacamole app is only
-reachable directly at its configured port.  This means that `terminal_url` in
-the XBlock settings must be set to that port (by default, 8080):
-
-    ```
-    "XBLOCK_SETTINGS": {
-        "hastexo": {
-            "terminal_url": ":8080/hastexo-xblock/"
-        }
-    }
-    ```
-
-Next, open three terminal windows, and run each of the following concurrently:
-
-    ```
-    paver devstack lms --settings=devstack_with_worker
-    ./manage.py lms celery worker --settings=devstack_with_worker -l DEBUG
-    ./manage.py lms --settings=devstack_with_worker suspender
-    ./manage.py lms --settings=devstack_with_worker reaper
-    ```
-
-
 ## Running tests
 
 The testing framework is built on
