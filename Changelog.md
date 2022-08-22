@@ -1,4 +1,4 @@
-Unreleased
+Version 7.0.0 (2022-08-22)
 -------------------------
 * [Bug fix] From Celery 5.0.0 the legacy task API was discontinued.
   This meant that the Task base class no longer automatically registered 
