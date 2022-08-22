@@ -15,16 +15,17 @@ graphical user environments (via VNC and RDP), in addition to terminals (via
 SSH).
 
 
-> **Important changes in version 6**
+> **Important changes in version 7**
 >
-> As of version 6, this XBlock only supports the Open edX versions `Maple`
-> and higher. Starting with the Maple release, the Open edX community has
-> switched the supported deployment method from edx-configuration playbooks
-> to [Tutor](https://docs.tutor.overhang.io) and the same applies
-> for this XBlock.
+> Version 7 of this XBlock is intended to be deployed on Open edX
+> Nutmeg, with [Tutor](https://docs.tutor.overhang.io/) version 14.x
+> and [the `hastexo` Tutor
+> plugin](https://github.com/hastexo/tutor-contrib-hastexo), version
+> 1.x.
 >
-> Instructions for deploying this XBlock with Tutor can be found below,
-> in the Deployment section.
+> Instructions for deploying this XBlock with Tutor can be found
+> below, in the [Deployment with Tutor](#deployment-with-tutor)
+> section.
 
 ## Purpose
 
