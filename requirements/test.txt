@@ -5,7 +5,6 @@ xblock-utils==2.2.0
 six==1.16.0
 lazy==1.4
 django-pyfs==3.1.0
-mako==1.1.5
 sqlparse>=0.4.1,<0.5
 web-fragments==1.1.0
 
