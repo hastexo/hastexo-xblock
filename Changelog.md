@@ -1,3 +1,8 @@
+Unreleased
+----------
+* [Bug fix] Retry `read_from_contentstore()`. Use `tenacity`'s
+  retry functionality for getting course information from contentstore.
+
 Version 7.0.0 (2022-08-22)
 -------------------------
 * [Bug fix] From Celery 5.0.0 the legacy task API was discontinued.

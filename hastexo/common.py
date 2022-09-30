@@ -12,6 +12,14 @@ from paramiko.ssh_exception import (AuthenticationException,
                                     SSHException,
                                     NoValidConnectionsError)
 from django.conf import settings as django_settings
+from pymongo.errors import PyMongoError
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+    before_sleep_log,
+)
 
 from .models import Stack
 
@@ -238,6 +246,15 @@ def get_stack(name, course_id, student_id, prop=None):
         return stack
 
 
+# If PyMongoError is raised here, try again (max attempts = 3)
+# Before every subsequent retry, wait
+# Use before_sleep_log to log attempts
+# Reraise the exception from last attempt
+@retry(retry=retry_if_exception_type(PyMongoError),
+       stop=stop_after_attempt(3),
+       wait=wait_exponential(),
+       before_sleep=before_sleep_log(logger, logging.WARNING),
+       reraise=True)
 def read_from_contentstore(course_key, path):
     """
     Loads a file directly from the course's content store.
