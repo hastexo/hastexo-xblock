@@ -1,5 +1,8 @@
 Unreleased
 -------------------------
+
+* [Bug fix] Retry `read_from_contentstore()`. Use `tenacity`'s
+  retry functionality for getting course information from contentstore.
 * [Bug fix] From Celery 5.0.0 the legacy task API was discontinued.
   This meant that the Task base class no longer automatically registered 
   child tasks in Open edX Nutmeg (which uses Celery 5.2.6). 

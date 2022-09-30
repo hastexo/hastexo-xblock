@@ -3,6 +3,12 @@ import errno
 
 from django.test import TestCase
 from mock import Mock, patch
+from pymongo.errors import (
+    PyMongoError,
+    ConnectionFailure,
+    NetworkTimeout,
+    ServerSelectionTimeoutError,
+)
 from hastexo.common import (
     read_from_contentstore,
     ssh_to,
@@ -70,6 +76,59 @@ class TestHastexoCommon(TestCase):
 
         # Assert
         self.assertEqual(content, "bogus")
+
+    def test_read_from_contentstore_retry_succeed(self):
+        # Setup
+        asset_mock = Mock()
+        asset_mock.data = "bogus"
+        contentstore_mock = Mock()
+        contentstore_mock.return_value.find.side_effect = [
+            ConnectionFailure,
+            NetworkTimeout,
+            asset_mock
+        ]
+        django_mock = Mock()
+        django_mock.contentstore = contentstore_mock
+
+        # Run
+        with patch.dict('sys.modules', **{
+            'xmodule': Mock(),
+            'xmodule.contentstore': Mock(),
+            'xmodule.contentstore.django': django_mock,
+            'xmodule.contentstore.content': Mock(),
+            'opaque_keys': Mock(),
+            'opaque_keys.edx': Mock(),
+            'opaque_keys.edx.locator': Mock(),
+        }):
+            content = read_from_contentstore("course_id", "path")
+
+        # Assert
+        self.assertEqual(content, "bogus")
+        self.assertEqual(contentstore_mock.return_value.find.call_count, 3)
+
+    def test_read_from_contentstore_retry_fail(self):
+        # Setup
+        contentstore_mock = Mock()
+        contentstore_mock.return_value.find.side_effect = [
+            ConnectionFailure,
+            NetworkTimeout,
+            ServerSelectionTimeoutError,
+        ]
+        django_mock = Mock()
+        django_mock.contentstore = contentstore_mock
+
+        # Run
+        with patch.dict('sys.modules', **{
+            'xmodule': Mock(),
+            'xmodule.contentstore': Mock(),
+            'xmodule.contentstore.django': django_mock,
+            'xmodule.contentstore.content': Mock(),
+            'opaque_keys': Mock(),
+            'opaque_keys.edx': Mock(),
+            'opaque_keys.edx.locator': Mock(),
+        }):
+            with self.assertRaises(PyMongoError):
+                read_from_contentstore("course_id", "path")
 
     def test_read_from_contentstore_no_xmodule(self):
         content = read_from_contentstore("course_id", "path")
