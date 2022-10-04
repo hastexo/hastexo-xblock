@@ -1,4 +1,4 @@
-Unreleased
+Version 7.0.1 (2022-10-04)
 ----------
 * [Bug fix] Retry `read_from_contentstore()`. Use `tenacity`'s
   retry functionality for getting course information from contentstore.
