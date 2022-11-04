@@ -4,10 +4,25 @@ Admin registration for hastexo Xblock models
 from django import forms
 from django.contrib import admin
 
-from .common import DELETE_COMPLETE, VALID_STATES, get_xblock_settings
-from .models import Stack
+from .common import (
+    DELETE_COMPLETE,
+    SUSPEND_COMPLETE,
+    VALID_STATES,
+    get_xblock_settings
+)
+from .models import Stack, StackLog
 
 
+@admin.action(description="Mark selected stacks as SUSPEND_COMPLETE")
+def mark_suspended(modeladmin, request, queryset):
+    """
+    Mark selected stacks as successfully suspended.
+
+    """
+    queryset.update(status=SUSPEND_COMPLETE)
+
+
+@admin.action(description="Mark selected stacks as DELETE_COMPLETE")
 def mark_deleted(modeladmin, request, queryset):
     """
     Mark selected stacks as deleted, and reset the provider.
@@ -16,7 +31,13 @@ def mark_deleted(modeladmin, request, queryset):
     queryset.update(status=DELETE_COMPLETE, provider="")
 
 
-mark_deleted.short_description = "Mark selected stacks as DELETE_COMPLETE"
+@admin.action(description="Clear stacklog for selected stacks")
+def clear_stacklog(self, request, queryset):
+    logs = StackLog.objects.filter(stack_id__in=queryset.values('id'))
+    logs.delete()
+    self.message_user(
+        request,
+        f'Stacklog cleared for {queryset.count()} stacks!')
 
 
 def student_email(stack):
@@ -85,7 +106,7 @@ class StackAdmin(admin.ModelAdmin):
     list_filter = ("course_id", "status", "provider",)
     list_editable = ("status", "provider")
     list_select_related = True
-    actions = (mark_deleted,)
+    actions = [mark_suspended, mark_deleted, clear_stacklog]
     search_fields = ("name", "course_id", "status", "provider")
     readonly_fields = ("name", student_email, "course_id", "run", "protocol",
                        "port", "ip", "launch_timestamp", "suspend_timestamp",

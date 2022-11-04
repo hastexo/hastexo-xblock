@@ -1,3 +1,14 @@
+Unreleased
+-------------------------
+* [Enhancement] Add custom actions to the admin interface to
+  - clear the stacklog for selected stack(s),
+  - set status to `SUSPEND_COMPLETE` for selected stack(s).
+  Clearing the stacklog will be particulary useful in cases
+  we need to "reset" a lab usage timer, since the
+  time is accumulated by the stacklog entries.
+  Setting a status to `SUSPEND_COMPLETE` is a common fix for
+  stacks that end up in unexpected states.
+
 Version 7.0.1 (2022-10-04)
 ----------
 * [Bug fix] Retry `read_from_contentstore()`. Use `tenacity`'s

@@ -21,7 +21,7 @@ try:
 except RuntimeError:
     from student.models import AnonymousUserId
 from hastexo.admin import StackAdmin
-from hastexo.models import Stack
+from hastexo.models import Stack, StackLog
 
 
 class TestHastexoStackAdmin(TestCase):
@@ -123,3 +123,47 @@ class TestHastexoStackAdmin(TestCase):
         url = reverse('admin:hastexo_stack_change', args=(self.stack.id,))
         response = self.client.get(url)
         self.assertContains(response, self.email)
+
+    def test_mark_suspended(self):
+        data = {
+            'action': 'mark_suspended', '_selected_action': [self.stack.id, ]}
+        url = reverse('admin:hastexo_stack_changelist')
+        response = self.client.post(url, data, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        stack = Stack.objects.get(pk=self.stack.id)
+        self.assertEqual(stack.status, "SUSPEND_COMPLETE")
+        self.assertNotEqual(stack.provider, "")
+
+    def test_mark_deleted(self):
+        data = {
+            'action': 'mark_deleted', '_selected_action': [self.stack.id, ]}
+        url = reverse('admin:hastexo_stack_changelist')
+        response = self.client.post(url, data, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        stack = Stack.objects.get(pk=self.stack.id)
+        self.assertEqual(stack.status, "DELETE_COMPLETE")
+        self.assertEqual(stack.provider, "")
+
+    def test_clear_stacklog(self):
+        stack = Stack.objects.get(pk=self.stack.id)
+        stack.status = 'CREATE_IN_PROGRESS'
+        stack.save(update_fields=["status"])
+        stack.status = 'CREATE_COMPLETE'
+        stack.save(update_fields=["status"])
+        stack.status = 'SUSPEND_PENDING'
+        stack.save(update_fields=["status"])
+        stack.status = 'SUSPEND_COMPLETE'
+        stack.save(update_fields=["status"])
+        logs = StackLog.objects.filter(stack_id=self.stack.id)
+        self.assertEquals(logs.count(), 4)
+
+        data = {
+            'action': 'clear_stacklog', '_selected_action': [self.stack.id, ]}
+        url = reverse('admin:hastexo_stack_changelist')
+        response = self.client.post(url, data, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        logs = StackLog.objects.filter(stack_id=self.stack.id)
+        self.assertEquals(logs.count(), 0)
