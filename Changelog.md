@@ -1,8 +1,9 @@
-Unreleased
+Version 7.1.0 (2022-11-07)
 -------------------------
 * [Enhancement] Add custom actions to the admin interface to
   - clear the stacklog for selected stack(s),
   - set status to `SUSPEND_COMPLETE` for selected stack(s).
+  
   Clearing the stacklog will be particulary useful in cases
   we need to "reset" a lab usage timer, since the
   time is accumulated by the stacklog entries.
