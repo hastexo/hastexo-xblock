@@ -101,13 +101,14 @@ class StackAdmin(admin.ModelAdmin):
 
     """
     form = StackAdminForm
-    list_display = ("name", "course_id", "status", "provider",
+    list_display = ("name", "course_id", student_email, "status", "provider",
                     "launch_timestamp",)
     list_filter = ("course_id", "status", "provider",)
     list_editable = ("status", "provider")
     list_select_related = True
     actions = [mark_suspended, mark_deleted, clear_stacklog]
-    search_fields = ("name", "course_id", "status", "provider")
+    search_fields = (
+        "name", "course_id", "learner__email", "status", "provider")
     readonly_fields = ("name", student_email, "course_id", "run", "protocol",
                        "port", "ip", "launch_timestamp", "suspend_timestamp",
                        "suspend_by", "created_on", "error_msg", "delete_age",)

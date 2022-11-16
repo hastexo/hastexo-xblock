@@ -1,3 +1,8 @@
+Unreleased
+-------------------------
+* [Enhancement] Add learner email to stacklist view in the
+  admin page and include it in searchable fields.
+
 Version 7.1.0 (2022-11-07)
 -------------------------
 * [Enhancement] Add custom actions to the admin interface to
