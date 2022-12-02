@@ -186,6 +186,27 @@ DEFAULT_SETTINGS = {
     "lab_usage_limit_breach_policy": None
 }
 
+SUPPORTED_LANGUAGES = [
+    'en',  # English
+    'de-de',  # Deutsch (Deutschland), German (Germany)
+    'el',  # Ελληνικά, Greek
+    'es-419',  # Español (Latinoamérica), Spanish (Latin America)
+    'et-ee',  # Eesti (Eesti), Estonian (Estonia)
+    'hi',  # हिन्दी, Hindi
+]
+
+
+def _(string):
+    """
+    Dummy `gettext` replacement to make string extraction tools
+    scrape strings marked for translation.
+    Translations will actually be loaded via the translation service
+    in the XBlock runtime, but we also need to extract strings from
+    files that cannot access the service.
+    For example, some user-facing error or warning messages.
+    """
+    return string
+
 
 class RemoteExecException(Exception):
     pass

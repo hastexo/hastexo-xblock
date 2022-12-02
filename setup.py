@@ -74,6 +74,8 @@ setup(
                               ["static",
                                "public",
                                "management",
-                               "migrations"]),
+                               "migrations",
+                               "translations",
+                               "locale"]),
     setup_requires=['setuptools-scm<6'],
 )

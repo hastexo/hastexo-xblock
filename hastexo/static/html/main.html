@@ -1,3 +1,5 @@
+{% load i18n %}
+
 {{child_content|safe}}
 <div class="hastexblock"><!-- Don't use underscores in this div's class, as doing so breaks the dialog overlay. -->
   <div id="container">
@@ -10,14 +12,14 @@
   </div>
   <div class="dialog" id="launch_pending">
     <div class="inner">
-      <h1><span>Please wait</span><span class="loader"></span></h1>
-      <p class="message">We're preparing your lab environment.</p>
-      <p class="message">(Don't panic!  It may take a few minutes.)</p>
+      <h1><span>{% trans "Please wait" %}</span><span class="loader"></span></h1>
+      <p class="message">{% trans "We're preparing your lab environment." %}</p>
+      <p class="message">{% trans "Don't panic!  It may take a few minutes." %}</p>
     </div>
   </div>
   <div class="dialog" id="launch_error">
     <div class="inner">
-      <h1 class="header">Sorry!</h1>
+      <h1 class="header">{% trans "Sorry!" %}</h1>
       <p class="message"></p>
       <p class="error_msg"></p>
       <p class="buttons">
@@ -28,15 +30,15 @@
   </div>
   <div class="dialog" id="check_pending">
     <div class="inner">
-      <h1><span>Please wait</span><span class="loader"></span></h1>
-      <p class="message">Working</p>
+      <h1><span>{% trans "Please wait" %}</span><span class="loader"></span></h1>
+      <p class="message">{% trans "Working" %}</p>
     </div>
   </div>
   <div class="dialog" id="check_complete">
     <div class="inner">
-      <h1 class="check_result_heading">Progress check result</h1>
-      <p class="check_result_message">You completed <strong class="check_pass">0</strong> out of <strong class="check_total">0</strong> tasks.</p>
-      <h2 class="hints_title">Hints</h2>
+      <h1 class="check_result_heading">{% trans "Progress check result" %}</h1>
+      <p class="check_result_message"></p>
+      <h2 class="hints_title">{% trans "Hints" %}</h2>
       <ul class="hints"></ul>
       <p class="buttons">
         <input type="button" class="ok" value="Ok" />
@@ -45,8 +47,8 @@
   </div>
   <div class="dialog" id="check_error">
     <div class="inner">
-      <h1>Sorry!</h1>
-      <p class="message">There was a problem checking your progress:</p>
+      <h1>{% trans "Sorry!" %}</h1>
+      <p class="message">{% trans "There was a problem checking your progress:" %}</p>
       <p class="error_msg"></p>
       <p class="buttons">
         <input type="button" class="ok" value="Ok" />
@@ -56,9 +58,9 @@
   </div>
   <div class="dialog" id="idle">
     <div class="inner">
-      <h1>We think you're busy elsewhere.</h1>
-      <p class="message">You've been inactive here for a while, so we paused your lab environment.</p>
-      <p>Click <strong>Ok</strong> to resume it.</p>
+      <h1>{% trans "We think you're busy elsewhere." %}</h1>
+      <p class="message">{% trans "You've been inactive here for a while, so we paused your lab environment." %}</p>
+      <p>{% trans "Click 'OK' to resume it." %}</p>
       <p class="buttons">
         <input type="button" class="ok" value="Ok" />
       </p>
@@ -66,17 +68,17 @@
   </div>
   <div class="dialog" id="reset_dialog">
     <div class="inner">
-      <h1>Are you sure?</h1>
-      <p class="message">Resetting will return your lab environment to
-	a pristine state.<br/>
-	This may take several minutes to
-	complete.
-	<span class="exam-warning">In a timed exam, the timer will
-	  continue to run while your environment is being
-	  reset.</span><br/>
-	After you reset, you will need to retrace your steps up to
-	this point.<br/>
-	You cannot undo this action.</p>
+      <h1>{% trans "Are you sure?" %}</h1>
+      <p class="message">
+        {% trans "Resetting will return your lab environment to a pristine state." %}
+        <br/>
+        {% trans "This may take several minutes to complete." %}"
+        <span class="exam-warning">
+        {% trans "In a timed exam, the timer will continue to run while your environment is being reset." %}</span>
+        <br/>
+        {% trans "After you reset, you will need to retrace your steps up to this point." %}
+        <br/>
+        {% trans "You cannot undo this action." %}</p>
       <p class="buttons">
         <input type="button" class="reset" value="Reset" />
         <input type="button" class="cancel" value="Cancel" />

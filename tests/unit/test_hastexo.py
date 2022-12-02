@@ -1633,3 +1633,17 @@ class TestHastexoXBlock(TestCase):
         export_fs.remove('hastexo/fake_lab_1.xml')
         export_fs.remove('hastexo/fake_lab_2.xml')
         export_fs.removedir('hastexo')
+
+    def test_get_text_js_return_path(self):
+        with patch('django.utils.translation.get_language',
+                   return_value='es-419'):
+            text_js = self.block._get_text_js_url()
+            self.assertEqual(
+                'public/js/translations/es-419/text.js', text_js)
+
+    def test_get_text_js_return_none(self):
+        with patch('django.utils.translation.get_language',
+                   return_value='ar'):
+            # ar is not in our SUPPORTED_LANGUAGES list
+            text_js = self.block._get_text_js_url()
+            self.assertIsNone(text_js)

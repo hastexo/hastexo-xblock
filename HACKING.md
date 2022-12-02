@@ -87,3 +87,31 @@ and add it to the `/hastexo/public/js/guacamole-common-js/` directory, prependin
 to the `all.min.js` file name, separated by a hyphen ("-").
 
 The desired guacamole version can then be selected via the `guacamole_js_version` setting.
+
+How to add translations
+-----------------------
+
+Install the [openedx i18n tools](https://github.com/openedx/i18n-tools) to your venv:
+`pip install edx-i18n-tools`
+
+Add translations for a new language:
+ * Create the directories for the new language to the `/locale/` directory following the pattern: `<lang>/LC_MESSAGES`, where `<lang>` is one of the locales listed in `hastexo/locale/config.yaml`.
+ * Copy the generated `django-partial.po` file to from `hastexo/locale/en/LC_MESSAGES/` to your language's `LC_MESSAGES` folder and name it `text.po`.
+ * Edit the `text.po` file to add the translations.
+ * Generate the machine readable `text.mo` file by running `i18n_tool generate` command in the `hastexo` directory.
+ * The js translations `text.js` file can be generated in a local devstack
+    - Make sure have the translation files in the `/locale/` folder and you've built the openedx image
+    - inside your LMS container then run: `./manage.py lms compilejsi18n -p hastexo -d text -l <lang> -o <output_path>`
+    - copy the content of the generated file from within the LMS container to `hastexo/public/js/translations/<lang>/text.js`, where `<lang>` is one of the supported languages listed in `hastexo/common.py`. (Note the difference of `-` vs `_` compared to the list in `hastexo/locale/config.yaml`)
+ * Move your language directory with all it's contents from `hastexo/locale/` to the `hastexo/translations/` directory to make it discoverable for the LMS.
+
+Update existing translations:
+ * Run `i18n_tool extract` command in the `hastexo` directory.
+ * Move all strings to one file and drop the js file:
+    `tail -n +20 locale/en/LC_MESSAGES/djangojs-partial.po >> locale/en/LC_MESSAGES/django-partial.po`
+    `rm locale/en/LC_MESSAGES/djangojs-partial.po`
+ * Temporarily move your language directory (`<lang>/LC_MESSAGES`) with the translation files to `hastexo/locale`.
+ * Compare the changes in the updated `django-partial.po` file to the `text.po` file for your selected language and make changes as needed.
+ * Regenerate the `text.mo` file for the the updated `text.po` file by running `i18n_tool generate`
+ * Repeat the steps from "Add translations for a new language" section above to regenerate the `text.js` file (if necessary).
+ * Move your language directory with all it's contents from `hastexo/locale/` back to the `hastexo/translations/` directory to make it discoverable for the LMS.

@@ -15,6 +15,7 @@ from hastexo.common import (
     remote_exec,
     RemoteExecException,
     RemoteExecTimeout,
+    _
 )
 
 from socket import timeout as SocketTimeout
@@ -301,3 +302,8 @@ class TestHastexoCommon(TestCase):
             remote_exec(ssh_mock, "script")
 
         sftp_mock.remove.assert_called()
+
+    def test__(self):
+        test_string = 'string to be translated'
+        string = _(test_string)
+        self.assertEqual(test_string, string)

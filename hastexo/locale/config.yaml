@@ -1,0 +1,15 @@
+# Configuration for i18n workflow.
+
+locales:
+    - en  # English - Source Language
+    - de_DE  # German
+    - el  # Greek
+    - es_419  # Spanish (Latin America)
+    - et_EE  # Estonian (Estonia)
+    - hi  # Hindi
+
+# Directories we don't search for strings.
+ignore_dirs:
+    - 'management'
+    - 'migrations'
+    - 'public/js/translations'

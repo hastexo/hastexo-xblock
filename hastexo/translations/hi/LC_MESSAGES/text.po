@@ -1,0 +1,153 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2022-12-19 12:08+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: hastexo.py:889
+msgid "Timeout when launching stack."
+msgstr "स्टैक लॉन्च करते समय टाइमआउट।"
+
+#: hastexo.py:1015
+msgid "Unexpected result: "
+msgstr "अनपेक्षित परिणाम:"
+
+#: hastexo.py:1044
+msgid "Timeout when checking progress."
+msgstr "प्रगति की जाँच करते समय समयबाह्य।"
+
+#: static/html/main.html:15 static/html/main.html:33
+msgid "Please wait"
+msgstr "कृपया प्रतीक्षा करें"
+
+#: static/html/main.html:16
+msgid "We're preparing your lab environment."
+msgstr "हम आपका प्रयोगशाला वातावरण तैयार कर रहे हैं।"
+
+#: static/html/main.html:17
+msgid "Don't panic!  It may take a few minutes."
+msgstr "घबड़ाएं नहीं! इसमें कुछ मिनट लग सकते हैं।"
+
+#: static/html/main.html:22 static/html/main.html:50
+msgid "Sorry!"
+msgstr "माफ़ करना!"
+
+#: static/html/main.html:34
+msgid "Working"
+msgstr "कार्यरत"
+
+#: static/html/main.html:39
+msgid "Progress check result"
+msgstr "प्रगति जांच परिणाम"
+
+#: static/html/main.html:41
+msgid "Hints"
+msgstr "संकेत"
+
+#: static/html/main.html:51
+msgid "There was a problem checking your progress:"
+msgstr "आपकी प्रगति की जाँच करने में समस्या हुई:"
+
+#: static/html/main.html:61
+msgid "We think you're busy elsewhere."
+msgstr "हमें लगता है कि आप कहीं और व्यस्त हैं।"
+
+#: static/html/main.html:62
+msgid ""
+"You've been inactive here for a while, so we paused your lab environment."
+msgstr "आप यहां कुछ समय से निष्क्रिय हैं, इसलिए हमने आपके प्रयोगशाला परिवेश को रोक दिया है।"
+
+#: static/html/main.html:63
+msgid "Click 'OK' to resume it."
+msgstr "इसे फिर से शुरू करने के लिए 'ओके' पर क्लिक करें।"
+
+#: static/html/main.html:71
+msgid "Are you sure?"
+msgstr "क्या आपको यकीन है?"
+
+#: static/html/main.html:73
+msgid "Resetting will return your lab environment to a pristine state."
+msgstr "रीसेट करने से आपका लैब वातावरण एक पुरानी स्थिति में वापस आ जाएगा।"
+
+#: static/html/main.html:75
+msgid "This may take several minutes to complete."
+msgstr "इसे पूरा होने में कई मिनट लग सकते हैं।"
+
+#: static/html/main.html:77
+msgid ""
+"In a timed exam, the timer will continue to run while your environment is "
+"being reset."
+msgstr "एक समयबद्ध परीक्षा में, टाइमर तब तक चलता रहेगा जब तक कि आपका वातावरण "
+"रीसेट किया जा रहा है।"
+
+#: static/html/main.html:79
+msgid "After you reset, you will need to retrace your steps up to this point."
+msgstr "आपके द्वारा रीसेट करने के बाद, आपको इस बिंदु तक अपने कदमों को पुनः प्राप्त करने की आवश्यकता होगी।"
+
+#: static/html/main.html:81
+msgid "You cannot undo this action."
+msgstr "आप इस क्रिया को पूर्ववत नहीं कर सकते।"
+
+#: tasks.py:194
+msgid "You've reached the time limit allocated to you for using labs."
+msgstr "आप प्रयोगशालाओं का उपयोग करने के लिए आपको आवंटित समय सीमा तक पहुँच चुके हैं।"
+
+#: public/js/main.js:69 public/js/main.js:441
+msgid "Could not connect to your lab environment:"
+msgstr "आपके लैब परिवेश से कनेक्ट नहीं हो सका:"
+
+#: public/js/main.js:261
+msgid ""
+"Could not connect to your lab environment. The client detected an unexpected "
+"error. The server's error message was:"
+msgstr "सर्वर का त्रुटि संदेश था:"
+
+#: public/js/main.js:273
+msgid "Lost connection to your lab environment."
+msgstr "आपके प्रयोगशाला वातावरण से संबंध टूट गया।"
+
+#: public/js/main.js:275
+msgid ""
+"The remote server unexpectedly disconnected. You can try closing your "
+"browser window, and returning to this page in a few minutes."
+msgstr ""
+"दूरस्थ सर्वर अनपेक्षित रूप से डिस्कनेक्ट हो गया. आप अपनी  "
+"ब्राउज़र विंडो' को बंद करने और कुछ ही मिनटों में इस पृष्ठ पर लौटने का प्रयास कर सकते हैं।"
+
+#: public/js/main.js:424
+msgid "Attention!"
+msgstr "ध्यान!"
+
+#: public/js/main.js:485
+msgid "Your lab environment is undergoing maintenance"
+msgstr "आपके प्रयोगशाला वातावरण का रखरखाव किया जा रहा है"
+
+#: public/js/main.js:487
+msgid ""
+"Your lab environment is undergoing automatic maintenance. Please try again "
+"in a few minutes."
+msgstr ""
+"आपका प्रयोगशाला वातावरण स्वचालित रखरखाव के दौर से गुजर रहा है। कृपया पुन: प्रयास करें "
+"कुछ मिनटों में।"
+
+#: public/js/main.js:504
+msgid "There was a problem preparing your lab environment:"
+msgstr "आपकी प्रयोगशाला के वातावरण को तैयार करने में कोई समस्या थी:"
+
+#: public/js/main.js:566
+msgid "You completed {passed} out of {total} tasks."
+msgstr "आपने {passed} कार्यों में से {total} कर लिए हैं।"

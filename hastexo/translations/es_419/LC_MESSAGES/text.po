@@ -1,0 +1,147 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2022-11-28 12:57+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: es-419\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
+
+#: hastexo.py:889
+msgid "Timeout when launching stack."
+msgstr "Tiempo de espera al iniciar la pila."
+
+#: hastexo.py:1015
+msgid "Unexpected result: "
+msgstr "Resultado inesperado: "
+
+#: hastexo.py:1044
+msgid "Timeout when checking progress."
+msgstr "Tiempo de espera al comprobar el progreso."
+
+#: static/html/main.html:15 static/html/main.html:33
+msgid "Please wait"
+msgstr "Por favor espere"
+
+#: static/html/main.html:16
+msgid "We're preparing your lab environment."
+msgstr "Estamos preparando su entorno de laboratorio"
+
+#: static/html/main.html:17
+msgid "Don't panic!  It may take a few minutes."
+msgstr "¡No entrar en pánico! Puede tomar unos minutos."
+
+#: static/html/main.html:22 static/html/main.html:51
+msgid "Sorry!"
+msgstr "¡Lo siento!"
+
+#: static/html/main.html:34
+msgid "Working"
+msgstr "Trabajando"
+
+#: static/html/main.html:39
+msgid "Progress check result"
+msgstr "Resultado de la comprobación de progreso"
+
+#: static/html/main.html:41
+msgid "Hints"
+msgstr "Consejos"
+
+#: static/html/main.html:51
+msgid "There was a problem checking your progress:"
+msgstr "Hubo un problema al verificar tu progreso:"
+
+#: static/html/main.html:61
+msgid "We think you're busy elsewhere."
+msgstr "Creemos que estás ocupado en otra parte."
+
+#: static/html/main.html:62
+msgid "You've been inactive here for a while, so we paused your lab environment."
+msgstr "Ha estado inactivo aquí durante un tiempo, por lo que detuvimos su entorno de laboratorio."
+
+#: static/html/main.html:63
+msgid "Click 'OK' to resume it."
+msgstr "Haga clic en 'OK' para reanudarlo."
+
+#: static/html/main.html:71
+msgid "Are you sure?"
+msgstr "¿Estás seguro?"
+
+#: static/html/main.html:73
+msgid "Resetting will return your lab environment to a pristine state."
+msgstr "El reinicio devolverá el entorno de su laboratorio a un estado impecable."
+
+#: static/html/main.html:75
+msgid "This may take several minutes to complete."
+msgstr "Esto puede tardar varios minutos en completarse."
+
+#: static/html/main.html:77
+msgid ""
+"In a timed exam, the timer will continue to run while your environment is "
+"being reset."
+msgstr "En un examen cronometrado, el cronómetro seguirá funcionando mientras se restablece su entorno."
+
+#: static/html/main.html:79
+msgid "After you reset, you will need to retrace your steps up to this point."
+msgstr "Después de reiniciar, deberá volver sobre sus pasos hasta este punto."
+
+#: static/html/main.html:81
+msgid "You cannot undo this action."
+msgstr "No puede deshacer esta acción."
+
+#: tasks.py:194
+msgid "You've reached the time limit allocated to you for using labs."
+msgstr "Ha alcanzado el límite de tiempo que se le ha asignado para usar los laboratorios."
+
+#: public/js/main.js:69 public/js/main.js:441
+msgid "Could not connect to your lab environment:"
+msgstr "No se pudo conectar a su entorno de laboratorio:"
+
+#: public/js/main.js:261
+msgid ""
+"Could not connect to your lab environment. The client detected an unexpected "
+"error. The server's error message was:"
+msgstr "No se pudo conectar a su entorno de laboratorio. El cliente detectó un error inesperado. El mensaje de error del servidor fue:"
+
+#: public/js/main.js:273
+msgid "Lost connection to your lab environment."
+msgstr "Pérdida de conexión con su entorno de laboratorio."
+
+#: public/js/main.js:275
+msgid ""
+"The remote server unexpectedly disconnected. You can try closing your "
+"browser window, and returning to this page in a few minutes."
+msgstr "El servidor remoto se desconectó inesperadamente. Puede intentar cerrar la ventana de su navegador y regresar a esta página en unos minutos."
+
+#: public/js/main.js:424
+msgid "Attention!"
+msgstr "¡Atención!"
+
+#: public/js/main.js:485
+msgid "Your lab environment is undergoing maintenance"
+msgstr "Su entorno de laboratorio está en mantenimiento"
+
+#: public/js/main.js:487
+msgid ""
+"Your lab environment is undergoing automatic maintenance. Please try again "
+"in a few minutes."
+msgstr "Su entorno de laboratorio está en mantenimiento automático. Vuelve a intentarlo en unos minutos."
+
+#: public/js/main.js:504
+msgid "There was a problem preparing your lab environment:"
+msgstr "Hubo un problema al preparar su entorno de laboratorio:"
+
+#: public/js/main.js:566
+msgid "You completed {passed} out of {total} tasks."
+msgstr "Has completado {passed} de {total} tareas."

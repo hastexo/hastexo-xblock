@@ -12,6 +12,17 @@ function HastexoXBlock(runtime, element, configuration) {
     var terminal_element = undefined;
     var terminal_connected = false;
     var dialog_container = undefined;
+    var gettext = undefined;
+
+    if ('HastexoI18N' in window) {
+        gettext = function(string) {
+            return window.HastexoI18N.gettext(string);
+        };
+
+    } else {
+        // No translations
+        gettext = function(string) { return string; };
+    }
 
     var init = function() {
 
@@ -55,7 +66,7 @@ function HastexoXBlock(runtime, element, configuration) {
                 } catch (e) {
                     /* Connection error.  Display error message. */
                     var dialog = $('#launch_error');
-                    dialog.find('.message').html('Could not connect to your lab environment:');
+                    dialog.find('.message').html(gettext('Could not connect to your lab environment:'));
                     dialog.find('.error_msg').html(e);
                     dialog.find('input.ok').one('click', function() {
                         $.dialog.close();
@@ -246,10 +257,10 @@ function HastexoXBlock(runtime, element, configuration) {
             terminal_client.disconnect();
 
             var dialog = $('#launch_error');
-            var dialog_message =
+            var dialog_message = gettext(
                 "Could not connect to your lab environment. " +
                 "The client detected an unexpected error. " +
-                "The server's error message was:";
+                "The server's error message was:");
             var error_message = guac_error.message;
             /* Special-case the unhelpful "Aborted. See logs"
                 * message, indicating that although we did have a
@@ -259,11 +270,11 @@ function HastexoXBlock(runtime, element, configuration) {
                 * just pass through the error received from
                 * upstream. */
             if (guac_error.message.toLowerCase().startsWith('aborted')) {
-                dialog_message = "Lost connection to your lab environment."
-                error_message =
+                dialog_message = gettext("Lost connection to your lab environment.");
+                error_message = gettext(
                     "The remote server unexpectedly disconnected. " +
                     "You can try closing your browser window, " +
-                    "and returning to this page in a few minutes.";
+                    "and returning to this page in a few minutes.");
             }
             dialog.find('.message').html(dialog_message);
             dialog.find('.error_msg').html(error_message);
@@ -410,8 +421,8 @@ function HastexoXBlock(runtime, element, configuration) {
         if (stack.status == 'CREATE_COMPLETE' || stack.status == 'RESUME_COMPLETE') {
             if (stack.error_msg && stack.error_msg.includes("You've reached the time limit")) {
                 var dialog = $('#launch_error');
-                dialog.find('.header').html('Attention!');
-                dialog.find('.message').html(stack.error_msg);
+                dialog.find('.header').html(gettext('Attention!'));
+                dialog.find('.message').html(gettext(stack.error_msg));
                 dialog.find('.error_msg').hide()
                 dialog.find('input.retry').hide()
                 dialog.find('input.ok').one('click', function() {
@@ -427,7 +438,7 @@ function HastexoXBlock(runtime, element, configuration) {
                 if (keepalive_timer) clearTimeout(keepalive_timer);
                 if (idle_timer) clearTimeout(idle_timer);
                 var dialog = $('#launch_error');
-                dialog.find('.message').html('Could not connect to your lab environment:');
+                dialog.find('.message').html(gettext('Could not connect to your lab environment:'));
                 dialog.find('.error_msg').html(e);
                 dialog.find('input.ok').one('click', function() {
                     $.dialog.close();
@@ -471,10 +482,10 @@ function HastexoXBlock(runtime, element, configuration) {
             if (keepalive_timer) clearTimeout(keepalive_timer);
             if (idle_timer) clearTimeout(idle_timer);
             var dialog = $('#launch_error');
-            var dialog_msg = "Your lab environment is undergoing maintenance";
-            var error_msg =
+            var dialog_msg = gettext("Your lab environment is undergoing maintenance");
+            var error_msg = gettext(
                 "Your lab environment is undergoing automatic maintenance. " +
-                "Please try again in a few minutes.";
+                "Please try again in a few minutes.");
             dialog.find('.message').html(dialog_msg);
             dialog.find('.error_msg').html(error_msg);
             dialog.find('input.ok').one('click', function() {
@@ -490,7 +501,7 @@ function HastexoXBlock(runtime, element, configuration) {
             if (keepalive_timer) clearTimeout(keepalive_timer);
             if (idle_timer) clearTimeout(idle_timer);
             var dialog = $('#launch_error');
-            dialog.find('.message').html('There was a problem preparing your lab environment:');
+            dialog.find('.message').html(gettext('There was a problem preparing your lab environment:'));
             dialog.find('.error_msg').html(stack.error_msg);
             dialog.find('input.ok').one('click', function() {
                 $.dialog.close();
@@ -550,10 +561,13 @@ function HastexoXBlock(runtime, element, configuration) {
             if (changed) {
                 var dialog;
                 if (check.status == 'CHECK_PROGRESS_COMPLETE') {
+                    var result_message = gettext(
+                        // {passed} and {total} are to be replaced, do not translate.
+                        "You completed {passed} out of {total} tasks.");
+                    result_message = result_message.replace('{passed}', data.pass.toString()).replace('{total}', data.total.toString());
                     dialog = $('#check_complete');
-                    dialog.find('.check_result_heading').html(configuration.progress_check_result_heading);
-                    dialog.find('.check_pass').html(data.pass);
-                    dialog.find('.check_total').html(data.total);
+                    dialog.find('.check_result_heading').html(gettext(configuration.progress_check_result_heading));
+                    dialog.find('.check_result_message').html(result_message);
                     dialog.find('input.ok').one('click', function() {
                         $.dialog.close();
                     });

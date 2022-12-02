@@ -42,6 +42,7 @@ from .common import (
     remote_exec,
     RemoteExecException,
     RemoteExecTimeout,
+    _
 )
 from celery import current_app
 
@@ -189,7 +190,7 @@ class LaunchStackTask(HastexoTask):
                         "for using labs.")
 
                 elif policy == 'warn':
-                    policy_warn_message = (
+                    policy_warn_message = _(
                         "You've reached the time limit allocated to you "
                         "for using labs.")
 

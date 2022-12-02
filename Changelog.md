@@ -1,3 +1,7 @@
+Unreleased
+-------------------------
+* [Enhancement] Add internationalization support.
+
 Version 7.2.0 (2022-11-17)
 -------------------------
 * [Enhancement] Add learner email to stacklist view in the

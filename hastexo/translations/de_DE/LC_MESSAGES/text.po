@@ -1,0 +1,147 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2022-11-28 12:57+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
+
+#: hastexo.py:889
+msgid "Timeout when launching stack."
+msgstr "Zeitüberschreitung beim Starten des Stacks."
+
+#: hastexo.py:1015
+msgid "Unexpected result: "
+msgstr "Unerwartetes Ergebnis: "
+
+#: hastexo.py:1044
+msgid "Timeout when checking progress."
+msgstr "Zeitüberschreitung bei der Fortschrittsprüfung."
+
+#: static/html/main.html:15 static/html/main.html:33
+msgid "Please wait"
+msgstr "Bitte warten"
+
+#: static/html/main.html:16
+msgid "We're preparing your lab environment."
+msgstr "Übungsumgebung wird vorbereitet."
+
+#: static/html/main.html:17
+msgid "Don't panic!  It may take a few minutes."
+msgstr "Keine Panik! Es dauert ein paar Minuten."
+
+#: static/html/main.html:22 static/html/main.html:51
+msgid "Sorry!"
+msgstr "Entschuldigung!"
+
+#: static/html/main.html:34
+msgid "Working"
+msgstr "Bearbeitung"
+
+#: static/html/main.html:39
+msgid "Progress check result"
+msgstr "Ergebnis der Fortschrittsprüfung"
+
+#: static/html/main.html:41
+msgid "Hints"
+msgstr "Anmerkungen"
+
+#: static/html/main.html:51
+msgid "There was a problem checking your progress:"
+msgstr "Es gab ein Problem bei der Fortschrittsprüfung:"
+
+#: static/html/main.html:61
+msgid "We think you're busy elsewhere."
+msgstr "Mit etwas anderem beschäftigt?"
+
+#: static/html/main.html:62
+msgid "You've been inactive here for a while, so we paused your lab environment."
+msgstr "Die Übungsumgebung wurde pausiert."
+
+#: static/html/main.html:63
+msgid "Click 'OK' to resume it."
+msgstr "Mit Klick auf 'OK' kann sie wieder aktiviert werden."
+
+#: static/html/main.html:71
+msgid "Are you sure?"
+msgstr "Sicher?"
+
+#: static/html/main.html:73
+msgid "Resetting will return your lab environment to a pristine state."
+msgstr "Das Zurücksetzen stellt den Urzustand der Übungsumgebung wieder her."
+
+#: static/html/main.html:75
+msgid "This may take several minutes to complete."
+msgstr "Dies wird einige Minuten dauern."
+
+#: static/html/main.html:77
+msgid ""
+"In a timed exam, the timer will continue to run while your environment is "
+"being reset."
+msgstr "In einer zeitlich beschränkten Prüfung läuft die Zeit während des Zurücksetzens weiter."
+
+#: static/html/main.html:79
+msgid "After you reset, you will need to retrace your steps up to this point."
+msgstr "Nach dem Zurücksetzen müssen alle Arbeitsschritte bis hierher wiederholt werden."
+
+#: static/html/main.html:81
+msgid "You cannot undo this action."
+msgstr "Dieser Vorgang lässt sich nicht rückgängig machen."
+
+#: tasks.py:194
+msgid "You've reached the time limit allocated to you for using labs."
+msgstr "Die Zeitbeschränkung für die Nutzung der Übungsumgebung wurde überschritten."
+
+#: public/js/main.js:69 public/js/main.js:441
+msgid "Could not connect to your lab environment:"
+msgstr "Kann keine Verbindung zur Übungsumgebung herstellen:"
+
+#: public/js/main.js:261
+msgid ""
+"Could not connect to your lab environment. The client detected an unexpected "
+"error. The server's error message was:"
+msgstr "Kann keine Verbindung zur Übungsumgebung herstellen. Ein unerwarteter Fehler ist aufgetreten. Die Fehlermeldung des Servers lautet:"
+
+#: public/js/main.js:273
+msgid "Lost connection to your lab environment."
+msgstr "Verbindung zur Übungsumgebung verloren."
+
+#: public/js/main.js:275
+msgid ""
+"The remote server unexpectedly disconnected. You can try closing your "
+"browser window, and returning to this page in a few minutes."
+msgstr "Der Server hat unerwartet die Verbindung abgebrochen. Möglicherweise lässt sich die Verbindung durch Schließen und (nach einigen Minuten) Wiederöffnen des Browserfensters wieder herstellen."
+
+#: public/js/main.js:424
+msgid "Attention!"
+msgstr "Achtung!"
+
+#: public/js/main.js:485
+msgid "Your lab environment is undergoing maintenance"
+msgstr "Ihre Übungsumgebung wird gerade gewartet"
+
+#: public/js/main.js:487
+msgid ""
+"Your lab environment is undergoing automatic maintenance. Please try again "
+"in a few minutes."
+msgstr "Ihr Übungsumgebung befindet sich im Wartungszustand. Sie steht in ein paar Minuten wieder zur Verfügung."
+
+#: public/js/main.js:504
+msgid "There was a problem preparing your lab environment:"
+msgstr "Bei der Herstellung der Übungsumgebung ist ein Problem aufgetreten:"
+
+#: public/js/main.js:566
+msgid "You completed {passed} out of {total} tasks."
+msgstr "{passed} von insgesamt {total} Aufgaben wurden korrekt erfüllt."

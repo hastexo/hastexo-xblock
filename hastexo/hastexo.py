@@ -1,6 +1,7 @@
 import time
 import logging
 import os
+import pkg_resources
 import re
 import string
 import textwrap
@@ -19,7 +20,7 @@ from xblockutils.settings import XBlockWithSettingsMixin
 
 from distutils.util import strtobool
 from django.db import transaction
-from django.utils import timezone
+from django.utils import timezone, translation
 from lxml import etree
 
 from common.djangoapps.student.models import AnonymousUserId
@@ -34,7 +35,9 @@ from .common import (
     SETTINGS_KEY,
     get_xblock_settings,
     get_stack,
-    update_stack
+    update_stack,
+    SUPPORTED_LANGUAGES,
+    _
 )
 from .tasks import LaunchStackTask, CheckStudentProgressTask
 
@@ -52,6 +55,7 @@ class LaunchError(Exception):
 
 
 @XBlock.wants('settings')
+@XBlock.needs('i18n')
 class HastexoXBlock(XBlock,
                     XBlockWithSettingsMixin,
                     ScorableXBlockMixin,
@@ -551,6 +555,21 @@ class HastexoXBlock(XBlock,
 
         return stack_name
 
+    @staticmethod
+    def _get_text_js_url():
+        """
+        Returns the Javascript translation file
+        for the currently selected language, if supported.
+        """
+        lang_code = translation.get_language()
+        if lang_code and lang_code in SUPPORTED_LANGUAGES:
+            text_js = f'public/js/translations/{lang_code}/text.js'
+            if pkg_resources.resource_exists(loader.module_name, text_js):
+                return text_js
+        logger.warning(
+            "Javascript translation file missing or language is not supported")
+        return None
+
     def student_view(self, context=None):
         """
         The primary view of the HastexoXBlock, shown to students when viewing
@@ -576,8 +595,11 @@ class HastexoXBlock(XBlock,
             child_content += child_fragment.content
 
         # Render the main template
+        i18n_service = self.runtime.service(self, "i18n")
+
         frag.add_content(loader.render_django_template(
-            "static/html/main.html", {"child_content": child_content}
+            "static/html/main.html", {"child_content": child_content},
+            i18n_service=i18n_service
         ))
 
         # Add the public CSS and JS
@@ -590,6 +612,11 @@ class HastexoXBlock(XBlock,
         frag.add_javascript_url(
             self.runtime.local_resource_url(self, 'public/js/main.js')
         )
+        text_js_url = self._get_text_js_url()
+        if text_js_url:
+            frag.add_javascript_url(
+                self.runtime.local_resource_url(self, text_js_url)
+            )
         guac_js_version = settings.get("guacamole_js_version", "1.4.0")
         frag.add_javascript_url(
             self.runtime.local_resource_url(
@@ -859,7 +886,7 @@ class HastexoXBlock(XBlock,
                                  "after %s seconds" % (self.stack_name,
                                                        time_since_launch))
                     stack.status = LAUNCH_ERROR
-                    stack.error_msg = "Timeout when launching stack."
+                    stack.error_msg = _("Timeout when launching stack.")
         elif stack.status in PENDING_STATES:
             # The stack is otherwise pending.  Report and let the user retry
             # manually.
@@ -985,7 +1012,7 @@ class HastexoXBlock(XBlock,
                 else:
                     status = {
                         'status': 'ERROR',
-                        'error_msg': 'Unexpected result: %s' % repr(result.result)  # noqa: E501
+                        'error_msg': _('Unexpected result: ') + repr(result.result)  # noqa: E501
                     }
             else:
                 status = {'status': 'CHECK_PROGRESS_PENDING'}
@@ -1012,8 +1039,9 @@ class HastexoXBlock(XBlock,
                                  'after %s seconds' % (self.stack_name,
                                                        time_since_check))
                     self.check_id = ""
-                    status = {'status': 'ERROR',
-                              'error_msg': "Timeout when checking progress."}
+                    status = {
+                        'status': 'ERROR',
+                        'error_msg': _("Timeout when checking progress.")}
 
         # Otherwise, launch the check task.
         else:
