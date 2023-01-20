@@ -25,7 +25,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        pip install tox tox-gh-actions tox-pip-version
+        pip install "tox<4" tox-gh-actions tox-pip-version
     - env:
         TOX_PIP_VERSION: ${{ matrix.pip-version }}
       name: Test with tox (pip ${{ matrix.pip-version }})
