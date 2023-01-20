@@ -17,7 +17,7 @@ from common.djangoapps.student.models import AnonymousUserId
 from fs.osfs import OSFS
 from lxml import etree
 from markdown_xblock import MarkdownXBlock
-from mock import Mock, patch, DEFAULT
+from unittest.mock import Mock, patch, DEFAULT
 from webob import Request
 from django.contrib.auth.models import User
 from django.test import TestCase

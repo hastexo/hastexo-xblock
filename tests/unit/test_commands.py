@@ -4,7 +4,7 @@ from django.test import TestCase
 try:
     from unittest.mock import patch
 except ImportError:
-    from mock import patch
+    from unittest.mock import patch
 
 
 class SuspenderTestCase(TestCase):

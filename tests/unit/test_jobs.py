@@ -1,4 +1,4 @@
-from mock import patch
+from unittest.mock import patch
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone

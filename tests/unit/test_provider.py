@@ -3,7 +3,7 @@ import yaml
 import base64
 
 from unittest import TestCase
-from mock import Mock, patch, call
+from unittest.mock import Mock, patch, call
 from heatclient import exc as heat_exc
 from keystoneauth1.exceptions import http as keystone_exc
 from novaclient import exceptions as nova_exc

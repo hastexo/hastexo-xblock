@@ -17,5 +17,4 @@ path.py>=12.4
 # Tooling
 ddt
 nose
-mock
 coverage

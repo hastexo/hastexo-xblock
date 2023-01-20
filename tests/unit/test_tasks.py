@@ -2,7 +2,7 @@ import copy
 import socket
 
 from unittest import TestCase
-from mock import Mock, patch
+from unittest.mock import Mock, patch
 
 from hastexo.models import Stack
 from hastexo.provider import ProviderException
