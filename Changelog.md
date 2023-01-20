@@ -1,4 +1,4 @@
-Unreleased
+Version 7.3.0 (2023-01-20)
 -------------------------
 * [Enhancement] Add internationalization support.
 
