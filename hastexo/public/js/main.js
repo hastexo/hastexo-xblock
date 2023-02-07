@@ -243,10 +243,29 @@ function HastexoXBlock(runtime, element, configuration) {
         /* Handle paste events when the element is in focus. */
         $(document).on('paste', function(e) {
             var text = e.originalEvent.clipboardData.getData('text/plain');
+
             if ($(terminal_element).is(":focus")) {
-                terminal_client.setClipboard(text);
+                var stream = terminal_client.createClipboardStream('text/plain');
+                var writer = new Guacamole.StringWriter(stream);
+                writer.sendText(text);
+                writer.sendEnd();
             }
         });
+
+        /* Handle copy events from within the terminal. */
+        terminal_client.onclipboard = function(stream, mimetype) {
+            var reader = new Guacamole.StringReader(stream);
+
+            reader.ontext = function(text) {
+                try {
+                    navigator.clipboard.writeText(text);
+                } catch (error) {
+                    // Write failed.
+                    console.warn("Failed to write to clipboard");
+                    throw error;
+                }
+            }
+        }
 
         /* Error handling. */
         terminal_client.onerror = function(guac_error) {

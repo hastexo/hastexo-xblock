@@ -660,6 +660,43 @@ stack is resumed automatically.  They are connected to the same training
 environment they were working with before, in the *same state* they left it in.
 (The process of suspension works just like in a home computer.)
 
+### Copy & paste
+
+Within the text terminal, learners can use copy and paste by marking
+up text with the left mouse button, and then using right-click or
+middle-click to paste.
+
+Within the graphical (RDP) terminal, so long as the terminal has focus
+(normally meaning that the learner has left-clicked into it once),
+learners can use any copy and paste facility that the desktop
+provides. This includes the `Ctrl‑C`/`Ctrl‑V` key combinations, and
+middle mouse clicks.
+
+Copy & paste to and from the lab environment (i.e. from the terminal
+to the learner's browser, or vice versa) is also possible, though some
+considerations apply.
+
+Pasting _into_ the lab environment requires two transitions, because
+we are dealing with two clipboards (one for the browser and one for
+the lab environment). Thus, the learner must
+
+1. Copy something into their clipboard on their client.
+2. Left-click into the terminal.
+3. Hit `Ctrl‑V`. (This is the first transition, which populates the
+   terminal's clipboard.)
+4. Right-click, middle-click, or type `Ctrl‑Shift‑V` in the
+   terminal. (This is the second transition, which pastes from the
+   terminal's clipboard.)
+
+Copying _out_ from the lab environment is more direct, though at this
+time it works only on Mozilla Firefox (support in other browsers may
+follow). To copy from their terminal into their local clipboard, the
+learner must
+
+1. Mark up some text in their terminal.
+2. Switch to another application window on their client.
+3. Hit `Ctrl‑V`.
+
 
 ## Django admin page
 

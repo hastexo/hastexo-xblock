@@ -1,3 +1,12 @@
+Unreleased
+-------------------------
+* [Bug fix] Restore the `paste` functionality by addressing
+  the related changes in the `guacamole-js` library.
+* [Enhancement] Add support for copying text out from
+  the terminal using the Async Clipboard API.
+  This works on Mozilla Firefox at this time. Support
+  in other browsers may follow.
+
 Version 7.3.0 (2023-01-20)
 -------------------------
 * [Enhancement] Add internationalization support.
