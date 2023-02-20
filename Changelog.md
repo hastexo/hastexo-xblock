@@ -1,4 +1,4 @@
-Unreleased
+Version 7.4.0 (2023-02-20)
 -------------------------
 * [Bug fix] Restore the `paste` functionality by addressing
   the related changes in the `guacamole-js` library.
