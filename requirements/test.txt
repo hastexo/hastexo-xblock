@@ -1,12 +1,12 @@
 -r base.txt
 
 # These package versions must be kept in sync with edx-platform as much as possible.
-xblock-utils==2.2.0
+xblock-utils<=3.0.0
 six==1.16.0
-lazy==1.4
+lazy<=1.5
 django-pyfs==3.1.0
 sqlparse>=0.4.1,<0.5
-web-fragments==1.1.0
+web-fragments<=2.0.0
 
 # Other XBlocks that are supported as nested elements
 markdown-xblock

@@ -1,3 +1,7 @@
+Unreleased
+-------------------------
+* [Enhancement] Update requirements for Open edX Olive release.
+
 Version 7.4.0 (2023-02-20)
 -------------------------
 * [Bug fix] Restore the `paste` functionality by addressing
