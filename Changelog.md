@@ -1,4 +1,4 @@
-Unreleased
+Version 7.5.0 (2023-03-14)
 -------------------------
 * [Enhancement] Update requirements for Open edX Olive release.
 
