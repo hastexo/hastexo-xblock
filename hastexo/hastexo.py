@@ -617,7 +617,7 @@ class HastexoXBlock(XBlock,
             frag.add_javascript_url(
                 self.runtime.local_resource_url(self, text_js_url)
             )
-        guac_js_version = settings.get("guacamole_js_version", "1.4.0")
+        guac_js_version = settings.get("guacamole_js_version", "1.5.2")
         frag.add_javascript_url(
             self.runtime.local_resource_url(
                 self,

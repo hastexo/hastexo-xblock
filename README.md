@@ -82,7 +82,7 @@ two steps:
      delete_attempts: 3
      delete_interval: 3600
      delete_task_timeout: 900
-     guacamole_js_version: 1.4.0
+     guacamole_js_version: 1.5.2
      instructions_layout: above
      js_timeouts:
        check: 5000

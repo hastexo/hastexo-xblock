@@ -1,3 +1,8 @@
+Unreleased
+-------------------------
+* [Enhancement] Add support for Apache Guacamole 1.5.2;
+  make it the new default version.
+
 Version 7.5.0 (2023-03-14)
 -------------------------
 * [Enhancement] Update requirements for Open edX Olive release.
