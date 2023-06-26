@@ -1,4 +1,4 @@
-Unreleased
+Version 7.6.0 (2023-06-26)
 -------------------------
 * [Enhancement] Add support for Apache Guacamole 1.5.2;
   make it the new default version.
