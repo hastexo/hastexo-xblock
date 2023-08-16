@@ -495,7 +495,8 @@ class TestHastexoXBlock(TestCase):
             get_xblock_settings(),
             {"stack_id": stack.id,
              "reset": False,
-             "learner_id": stack.learner.id}
+             "learner_id": stack.learner.id,
+             "stack_key_type": None}
         )
         self.assertEqual(response["status"], "LAUNCH_PENDING")
 

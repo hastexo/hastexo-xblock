@@ -105,6 +105,14 @@ class HastexoXBlock(XBlock,
         help="Timeout for how long to wait before suspending a stack, after "
              "the last keepalive was received from the browser, in seconds. "
              "Takes precedence over the globally defined timeout.")
+    stack_key_type = String(
+        values=["rsa", "ed25519", None],
+        default=None,
+        scope=Scope.settings,
+        help="Key type for generating an SSH key for accessing the lab. "
+             "If set to None, the key handling should be done via the lab "
+             "template."
+    )
     hook_script = String(
         scope=Scope.settings,
         help="The relative path to an uploaded executable script. "
@@ -225,6 +233,7 @@ class HastexoXBlock(XBlock,
         'hook_events',
         'stack_user_name',
         'stack_protocol',
+        'stack_key_type',
         'launch_timeout',
         'suspend_timeout',
         'delete_age',
@@ -798,7 +807,8 @@ class HastexoXBlock(XBlock,
             result = self.launch_stack_task(settings, {
                 "stack_id": stack.id,
                 "reset": reset,
-                "learner_id": stack.learner.id
+                "learner_id": stack.learner.id,
+                "stack_key_type": self.stack_key_type
             })
 
             # Update stack

@@ -107,7 +107,7 @@ class NovaWrapper(OpenStackWrapper):
     def __init__(self, **options):
         self.service_type = 'compute'
         self.endpoint_type = 'publicURL'
-        self.api_version = '2.0'
+        self.api_version = '2.2'
 
         super(NovaWrapper, self).__init__(**options)
 

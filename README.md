@@ -482,6 +482,11 @@ The following are optional:
 * `stack_template_path`: The static asset path to the orchestration template,
   if not specified per provider below.
 
+* `stack_key_type`: An SSH key type for accessing the lab environment.
+  Options are `rsa`, `ed25519` and `None` (default). If a key type is chosen,
+  a key with the selected type will be generated for the lab environment.
+  If set to `None`, the key handling should be done via the lab template.
+
 * `launch_timeout`: How long to wait for a stack to be launched, in seconds.
   If unset, the global timeout will be used.
 

@@ -8,6 +8,7 @@ import six
 
 from io import StringIO
 from socket import timeout as SocketTimeout
+from paramiko import RSAKey, Ed25519Key
 from paramiko.ssh_exception import (AuthenticationException,
                                     SSHException,
                                     NoValidConnectionsError)
@@ -302,7 +303,13 @@ def read_from_contentstore(course_key, path):
 def ssh_to(user, ip, key):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    pkey = paramiko.RSAKey.from_private_key(StringIO(key))
+
+    pkey = None
+    for key_type in (RSAKey, Ed25519Key):
+        try:
+            pkey = key_type.from_private_key(StringIO(key))
+        except SSHException:
+            pass
 
     settings = get_xblock_settings()
     sleep_timeout = settings.get("sleep_timeout", 10)

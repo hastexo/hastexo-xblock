@@ -139,23 +139,24 @@ class TestHastexoCommon(TestCase):
         # Setup
         ssh_mock = Mock()
         self.mocks["paramiko"].SSHClient.return_value = ssh_mock
-        self.mocks["paramiko"].RSAKey.from_private_key.return_value = "pkey"
 
-        # Run
-        ssh = ssh_to("user", "ip", u"key")
+        with patch("paramiko.RSAKey.from_private_key") as get_key:
+            get_key.return_value = "pkey"
 
-        # Assert
-        self.assertEqual(ssh, ssh_mock)
-        ssh_mock.connect.assert_called_with("ip",
-                                            username="user",
-                                            pkey="pkey",
-                                            timeout=10)
+            # Run
+            ssh = ssh_to("user", "ip", u"key")
+
+            # Assert
+            self.assertEqual(ssh, ssh_mock)
+            ssh_mock.connect.assert_called_with("ip",
+                                                username="user",
+                                                pkey="pkey",
+                                                timeout=10)
 
     def test_ssh_to_retries(self):
         # Setup
         ssh_mock = Mock()
         self.mocks["paramiko"].SSHClient.return_value = ssh_mock
-        self.mocks["paramiko"].RSAKey.from_private_key.return_value = "pkey"
         ssh_mock.connect.side_effect = [
             SocketTimeout,
             EOFError(""),
@@ -174,7 +175,6 @@ class TestHastexoCommon(TestCase):
         # Setup
         ssh_mock = Mock()
         self.mocks["paramiko"].SSHClient.return_value = ssh_mock
-        self.mocks["paramiko"].RSAKey.from_private_key.return_value = "pkey"
         ssh_mock.connect.side_effect = [
             EnvironmentError(errno, ""),
             True,
@@ -191,7 +191,6 @@ class TestHastexoCommon(TestCase):
         # Setup
         ssh_mock = Mock()
         self.mocks["paramiko"].SSHClient.return_value = ssh_mock
-        self.mocks["paramiko"].RSAKey.from_private_key.return_value = "pkey"
         ssh_mock.connect.side_effect = EnvironmentError(errno.ENOTSOCK, "")
 
         # Run
@@ -202,7 +201,6 @@ class TestHastexoCommon(TestCase):
         # Setup
         ssh_mock = Mock()
         self.mocks["paramiko"].SSHClient.return_value = ssh_mock
-        self.mocks["paramiko"].RSAKey.from_private_key.return_value = "pkey"
         ssh_mock.connect.side_effect = Exception("")
 
         # Run

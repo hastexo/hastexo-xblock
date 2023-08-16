@@ -457,8 +457,11 @@ class LaunchStackTask(HastexoTask):
                     self.sleep()
 
                     logger.info("Creating stack [%s]." % self.stack_name)
-                    provider_stack = provider.create_stack(self.stack_name,
-                                                           self.stack_run)
+                    provider_stack = provider.create_stack(
+                        self.stack_name,
+                        self.stack_run,
+                        key_type=self.stack_key_type)
+
             except ProviderException as e:
                 error_msg = ("Error creating stack [%s]: %s" %
                              (self.stack_name, e))
@@ -494,7 +497,7 @@ class LaunchStackTask(HastexoTask):
             # Launch completed successfully.  Wait for provisioning, collect
             # its IP address, and save the private key.
             try:
-                check_data = self.check_stack(provider_stack["outputs"],
+                check_data = self.check_stack(provider_stack,
                                               was_resumed, provider)
             except SoftTimeLimitExceeded:
                 if was_resumed:
@@ -587,7 +590,7 @@ class LaunchStackTask(HastexoTask):
                 if conn:
                     conn.close()
 
-    def check_stack(self, stack_outputs, was_resumed, provider):
+    def check_stack(self, provider_stack, was_resumed, provider):
         """
         Fetch stack outputs, check that the stack has a public IP address, a
         private key, and is network accessible after rebooting any servers.
@@ -602,9 +605,13 @@ class LaunchStackTask(HastexoTask):
         logger.debug("Verifying stack [%s] " % self.stack_name)
 
         # Get stack outputs
-        stack_ip = stack_outputs.get("public_ip")
-        stack_key = stack_outputs.get("private_key")
-        stack_password = stack_outputs.get("password")
+        stack_ip = provider_stack["outputs"].get("public_ip")
+        stack_password = provider_stack["outputs"].get("password")
+
+        # Get stack key; if no key was generated separately,
+        # fetch the key from stack outputs.
+        stack_key = provider_stack.get("private_key") or \
+            provider_stack["outputs"].get("private_key")
 
         if stack_ip is None or not stack_key:
             if was_resumed:

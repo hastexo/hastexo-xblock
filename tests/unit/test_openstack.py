@@ -120,7 +120,7 @@ class TestNovaWrapper(TestOpenStackWrapper):
         wrapper = NovaWrapper(**self.credentials)
         self.assertEqual(wrapper.service_type, 'compute')
         self.assertEqual(wrapper.endpoint_type, 'publicURL')
-        self.assertEqual(wrapper.api_version, '2.0')
+        self.assertEqual(wrapper.api_version, '2.2')
 
     def test_get_client(self):
         wrapper = NovaWrapper(**self.credentials)

@@ -7,6 +7,7 @@ import paramiko
 import random
 import string
 import yaml
+from cryptography.hazmat.primitives import serialization, asymmetric
 
 try:
     from io import StringIO
@@ -15,7 +16,7 @@ except ImportError:
 
 from heatclient.exc import HTTPException, HTTPNotFound
 from keystoneauth1.exceptions.http import HttpError
-from novaclient.exceptions import ClientException
+from novaclient.exceptions import ClientException, NotFound
 from googleapiclient.errors import Error as GcloudApiError
 from googleapiclient.errors import HttpError as GcloudApiHttpError
 
@@ -123,19 +124,36 @@ class Provider(object):
     def sleep(self):
         time.sleep(self.sleep_seconds)
 
-    def generate_key_pair(self, encodeb64=False):
+    def generate_key_pair(self, encodeb64=False, key_type="rsa"):
         keypair = {}
-        pkey = paramiko.RSAKey.generate(1024)
-        keypair["public_key"] = pkey.get_base64()
-        s = StringIO()
-        pkey.write_private_key(s)
-        k = s.getvalue()
-        s.close()
+
+        if key_type == "ed25519":
+            # use cryptography to generate Ed25519Key until paramiko adds
+            # support for the key generation as well.
+            ed25519key = asymmetric.ed25519.Ed25519PrivateKey.generate()
+
+            public_key = ed25519key.public_key().public_bytes(
+                encoding=serialization.Encoding.OpenSSH,
+                format=serialization.PublicFormat.OpenSSH).decode()
+            keypair["public_key"] = public_key
+
+            private_key = ed25519key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.OpenSSH,
+                encryption_algorithm=serialization.NoEncryption()).decode()
+
+        else:
+            pkey = paramiko.RSAKey.generate(4096)
+            keypair["public_key"] = f'{pkey.get_name()} {pkey.get_base64()}'
+            s = StringIO()
+            pkey.write_private_key(s)
+            private_key = s.getvalue()
+            s.close()
 
         if encodeb64:
-            k = base64.b64encode(b(k))
+            private_key = base64.b64encode(b(private_key))
 
-        keypair["private_key"] = k
+        keypair["private_key"] = private_key
 
         return keypair
 
@@ -241,10 +259,22 @@ class OpenstackProvider(Provider):
         return {"status": status,
                 "outputs": outputs}
 
-    def create_stack(self, name, run):
+    def create_stack(self, name, run, key_type=None):
         if not self.template:
             raise ProviderException("Template not set for provider %s." %
                                     self.name)
+        keypair = {}
+        if key_type:
+            keypair = self.generate_key_pair(key_type=key_type)
+            try:
+                self.nova_c.keypairs.create(
+                    name=name,
+                    public_key=keypair["public_key"],
+                    key_type='ssh'
+                )
+                self.logger.info("Created a key with type [%s]" % key_type)
+            except ClientException as e:
+                raise ProviderException(e)
 
         try:
             self.logger.info('Creating OpenStack Heat stack [%s]' % name)
@@ -286,8 +316,12 @@ class OpenstackProvider(Provider):
         if FAILED in status:
             raise ProviderException("Failure creating OpenStack Heat stack.")
 
-        return {"status": status,
-                "outputs": self._get_stack_outputs(heat_stack)}
+        res = {"status": status,
+               "outputs": self._get_stack_outputs(heat_stack)}
+        if keypair:
+            res["private_key"] = keypair["private_key"]
+
+        return res
 
     def resume_stack(self, name):
         try:
@@ -370,6 +404,10 @@ class OpenstackProvider(Provider):
         try:
             self.logger.info("Deleting OpenStack Heat stack [%s]" % name)
             self.heat_c.stacks.delete(stack_id=name)
+            self.nova_c.keypairs.delete(name)
+        except NotFound:
+            self.logger.info(
+                "Keypair not found for deletion for stack [%s]" % name)
         except (HTTPException, HttpError) as e:
             raise ProviderException(e)
 

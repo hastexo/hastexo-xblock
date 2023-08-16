@@ -169,6 +169,24 @@ class TestOpenstackProvider(TestCase):
         self.assertNotEqual(provider.heat_c, None)
         self.assertNotEqual(provider.nova_c, None)
 
+    def test_generate_ssh_keys(self):
+        provider = Provider.init(self.provider_name)
+
+        # ed25519 key
+        keypair = provider.generate_key_pair(key_type='ed25519')
+        self.assertNotEqual(keypair['private_key'], None)
+        self.assertIn('ssh-ed25519', keypair['public_key'])
+
+        # rsa key
+        keypair = provider.generate_key_pair(key_type='rsa')
+        self.assertNotEqual(keypair['private_key'], None)
+        self.assertIn('ssh-rsa', keypair['public_key'])
+
+        # by default will generate rsa key
+        keypair = provider.generate_key_pair()
+        self.assertNotEqual(keypair['private_key'], None)
+        self.assertIn('ssh-rsa', keypair['public_key'])
+
     def test_no_provider_type_defaults_to_openstack(self):
         # Setup
         self.settings["providers"][self.provider_name].pop("type")
@@ -299,7 +317,67 @@ class TestOpenstackProvider(TestCase):
     def test_create_stack_with_no_template_fails(self):
         with self.assertRaises(ProviderException):
             provider = Provider.init(self.provider_name)
-            provider.create_stack(self.stack_name, self.stack_run)
+            provider.create_stack(
+                self.stack_name, self.stack_run, key_type=None)
+
+    @ddt.data('rsa', 'ed25519')
+    def test_create_stack_generate_keys(self, key_type):
+        heat = self.get_heat_client_mock()
+        nova = self.get_nova_client_mock()
+
+        heat.stacks.create.side_effect = [
+            {"stack": {"id": self.stack_name}}
+        ]
+        heat.stacks.get.side_effect = [
+            self.stacks["CREATE_IN_PROGRESS"],
+            self.stacks["CREATE_IN_PROGRESS"],
+            self.stacks["CREATE_COMPLETE"]
+        ]
+
+        provider = Provider.init(self.provider_name)
+        keypair = provider.generate_key_pair(key_type=key_type)
+
+        with patch('hastexo.provider.Provider.generate_key_pair') \
+                as generate_mock:
+
+            generate_mock.return_value = keypair
+
+            provider.set_template(self.stack_template)
+            provider.set_environment(self.stack_environment)
+            stack = provider.create_stack(
+                self.stack_name, self.stack_run, key_type=key_type)
+
+            # Assertions
+            self.assertIsInstance(stack, dict)
+            self.assertEqual(keypair['private_key'], stack['private_key'])
+            self.assertEqual("CREATE_COMPLETE", stack["status"])
+
+            nova.keypairs.create.assert_called_with(
+                name=self.stack_name,
+                public_key=keypair["public_key"],
+                key_type='ssh'
+            )
+            heat.stacks.create.assert_called_with(
+                stack_name=self.stack_name,
+                template=self.stack_template,
+                environment=self.stack_environment,
+                parameters={"run": self.stack_run}
+            )
+
+    def test_create_stack_generate_keys_exception(self):
+        nova = self.get_nova_client_mock()
+
+        nova.keypairs.create.side_effect = [
+            nova_exc.ClientException("")
+        ]
+
+        with self.assertRaises(ProviderException):
+            provider = Provider.init(self.provider_name)
+            provider.set_template(self.stack_template)
+            provider.set_environment(self.stack_environment)
+            provider.create_stack(self.stack_name,
+                                  self.stack_run,
+                                  key_type='ed25519')
 
     def test_create_stack_success(self):
         # Setup
@@ -317,7 +395,8 @@ class TestOpenstackProvider(TestCase):
         provider = Provider.init(self.provider_name)
         provider.set_template(self.stack_template)
         provider.set_environment(self.stack_environment)
-        stack = provider.create_stack(self.stack_name, self.stack_run)
+        stack = provider.create_stack(
+            self.stack_name, self.stack_run, key_type=None)
 
         # Assertions
         self.assertIsInstance(stack, dict)
@@ -349,7 +428,8 @@ class TestOpenstackProvider(TestCase):
         with self.assertRaises(ProviderException):
             provider = Provider.init(self.provider_name)
             provider.set_template(self.stack_template)
-            provider.create_stack(self.stack_name, self.stack_run)
+            provider.create_stack(
+                self.stack_name, self.stack_run, key_type=None)
 
     @ddt.data(*HEAT_EXCEPTIONS)
     def test_create_stack_exception_on_get(self, heat_exception):
@@ -367,7 +447,8 @@ class TestOpenstackProvider(TestCase):
         with self.assertRaises(ProviderException):
             provider = Provider.init(self.provider_name)
             provider.set_template(self.stack_template)
-            provider.create_stack(self.stack_name, self.stack_run)
+            provider.create_stack(
+                self.stack_name, self.stack_run, key_type=None)
 
     def test_create_stack_not_found_on_get(self):
         # Setup
@@ -384,7 +465,8 @@ class TestOpenstackProvider(TestCase):
         with self.assertRaises(ProviderException):
             provider = Provider.init(self.provider_name)
             provider.set_template(self.stack_template)
-            provider.create_stack(self.stack_name, self.stack_run)
+            provider.create_stack(
+                self.stack_name, self.stack_run, key_type=None)
 
     def test_create_stack_failure(self):
         # Setup
@@ -400,7 +482,8 @@ class TestOpenstackProvider(TestCase):
         with self.assertRaises(ProviderException):
             provider = Provider.init(self.provider_name)
             provider.set_template(self.stack_template)
-            provider.create_stack(self.stack_name, self.stack_run)
+            provider.create_stack(
+                self.stack_name, self.stack_run, key_type=None)
 
     def test_resume_stack_with_no_reboots(self):
         # Setup
@@ -713,6 +796,30 @@ class TestOpenstackProvider(TestCase):
         with self.assertRaises(ProviderException):
             provider = Provider.init(self.provider_name)
             provider.delete_stack(self.stack_name)
+
+    def test_delete_stack_key_not_found(self):
+        # Setup
+        heat = self.get_heat_client_mock()
+        nova = self.get_nova_client_mock()
+        nova.keypairs.delete.side_effect = [
+            nova_exc.NotFound("")
+        ]
+        heat.stacks.get.side_effect = [
+            self.stacks["DELETE_IN_PROGRESS"],
+            self.stacks["DELETE_IN_PROGRESS"],
+            heat_exc.HTTPNotFound
+        ]
+
+        # Run
+        provider = Provider.init(self.provider_name)
+        provider_stack = provider.delete_stack(self.stack_name)
+
+        # Assert
+        self.assertIsInstance(provider_stack, dict)
+        self.assertEqual("DELETE_COMPLETE", provider_stack["status"])
+        self.assertRaises(KeyError, lambda: provider_stack["outputs"])
+        heat.stacks.delete.assert_called_with(stack_id=self.stack_name)
+        nova.keypairs.delete.assert_called_with(self.stack_name)
 
 
 @ddt.ddt

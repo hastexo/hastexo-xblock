@@ -1,3 +1,11 @@
+Unreleased
+-------------------------
+* [Enhancement] Add support for Ed25519 SSH keys by introducing
+  a new optional XBlock attribute `stack_key_type`. When used, it
+  is possible to generate either `RSA` or `Ed25519` key for the lab.
+  If set to `None`(default), the key handling should be done via the
+  lab template, as it has been so far.
+
 Version 7.6.0 (2023-06-26)
 -------------------------
 * [Enhancement] Add support for Apache Guacamole 1.5.2;

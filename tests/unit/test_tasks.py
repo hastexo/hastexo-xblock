@@ -129,7 +129,8 @@ class HastexoTestCase(TestCase):
         self.kwargs = {
             "stack_id": stack.id,
             "reset": False,
-            "learner_id": self.learner.id
+            "learner_id": self.learner.id,
+            "stack_key_type": None
         }
 
         # Patchers
@@ -209,7 +210,8 @@ class TestLaunchStackTask(HastexoTestCase):
         self.assertEqual(stack.error_msg, u"")
         provider.create_stack.assert_called_with(
             self.stack_name,
-            self.stack_run
+            self.stack_run,
+            key_type=None
         )
         self.mocks["ssh_to"].assert_called_with(
             self.stack_user_name,
@@ -275,7 +277,8 @@ class TestLaunchStackTask(HastexoTestCase):
         self.assertEqual(stack.error_msg, u"")
         provider.create_stack.assert_called_with(
             self.stack_name,
-            self.stack_run
+            self.stack_run,
+            key_type=None
         )
         self.mocks["ssh_to"].assert_called_with(
             self.stack_user_name,
@@ -585,7 +588,8 @@ class TestLaunchStackTask(HastexoTestCase):
         self.assertEqual(stack.error_msg, u"")
         provider.create_stack.assert_called_with(
             self.stack_name,
-            self.stack_run
+            self.stack_run,
+            key_type=None
         )
 
     def test_use_next_provider_if_first_is_disabled(self):
@@ -614,7 +618,8 @@ class TestLaunchStackTask(HastexoTestCase):
         self.assertEqual(stack.error_msg, u"")
         provider2.create_stack.assert_called_with(
             self.stack_name,
-            self.stack_run
+            self.stack_run,
+            key_type=None
         )
 
     def test_use_next_provider_if_first_is_full(self):
@@ -652,7 +657,8 @@ class TestLaunchStackTask(HastexoTestCase):
         self.assertEqual(stack.error_msg, u"")
         provider2.create_stack.assert_called_with(
             self.stack_name,
-            self.stack_run
+            self.stack_run,
+            key_type=None
         )
 
     def test_all_providers_full(self):
@@ -714,11 +720,13 @@ class TestLaunchStackTask(HastexoTestCase):
         self.assertEqual(stack.error_msg, u"")
         provider1.create_stack.assert_called_with(
             self.stack_name,
-            self.stack_run
+            self.stack_run,
+            key_type=None
         )
         provider2.create_stack.assert_called_with(
             self.stack_name,
-            self.stack_run
+            self.stack_run,
+            key_type=None
         )
 
     def test_dont_use_next_provider_if_timeout(self):
@@ -781,7 +789,8 @@ class TestLaunchStackTask(HastexoTestCase):
         for m in self.mock_providers:
             m.create_stack.assert_called_with(
                 self.stack_name,
-                self.stack_run
+                self.stack_run,
+                key_type=None,
             )
 
     def test_only_one_provider_configured(self):
