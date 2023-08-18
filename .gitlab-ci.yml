@@ -5,7 +5,7 @@ py38:
   stage: build
   script:
     - pip install tox
-    - tox -e py38-xblock14,py38-xblock15,py38-xblock16,flake8
+    - tox -e flake8,pipdeptree,pipdeptree-requirements,py38-xblock15,py38-xblock16,py38-xblock17
   artifacts:
     paths:
       - .coverage*
@@ -16,12 +16,33 @@ py39:
   stage: build
   script:
     - pip install tox
-    - tox -e py39-xblock14,py39-xblock15,py39-xblock16,flake8
+    - tox -e flake8,pipdeptree,pipdeptree-requirements,py39-xblock15,py39-xblock16,py39-xblock17
   artifacts:
     paths:
       - .coverage*
     expire_in: 5 minutes
 
+py310:
+  image: python:3.10
+  stage: build
+  script:
+    - pip install tox
+    - tox -e flake8,pipdeptree,pipdeptree-requirements,py310-xblock15,py310-xblock16,py310-xblock17
+  artifacts:
+    paths:
+      - .coverage*
+    expire_in: 5 minutes
+
+py311:
+  image: python:3.11
+  stage: build
+  script:
+    - pip install tox
+    - tox -e flake8,pipdeptree,pipdeptree-requirements,py311-xblock15,py311-xblock16,py311-xblock17
+  artifacts:
+    paths:
+      - .coverage*
+    expire_in: 5 minutes
 
 coverage:
   stage: test
