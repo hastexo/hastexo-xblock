@@ -15,8 +15,8 @@ jobs:
           - '3.10'
           - '3.11'
         pip-version:
-          - 20.0.2
           - 22.0.4
+          - 23.0.1
 
     steps:
     - name: Check out code
