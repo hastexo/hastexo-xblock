@@ -1,4 +1,4 @@
-Unreleased
+Version 7.7.0 (2023-08-24)
 -------------------------
 * [Enhancement] Add support for Ed25519 SSH keys by introducing
   a new optional XBlock attribute `stack_key_type`. When used, it
