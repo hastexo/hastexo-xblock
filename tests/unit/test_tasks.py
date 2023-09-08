@@ -118,6 +118,7 @@ class HastexoTestCase(TestCase):
             port=self.port,
             run=self.stack_run,
             user=self.stack_user_name,
+            key=self.stack_key,
             providers=self.providers,
             hook_script=self.hook_script,
             hook_events=self.hook_events,
@@ -920,6 +921,38 @@ class TestLaunchStackTask(HastexoTestCase):
         ]
         provider.resume_stack.side_effect = [
             self.stacks["RESUME_COMPLETE"]
+        ]
+        self.update_stack({
+            "provider": self.providers[1]["name"],
+            "status": "SUSPEND_COMPLETE"
+        })
+
+        # Run
+        LaunchStackTask.run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        self.assertEqual(stack.status, "RESUME_COMPLETE")
+        self.assertEqual(stack.provider, self.providers[1]["name"])
+        self.mocks["remote_exec"].assert_called_with(
+            self.mocks["ssh_to"].return_value,
+            self.read_from_contentstore,
+            params="resume"
+        )
+
+    def test_resume_key_from_db(self):
+        # Setup
+        provider = self.mock_providers[1]
+        provider.get_stack.side_effect = [
+            self.stacks["SUSPEND_COMPLETE"]
+        ]
+
+        resume_stack = copy.deepcopy(self.stacks["RESUME_COMPLETE"])
+        resume_stack["outputs"]["private_key"] = None
+        provider.resume_stack.side_effect = [
+            resume_stack
         ]
         self.update_stack({
             "provider": self.providers[1]["name"],

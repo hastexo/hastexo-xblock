@@ -203,6 +203,7 @@ class LaunchStackTask(HastexoTask):
         self.stack_run = stack.run
         self.stack_name = stack.name
         self.stack_user_name = stack.user
+        self.stack_key = stack.key
         self.course_id = stack.course_id
         self.student_id = stack.student_id
         self.hook_events = stack.hook_events
@@ -609,9 +610,13 @@ class LaunchStackTask(HastexoTask):
         stack_password = provider_stack["outputs"].get("password")
 
         # Get stack key; if no key was generated separately,
-        # fetch the key from stack outputs.
-        stack_key = provider_stack.get("private_key") or \
-            provider_stack["outputs"].get("private_key")
+        # fetch the key from stack outputs. If stack was resumed,
+        # use the key from the database.
+        if was_resumed:
+            stack_key = self.stack_key
+        else:
+            stack_key = provider_stack.get("private_key") or \
+                provider_stack["outputs"].get("private_key")
 
         if stack_ip is None or not stack_key:
             if was_resumed:

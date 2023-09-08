@@ -1,5 +1,8 @@
 Unreleased
 -------------------------
+* [Bug fix] Fix resuming a lab stack when the `stack_key_type`
+  attribute is used and the SSH key for the lab is generated
+  by the XBlock.
 * [Bug fix] Restrict Twisted dependency to `twisted<23.8.0` to remain
   installable on Python 3.8 and 3.9.
 
