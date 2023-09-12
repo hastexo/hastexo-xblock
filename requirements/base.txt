@@ -19,6 +19,7 @@ tenacity>=6.2,<8
 # for hastexo_guacamole_client
 django~=3.2.1
 channels>=3.0.0,<=3.0.5
+twisted<23.8.0 # drop this restriction once we drop Python 3.8 and 3.9 support
 asgiref<=3.5.2 # depends on our channels version
 mysqlclient<=2.1.1  # keep in sync with edx-platform
 jsonfield>=3.1.0,<4   # keep in sync with edx-platform

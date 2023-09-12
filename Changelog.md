@@ -1,3 +1,8 @@
+Unreleased
+-------------------------
+* [Bug fix] Restrict Twisted dependency to `twisted<23.8.0` to remain
+  installable on Python 3.8 and 3.9.
+
 Version 7.7.0 (2023-08-24)
 -------------------------
 * [Enhancement] Add support for Ed25519 SSH keys by introducing
