@@ -14,18 +14,23 @@ browser-based connection mechanism, which includes the ability to connect to
 graphical user environments (via VNC and RDP), in addition to terminals (via
 SSH).
 
+## Version compatibility matrix
 
-> **Important changes in version 7**
->
-> Version 7 of this XBlock is intended to be deployed on Open edX
-> Nutmeg, with [Tutor](https://docs.tutor.overhang.io/) version 14.x
-> and [the `hastexo` Tutor
-> plugin](https://github.com/hastexo/tutor-contrib-hastexo), version
-> 1.x.
->
-> Instructions for deploying this XBlock with Tutor can be found
-> below, in the [Deployment with Tutor](#deployment-with-tutor)
-> section.
+You must install a supported release of this XBlock to match the
+Open edX and [Tutor](https://docs.tutor.overhang.io/) version you are
+deploying. If you are installing this plugin from a branch in this Git
+repository, you must select the appropriate one:
+
+| Open edX release | Tutor version | XBlock version | XBlock branch |
+|------------------|---------------|----------------|---------------|
+| Maple            | `>=13.2, <14` | `>=6.0, <7.0`  | `stable-6.0`  |
+| Nutmeg           | `>=14.0, <15` | `>=7.0`        | `master`      |
+| Olive            | `>=15.0, <16` | `>=7.5`        | `master`      |
+| Palm             | `>=16.0, <17` | `>=7.5`        | `master`      |
+
+Instructions for deploying this XBlock with Tutor can be found
+below, in the [Deployment with Tutor](#deployment-with-tutor)
+section.
 
 ## Purpose
 
@@ -60,7 +65,7 @@ two steps:
    `OPENEDX_EXTRA_PIP_REQUIREMENTS` list in `config.yml`:
    ```
    OPENEDX_EXTRA_PIP_REQUIREMENTS:
-     - "hastexo-xblock>=7"
+     - "hastexo-xblock==7.7.0"
    ```
    For additional information, please refer to the [official
    documentation](https://docs.tutor.overhang.io/configuration.html#installing-extra-xblocks-and-requirements).
