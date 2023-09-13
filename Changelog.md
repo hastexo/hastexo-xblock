@@ -1,4 +1,4 @@
-Unreleased
+Version 7.7.1 (2023-09-13)
 -------------------------
 * [Bug fix] Fix resuming a lab stack when the `stack_key_type`
   attribute is used and the SSH key for the lab is generated
