@@ -797,6 +797,23 @@ class TestOpenstackProvider(TestCase):
             provider = Provider.init(self.provider_name)
             provider.delete_stack(self.stack_name)
 
+    @ddt.data(True, False)
+    def test_delete_stack_not_found(self, wait):
+        # Setup
+        heat = self.get_heat_client_mock()
+        nova = self.get_nova_client_mock()
+
+        heat.stacks.delete.side_effect = [
+            heat_exc.HTTPException
+        ]
+
+        # Run
+        with self.assertRaises(ProviderException):
+            provider = Provider.init(self.provider_name)
+            provider.delete_stack(self.stack_name, wait)
+
+        nova.keypairs.delete.assert_called_with(self.stack_name)
+
     def test_delete_stack_key_not_found(self):
         # Setup
         heat = self.get_heat_client_mock()

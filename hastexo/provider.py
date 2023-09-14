@@ -402,12 +402,15 @@ class OpenstackProvider(Provider):
 
     def delete_stack(self, name, wait=True):
         try:
-            self.logger.info("Deleting OpenStack Heat stack [%s]" % name)
-            self.heat_c.stacks.delete(stack_id=name)
+            self.logger.info("Deleting Nova Keypair [%s]" % name)
             self.nova_c.keypairs.delete(name)
         except NotFound:
             self.logger.info(
                 "Keypair not found for deletion for stack [%s]" % name)
+
+        try:
+            self.logger.info("Deleting OpenStack Heat stack [%s]" % name)
+            self.heat_c.stacks.delete(stack_id=name)
         except (HTTPException, HttpError) as e:
             raise ProviderException(e)
 

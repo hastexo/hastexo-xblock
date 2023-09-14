@@ -1,3 +1,7 @@
+Unreleased
+-------------------------
+* [Bug fix] Add better handling for SSH key cleanup when deleting stacks.
+
 Version 7.7.1 (2023-09-13)
 -------------------------
 * [Bug fix] Fix resuming a lab stack when the `stack_key_type`
