@@ -106,8 +106,8 @@ class HastexoXBlock(XBlock,
              "the last keepalive was received from the browser, in seconds. "
              "Takes precedence over the globally defined timeout.")
     stack_key_type = String(
-        values=["rsa", "ed25519", None],
-        default=None,
+        values=["rsa", "ed25519", ""],
+        default="",
         scope=Scope.settings,
         help="Key type for generating an SSH key for accessing the lab. "
              "If set to None, the key handling should be done via the lab "
@@ -450,6 +450,7 @@ class HastexoXBlock(XBlock,
         node.set('stack_user_name', self.stack_user_name)
         node.set('stack_protocol', self.stack_protocol)
         node.set('stack_template_path', self.stack_template_path or '')
+        node.set('stack_key_type', self.stack_key_type)
         node.set('launch_timeout', str(self.launch_timeout or ''))
         node.set('suspend_timeout', str(self.suspend_timeout or ''))
         node.set('hook_script', self.hook_script or '')

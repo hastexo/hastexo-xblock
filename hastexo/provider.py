@@ -259,7 +259,7 @@ class OpenstackProvider(Provider):
         return {"status": status,
                 "outputs": outputs}
 
-    def create_stack(self, name, run, key_type=None):
+    def create_stack(self, name, run, key_type=""):
         if not self.template:
             raise ProviderException("Template not set for provider %s." %
                                     self.name)

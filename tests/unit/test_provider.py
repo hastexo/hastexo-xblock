@@ -318,7 +318,7 @@ class TestOpenstackProvider(TestCase):
         with self.assertRaises(ProviderException):
             provider = Provider.init(self.provider_name)
             provider.create_stack(
-                self.stack_name, self.stack_run, key_type=None)
+                self.stack_name, self.stack_run, key_type="")
 
     @ddt.data('rsa', 'ed25519')
     def test_create_stack_generate_keys(self, key_type):
@@ -396,7 +396,7 @@ class TestOpenstackProvider(TestCase):
         provider.set_template(self.stack_template)
         provider.set_environment(self.stack_environment)
         stack = provider.create_stack(
-            self.stack_name, self.stack_run, key_type=None)
+            self.stack_name, self.stack_run, key_type="")
 
         # Assertions
         self.assertIsInstance(stack, dict)
@@ -429,7 +429,7 @@ class TestOpenstackProvider(TestCase):
             provider = Provider.init(self.provider_name)
             provider.set_template(self.stack_template)
             provider.create_stack(
-                self.stack_name, self.stack_run, key_type=None)
+                self.stack_name, self.stack_run, key_type="")
 
     @ddt.data(*HEAT_EXCEPTIONS)
     def test_create_stack_exception_on_get(self, heat_exception):
@@ -448,7 +448,7 @@ class TestOpenstackProvider(TestCase):
             provider = Provider.init(self.provider_name)
             provider.set_template(self.stack_template)
             provider.create_stack(
-                self.stack_name, self.stack_run, key_type=None)
+                self.stack_name, self.stack_run, key_type="")
 
     def test_create_stack_not_found_on_get(self):
         # Setup
@@ -466,7 +466,7 @@ class TestOpenstackProvider(TestCase):
             provider = Provider.init(self.provider_name)
             provider.set_template(self.stack_template)
             provider.create_stack(
-                self.stack_name, self.stack_run, key_type=None)
+                self.stack_name, self.stack_run, key_type="")
 
     def test_create_stack_failure(self):
         # Setup
@@ -483,7 +483,7 @@ class TestOpenstackProvider(TestCase):
             provider = Provider.init(self.provider_name)
             provider.set_template(self.stack_template)
             provider.create_stack(
-                self.stack_name, self.stack_run, key_type=None)
+                self.stack_name, self.stack_run, key_type="")
 
     def test_resume_stack_with_no_reboots(self):
         # Setup
