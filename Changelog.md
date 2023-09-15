@@ -1,4 +1,4 @@
-Unreleased
+Version 7.7.2 (2023-09-15)
 -------------------------
 * [Bug fix] Fix editing the `stack_key_type` field in Studio; include
   the attribute in Studio export.
