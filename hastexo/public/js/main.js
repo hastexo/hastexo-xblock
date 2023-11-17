@@ -5,14 +5,12 @@ function HastexoXBlock(runtime, element, configuration) {
     var stack = undefined;
     var check = undefined;
     var status_timer = undefined;
-    var keepalive_timer = undefined;
-    var idle_timer = undefined;
     var check_timer = undefined;
     var terminal_client = undefined;
     var terminal_element = undefined;
-    var terminal_connected = false;
     var dialog_container = undefined;
     var gettext = undefined;
+    var lab_new_window = undefined;
 
     if ('HastexoI18N' in window) {
         gettext = function(string) {
@@ -40,6 +38,8 @@ function HastexoXBlock(runtime, element, configuration) {
         /* Bind reset button action. */
         $(element).find('.buttons.bar > .reset').on('click', reset_dialog);
 
+        $(element).find('.buttons.bar > .launch').on('click', launch_new_window);
+
         /* Display progress check button, if there are tests. */
         if (configuration.has_tests) {
             var button = $(element).find('.buttons .check');
@@ -61,53 +61,16 @@ function HastexoXBlock(runtime, element, configuration) {
             select.show();
             select.change(function() {
                 var port = parseInt($(this).val());
-                try {
-                    terminal_connect(stack, port);
-                } catch (e) {
-                    /* Connection error.  Display error message. */
-                    var dialog = $('#launch_error');
-                    dialog.find('.message').html(gettext('Could not connect to your lab environment:'));
-                    dialog.find('.error_msg').html(e);
-                    dialog.find('input.ok').one('click', function() {
-                        $.dialog.close();
-                    });
-                    dialog.find('input.retry').one('click', function() {
-                        $.dialog.close();
-                        location.reload();
-                    });
-                    dialog.dialog(dialog_container);
-                }
-
-                if (terminal_connected) {
-                    configuration.port = port;
-
-                    /* Reset keepalive timer. */
-                    if (configuration.timeouts['keepalive']) {
-                        if (keepalive_timer) clearTimeout(keepalive_timer);
-                        keepalive_timer = setTimeout(
-                            keepalive,
-                            fuzz_timeout(configuration.timeouts['keepalive'])
-                        );
-                    }
-
-                    /* Reset idle timer. */
-                    if (configuration.timeouts['idle']) {
-                        if (idle_timer) clearTimeout(idle_timer);
-                        idle_timer = setTimeout(idle, configuration.timeouts['idle']);
-                    }
-
-                    $.ajax({
-                        type: 'POST',
-                        url: runtime.handlerUrl(element, 'set_port'),
-                        data: JSON.stringify({
-                            port: port
-                        }),
-                        dataType: 'json'
-                    });
-                } else {
-                    /* Reset to previous selection. */
-                    $(this).find('option[value="' + configuration.port + '"]').prop('selected', true);
-                }
+                $.ajax({
+                    type: 'POST',
+                    url: runtime.handlerUrl(element, 'set_port'),
+                    data: JSON.stringify({
+                        port: port
+                    }),
+                    dataType: 'json'
+                }).done(function() {
+                    location.reload();
+                });
             });
         }
 
@@ -116,25 +79,12 @@ function HastexoXBlock(runtime, element, configuration) {
             $('#container').addClass('graphical');
         }
 
-        /* Process terminal URL. */
-        var terminal_http_url;
-        var terminal_ws_url;
-        if (configuration.terminal_url.startsWith('http')) {
-          terminal_http_url = configuration.terminal_url;
-          terminal_ws_url = configuration.terminal_url.replace('http', 'ws');
-        } else {
-          var prot_map = {
-              "http:":  "ws:",
-              "https:": "wss:"
-          };
-          terminal_http_url = location.protocol + '//' + location.hostname + configuration.terminal_url;
-          terminal_ws_url = prot_map[location.protocol] + '//' + location.hostname + configuration.terminal_url;
-        }
+        // Configure the size of the lab window.
+        configuration['width'] = $('#terminal').width();
+        configuration['height'] = $('#terminal').height()
 
         /* Initialize Guacamole Client */
-        terminal_client = new Guacamole.Client(
-            new Guacamole.WebSocketTunnel(terminal_ws_url + "websocket-tunnel")
-        );
+        terminal_client = HastexoGuacamoleClient(configuration)
         terminal_element = terminal_client.getDisplay().getElement();
 
         /* Show the terminal.  */
@@ -145,133 +95,9 @@ function HastexoXBlock(runtime, element, configuration) {
             terminal_client.disconnect();
         };
 
-        /* Mouse handling */
-        var mouse = new Guacamole.Mouse(terminal_element);
-
-        mouse.onmousedown =
-        mouse.onmouseup   =
-        mouse.onmousemove = function(mouseState) {
-            terminal_client.sendMouseState(mouseState);
-
-            /* Reset the idle timeout on mouse action. */
-            if (configuration.timeouts['idle']) {
-                if (idle_timer) clearTimeout(idle_timer);
-                idle_timer = setTimeout(idle, configuration.timeouts['idle']);
-            }
-        };
-
-        /* Keyboard handling.  */
-        var keyboard = new Guacamole.Keyboard(terminal_element);
-        var ctrl, shift = false;
-
-        keyboard.onkeydown = function (keysym) {
-            var cancel_event = true;
-
-            /* Don't cancel event on paste shortcuts. */
-            if (keysym == 0xFFE1 /* shift */
-                || keysym == 0xFFE3 /* ctrl */
-                || keysym == 0xFF63 /* insert */
-                || keysym == 0x0056 /* V */
-                || keysym == 0x0076 /* v */
-            ) {
-                cancel_event = false;
-            }
-
-            /* Remember when ctrl or shift are down. */
-            if (keysym == 0xFFE1) {
-                shift = true;
-            } else if (keysym == 0xFFE3) {
-                ctrl = true;
-            }
-
-            /* Delay sending final stroke until clipboard is updated. */
-            if ((ctrl && shift && keysym == 0x0056) /* ctrl-shift-V */
-                || (ctrl && keysym == 0x0076) /* ctrl-v */
-                || (shift && keysym == 0xFF63) /* shift-insert */
-            ) {
-                window.setTimeout(function() {
-                    terminal_client.sendKeyEvent(1, keysym);
-                }, 50);
-            } else {
-                terminal_client.sendKeyEvent(1, keysym);
-            }
-
-            return !cancel_event;
-        };
-
-        keyboard.onkeyup = function (keysym) {
-            /* Remember when ctrl or shift are released. */
-            if (keysym == 0xFFE1) {
-                shift = false;
-            } else if (keysym == 0xFFE3) {
-                ctrl = false;
-            }
-
-            /* Delay sending final stroke until clipboard is updated. */
-            if ((ctrl && shift && keysym == 0x0056) /* ctrl-shift-v */
-                || (ctrl && keysym == 0x0076) /* ctrl-v */
-                || (shift && keysym == 0xFF63) /* shift-insert */
-            ) {
-                window.setTimeout(function() {
-                    terminal_client.sendKeyEvent(0, keysym);
-                }, 50);
-            } else {
-                terminal_client.sendKeyEvent(0, keysym);
-            }
-        };
-
-        $(terminal_element)
-            /* Set tabindex so that element can be focused.  Otherwise, no
-            * keyboard events will be registered for it. */
-            .attr('tabindex', 1)
-            /* Focus on the element based on mouse movement.  Simply
-            * letting the user click on it doesn't work. */
-            .hover(
-                function() {
-                var x = window.scrollX, y = window.scrollY;
-                $(this).focus();
-                window.scrollTo(x, y);
-                }, function() {
-                $(this).blur();
-                }
-            )
-            /* Release all keys when the element loses focus. */
-            .blur(function() {
-                keyboard.reset();
-            });
-
-        /* Handle paste events when the element is in focus. */
-        $(document).on('paste', function(e) {
-            var text = e.originalEvent.clipboardData.getData('text/plain');
-
-            if ($(terminal_element).is(":focus")) {
-                var stream = terminal_client.createClipboardStream('text/plain');
-                var writer = new Guacamole.StringWriter(stream);
-                writer.sendText(text);
-                writer.sendEnd();
-            }
-        });
-
-        /* Handle copy events from within the terminal. */
-        terminal_client.onclipboard = function(stream, mimetype) {
-            var reader = new Guacamole.StringReader(stream);
-
-            reader.ontext = function(text) {
-                try {
-                    navigator.clipboard.writeText(text);
-                } catch (error) {
-                    // Write failed.
-                    console.warn("Failed to write to clipboard");
-                    throw error;
-                }
-            }
-        }
-
         /* Error handling. */
         terminal_client.onerror = function(guac_error) {
             /* Reset and disconnect. */
-            if (keepalive_timer) clearTimeout(keepalive_timer);
-            if (idle_timer) clearTimeout(idle_timer);
             stack = null;
             terminal_client.disconnect();
 
@@ -306,6 +132,42 @@ function HastexoXBlock(runtime, element, configuration) {
             });
             dialog.dialog(dialog_container);
         };
+
+        terminal_client.onidle = function(pause) {
+            /* We're idle; clear stack info.  */
+            stack = null;
+    
+            var dialog = $('#idle');
+            if (pause) {
+                dialog.find('.message').html(gettext('Your lab is currently active in a separate window.'));
+            }
+            dialog.find('input.ok').one('click', function() {
+                if (lab_new_window) {
+                    // We're coming back to LMS from a separate lab window
+                    lab_new_window.close()
+                }
+                /* Start over. */
+                location.reload();
+            });
+            dialog.dialog(dialog_container);
+        };
+
+        /* Handle paste events. */
+        $(document).on('paste', function(e) {
+            var text = e.originalEvent.clipboardData.getData('text/plain');
+            terminal_client.paste(text);
+        });
+
+        // handle copy events from within the terminal.
+        terminal_client.onclipboard = function(text) {
+            try {
+                navigator.clipboard.writeText(text);
+            } catch (error) {
+                // Write failed.
+                console.warn("Failed to write to clipboard");
+                console.error(error);
+            }
+        }
 
         get_user_stack_status(true);
     };
@@ -414,28 +276,6 @@ function HastexoXBlock(runtime, element, configuration) {
         });
     };
 
-    var terminal_connect = function(stack, port = '') {
-        if (terminal_connected) {
-            terminal_client.disconnect()
-            terminal_connected = false;
-        }
-
-        try {
-            terminal_client.connect($.param({
-                'stack': stack.name,
-                'read_only': configuration.read_only,
-                'width': $('#terminal').width(),
-                'height': $('#terminal').height(),
-                'port': port,
-            }));
-            terminal_connected = true;
-        } catch (e) {
-            console.warn(e);
-            terminal_connected = false;
-            throw e;
-        }
-    };
-
     var update_user_stack_status = function (stack) {
         if (stack.status == 'CREATE_COMPLETE' || stack.status == 'RESUME_COMPLETE') {
             if (stack.error_msg && stack.error_msg.includes("You've reached the time limit")) {
@@ -451,11 +291,9 @@ function HastexoXBlock(runtime, element, configuration) {
             }
             /* Connect to the terminal server. */
             try {
-                terminal_connect(stack, configuration.port);
+                terminal_client.connect();
             } catch (e) {
                 /* Connection error.  Display error message. */
-                if (keepalive_timer) clearTimeout(keepalive_timer);
-                if (idle_timer) clearTimeout(idle_timer);
                 var dialog = $('#launch_error');
                 dialog.find('.message').html(gettext('Could not connect to your lab environment:'));
                 dialog.find('.error_msg').html(e);
@@ -467,23 +305,6 @@ function HastexoXBlock(runtime, element, configuration) {
                     location.reload();
                 });
                 dialog.dialog(dialog_container);
-            }
-
-            if (terminal_connected) {
-                /* Reset keepalive timer. */
-                if (configuration.timeouts['keepalive']) {
-                    if (keepalive_timer) clearTimeout(keepalive_timer);
-                    keepalive_timer = setTimeout(
-                        keepalive,
-                        fuzz_timeout(configuration.timeouts['keepalive'])
-                    );
-                }
-
-                /* Reset idle timer. */
-                if (configuration.timeouts['idle']) {
-                    if (idle_timer) clearTimeout(idle_timer);
-                    idle_timer = setTimeout(idle, configuration.timeouts['idle']);
-                }
             }
 
             /* Close the dialog when user acknowledgement is not required. */
@@ -498,8 +319,6 @@ function HastexoXBlock(runtime, element, configuration) {
             );
         } else if (stack.status == 'SUSPEND_PENDING' || stack.status == 'DELETE_PENDING') {
             /* Stack is pending.  Display retry message. */
-            if (keepalive_timer) clearTimeout(keepalive_timer);
-            if (idle_timer) clearTimeout(idle_timer);
             var dialog = $('#launch_error');
             var dialog_msg = gettext("Your lab environment is undergoing maintenance");
             var error_msg = gettext(
@@ -517,8 +336,6 @@ function HastexoXBlock(runtime, element, configuration) {
             dialog.dialog(dialog_container);
         } else {
             /* Unexpected status.  Display error message. */
-            if (keepalive_timer) clearTimeout(keepalive_timer);
-            if (idle_timer) clearTimeout(idle_timer);
             var dialog = $('#launch_error');
             dialog.find('.message').html(gettext('There was a problem preparing your lab environment:'));
             dialog.find('.error_msg').html(stack.error_msg);
@@ -531,23 +348,6 @@ function HastexoXBlock(runtime, element, configuration) {
             });
             dialog.dialog(dialog_container);
         }
-    };
-
-    var keepalive = function() {
-        $.ajax({
-            type: 'POST',
-            url: runtime.handlerUrl(element, 'keepalive'),
-            data: '{}',
-            dataType: 'json'
-        }).always(function() {
-            if (configuration.timeouts['keepalive']) {
-                if (keepalive_timer) clearTimeout(keepalive_timer);
-                keepalive_timer = setTimeout(
-                    keepalive,
-                    fuzz_timeout(configuration.timeouts['keepalive'])
-                );
-            }
-        });
     };
 
     var get_check_status = function() {
@@ -626,22 +426,6 @@ function HastexoXBlock(runtime, element, configuration) {
         });
     };
 
-    var idle = function() {
-        /* We're idle.  Stop the keepalive timer and clear stack info.  */
-        clearTimeout(keepalive_timer);
-        stack = null;
-
-        /* Disconnect terminal. */
-        terminal_client.disconnect()
-
-        var dialog = $('#idle');
-        dialog.find('input.ok').one('click', function() {
-            /* Start over. */
-            get_user_stack_status(true);
-        });
-        dialog.dialog(dialog_container);
-    };
-
     var reset_dialog = function() {
         var dialog = $('#reset_dialog');
 
@@ -666,6 +450,13 @@ function HastexoXBlock(runtime, element, configuration) {
 
         dialog.dialog(dialog_container);
     };
+
+    var launch_new_window = function() {
+        terminal_client.onidle(true);
+        
+        lab_new_window = window.open(
+            runtime.handlerUrl(element, 'launch_new_window'));
+    }
 
     init();
 }

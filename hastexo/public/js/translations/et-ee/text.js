@@ -28,9 +28,9 @@
     "After you reset, you will need to retrace your steps up to this point.": "Peale taastamist pead k\u00f5ik oma senised sammud kuni praeguseni uuesti l\u00e4bima.",
     "Are you sure?": "Kas oled kindel?",
     "Attention!": "T\u00e4helepanu!",
-    "Click 'OK' to resume it.": "J\u00e4tkamiseks vajuta 'OK'.",
+    "Click 'OK' to return to your terminal in this window.": "Vajuta 'OK', et naaseda oma laborikeskkonda selles aknas.",
     "Could not connect to your lab environment. The client detected an unexpected error. The server's error message was:": "Laborikeskkonnaga ei \u00f5nnestunud \u00fchendust luua. Klient tuvastas ootamatu vea. Serveri veateade oli:",
-    "Could not connect to your lab environment:": "Laborikeskkonnaga ei \u00f5nnestunud \u00fchendust luua:",
+    "Could not connect to your lab environment:": "Laborikeskkonnaga ei \u014dnnestunud \u00fchendust luua.",
     "Don't panic!  It may take a few minutes.": "Ole mureta! Siin v\u00f5ib m\u00f5ni minut aega minna.",
     "Hints": "Vihjed",
     "In a timed exam, the timer will continue to run while your environment is being reset.": "Ajastatud eksami k\u00e4igus, taimer t\u00f6\u00f6tab keskkonna taastamise ajal edasi.",
@@ -43,15 +43,19 @@
     "There was a problem checking your progress:": "Tulemuste kontolli k\u00e4igus esines t\u00f5rge:",
     "There was a problem preparing your lab environment:": "Sinu laborikeskkonna ettevalmistamisel esines t\u00f5rge:",
     "This may take several minutes to complete.": "See v\u00f5ib m\u00f5ni minut aega v\u00f5tta.",
+    "Timeout when checking progress.": "Tulemuste kontrollimiseks seatud ajalimiit t\u00e4is.",
+    "Timeout when launching stack.": "Keskkonna loomiseks seatud ajalimiit t\u00e4is.",
     "Unexpected result: ": "Ootamatu tulemus: ",
     "We think you're busy elsewhere.": "Arvame, et oled mujal h\u00f5ivatud.",
+    "We're preparing your lab environment.": "Valmistame sinu laborikeskkonda.",
     "Working": "T\u00f6\u00f6 k\u00e4ib",
     "You cannot undo this action.": "Seda toimingut ei saa tagasi v\u00f5tta.",
     "You completed {passed} out of {total} tasks.": "L\u00e4bisid edukalt {passed} \u00fclesannet {total}-st.",
     "You've been inactive here for a while, so we paused your lab environment.": "Oled siin juba m\u00f5nda aega mitteaktiivne olnud seet\u00f5ttu peatasime sinu laborikeskkonna.",
     "You've reached the time limit allocated to you for using labs.": "Oled j\u00f5udnud sinule laborite kasutamiseks m\u00e4\u00e4ratud ajalimiidini.",
     "Your lab environment is undergoing automatic maintenance. Please try again in a few minutes.": "Teie laborikeskkond on hetkel automaatsel hooldusel. Palun proovi m\u00f5ne minuti p\u00e4rast uuesti.",
-    "Your lab environment is undergoing maintenance": "Teie laborikeskkond on hetkel hoolduses"
+    "Your lab environment is undergoing maintenance": "Teie laborikeskkond on hetkel hoolduses",
+    "Your lab is currently active in a separate window.": "Sinu laborikeskkond on hetkel aktiivne teises aknas."
   };
   for (const key in newcatalog) {
     django.catalog[key] = newcatalog[key];

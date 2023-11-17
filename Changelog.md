@@ -1,3 +1,7 @@
+Unreleased
+-------------------------
+* [Enhancement] Add an option to launch the lab in a new window.
+
 Version 7.7.3 (2023-12-04)
 -------------------------
 * [Bug fix] Fix private key getting lost after a stack resume failure.

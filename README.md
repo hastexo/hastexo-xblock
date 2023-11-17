@@ -88,6 +88,7 @@ two steps:
      delete_interval: 3600
      delete_task_timeout: 900
      guacamole_js_version: 1.5.2
+     enable_fullscreen: false
      instructions_layout: above
      js_timeouts:
        check: 5000
@@ -191,6 +192,9 @@ This is a brief explanation of each:
   to set the position for instructions to be 'above', 'below', 'left' or 'right'
   from the terminal window. (Default: `above`; this is currently an
   experimental feature)
+
+* `enable_fullscreen`: An option to allow learners to launch a lab in fullsceen mode,
+  in a separate browser window. (Default: `false`)
 
 * `lab_usage_limit`: Allocate limited time per user for labs across the platform,
   in seconds. (Default is `None`, meaning there is no time limit).
@@ -512,6 +516,10 @@ The following are optional:
 
 * `hidden`: An option to hide the lab itself in the browser while spinning up
   the lab environment in the background. Default is `False`.
+
+* `enable_fullscreen`: An option to allow learners to launch a lab in fullsceen mode,
+  in a separate browser window. Overrides the globally defined setting.
+  Default is `False`.
 
 * `progress_check_label`: Set a label for the progress check button.
   For example: `Submit Answer` or `Check Progress` (Default).

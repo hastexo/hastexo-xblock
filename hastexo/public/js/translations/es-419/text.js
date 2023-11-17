@@ -28,9 +28,9 @@ const newcatalog = {
   "After you reset, you will need to retrace your steps up to this point.": "Despu\u00e9s de reiniciar, deber\u00e1 volver sobre sus pasos hasta este punto.",
   "Are you sure?": "\u00bfEst\u00e1s seguro?",
   "Attention!": "\u00a1Atenci\u00f3n!",
-  "Click 'OK' to resume it.": "Haga clic en 'OK' para reanudarlo.",
+  "Click 'OK' to return to your terminal in this window.": "Haga clic en 'OK' para reanudarlo en esta ventana.",
   "Could not connect to your lab environment. The client detected an unexpected error. The server's error message was:": "No se pudo conectar a su entorno de laboratorio. El cliente detect\u00f3 un error inesperado. El mensaje de error del servidor fue:",
-  "Could not connect to your lab environment:": "No se pudo conectar a su entorno de laboratorio:",
+  "Could not connect to your lab environment:": "No se pudo conectar al entorno de su laboratorio.",
   "Don't panic!  It may take a few minutes.": "\u00a1No entrar en p\u00e1nico! Puede tomar unos minutos.",
   "Hints": "Consejos",
   "In a timed exam, the timer will continue to run while your environment is being reset.": "En un examen cronometrado, el cron\u00f3metro seguir\u00e1 funcionando mientras se restablece su entorno.",
@@ -54,7 +54,8 @@ const newcatalog = {
   "You've been inactive here for a while, so we paused your lab environment.": "Ha estado inactivo aqu\u00ed durante un tiempo, por lo que detuvimos su entorno de laboratorio.",
   "You've reached the time limit allocated to you for using labs.": "Ha alcanzado el l\u00edmite de tiempo que se le ha asignado para usar los laboratorios.",
   "Your lab environment is undergoing automatic maintenance. Please try again in a few minutes.": "Su entorno de laboratorio est\u00e1 en mantenimiento autom\u00e1tico. Vuelve a intentarlo en unos minutos.",
-  "Your lab environment is undergoing maintenance": "Su entorno de laboratorio est\u00e1 en mantenimiento"
+  "Your lab environment is undergoing maintenance": "Su entorno de laboratorio est\u00e1 en mantenimiento",
+  "Your lab is currently active in a separate window.": "Su laboratorio est\u00e1 actualmente activo en una ventana separada."
 };
 for (const key in newcatalog) {
   django.catalog[key] = newcatalog[key];

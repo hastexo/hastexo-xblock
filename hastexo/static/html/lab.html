@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+    </head>
+    <body>
+        <script type="text/javascript" src="{{ guac_common_url }}"></script>
+        <script type="text/javascript" src="{{ guac_client_url }}"></script>
+
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+        <div id="container">
+            <div id="terminal"></div>
+        </div>
+        <script type="text/javascript">
+
+            // Get display div from document
+            var display = document.getElementById("terminal");
+
+            // Set up context
+            var timeouts = "{{ timeouts }}"
+            var configuration = {
+                'stack_name': "{{ stack_name }}",
+                'keepalive_url': "{{ keepalive_url }}",
+                'terminal_url': "{{ terminal_url }}",
+                'csrftoken': "{{ csrftoken  }}",
+                'timeouts': JSON.parse(timeouts.replace(/&#x27;/g, '"')),
+                'read_only': "{{ read_only }}",
+                'width': ($(window).innerWidth() * 0.99),
+                'height': ($(window).innerHeight() * 0.98)
+            }
+
+            // Initialize Guacamole Client
+            terminal_client = HastexoGuacamoleClient(configuration)
+
+            // Connect to the lab
+            try {
+                terminal_client.connect();
+            } catch (e) {
+                alert(e.message);
+                window.close();
+            }
+
+            // Display the terminal
+            terminal_element = terminal_client.getDisplay().getElement();
+            display.appendChild(terminal_element);
+
+            // Error handler
+            terminal_client.onerror = function(error) {
+                alert(error.message);
+                terminal_client.disconnect();
+                window.close();
+            };
+
+            terminal_client.onidle = function(pause) {
+                alert("You've been inactive here for a while, so we paused your lab environment. Please return to the course page to resume it.");
+                window.close();
+            }
+
+            /* Handle paste events. */
+            $(document).on('paste', function(e) {
+                var text = e.originalEvent.clipboardData.getData('text/plain');
+                terminal_client.paste(text);
+            });
+
+            // handle copy events from within the terminal.
+            terminal_client.onclipboard = function(text) {
+                try {
+                    navigator.clipboard.writeText(text);
+                } catch (error) {
+                    // Write failed.
+                    console.warn("Failed to write to clipboard");
+                    console.error(error);
+                }
+            }
+
+            // reload the window on resize to reconnect with new
+            // height and width.
+            window.onresize = function() {
+                location.reload();
+            }
+
+            /* Disconnect on tab close. */
+            window.onunload = function() {
+                terminal_client.disconnect();
+            };
+      </script>
+    </body>
+</html>

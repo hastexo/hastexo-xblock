@@ -5,6 +5,7 @@ import pkg_resources
 import re
 import string
 import textwrap
+from webob import Response
 
 from xblock.core import XBlock, XML_NAMESPACES
 from xblock.fields import Scope, Float, String, Dict, List, Integer, Boolean
@@ -161,6 +162,12 @@ class HastexoXBlock(XBlock,
              "not display hints and feedback. Default is \"Progress check "
              "result\"."
     )
+    enable_fullscreen = Boolean(
+        default=False,
+        scope=Scope.settings,
+        help="Enable the learners to launch a lab in fulscreen mode on a "
+             "separate browser window. Overrides the globally defined setting."
+    )
 
     # Set via XML
     hook_events = Dict(
@@ -241,7 +248,8 @@ class HastexoXBlock(XBlock,
         'providers',
         'tests',
         'read_only',
-        'hidden')
+        'hidden',
+        'enable_fullscreen')
 
     has_author_view = True
     has_score = True
@@ -565,20 +573,93 @@ class HastexoXBlock(XBlock,
 
         return stack_name
 
-    @staticmethod
-    def _get_text_js_url():
+    def get_js_urls(self):
         """
-        Returns the Javascript translation file
-        for the currently selected language, if supported.
+        Returns a dict of urls for the Javascript files.
         """
+        settings = get_xblock_settings()
+        plugins_url = self.runtime.local_resource_url(
+            self, 'public/js/plugins.js')
+
+        # guacamole common library url
+        guac_js_version = settings.get("guacamole_js_version", "1.5.2")
+        guac_common_url = (
+            self.runtime.local_resource_url(
+                self,
+                f'public/js/guacamole-common-js/{guac_js_version}-all.min.js'))
+
+        # HastexoGuacamoleClient url
+        guac_client_url = self.runtime.local_resource_url(
+            self, 'public/js/client.js')
+
+        # HastexoXBlock url
+        main_js_url = self.runtime.local_resource_url(
+            self, 'public/js/main.js')
+
+        js_urls = {
+            "plugins_url": plugins_url,
+            "guac_common_url": guac_common_url,
+            "guac_client_url": guac_client_url,
+            "main_js_url": main_js_url,
+        }
+
+        # Translation file url (if supported)
         lang_code = translation.get_language()
         if lang_code and lang_code in SUPPORTED_LANGUAGES:
-            text_js = f'public/js/translations/{lang_code}/text.js'
-            if pkg_resources.resource_exists(loader.module_name, text_js):
-                return text_js
-        logger.warning(
-            "Javascript translation file missing or language is not supported")
-        return None
+            text_js_url = f'public/js/translations/{lang_code}/text.js'
+            if pkg_resources.resource_exists(loader.module_name, text_js_url):
+                js_urls["text_js_url"] = self.runtime.local_resource_url(
+                    self, text_js_url)
+        else:
+            logger.warning("Javascript translation file missing or "
+                           "language is not supported")
+        return js_urls
+
+    def get_context(self, stack=None):
+        settings = get_xblock_settings()
+        stack = stack or self.get_stack()
+
+        context = {
+            "stack_name": stack.name,
+            "terminal_url": settings.get("terminal_url"),
+            "keepalive_url": self.runtime.handler_url(self, 'keepalive'),
+            "timeouts": settings.get("js_timeouts"),
+            "has_tests": len(self.tests) > 0,
+            "protocol": self.stack_protocol,
+            "ports": self.ports,
+            "port": stack.port,
+            "instructions_layout": settings.get("instructions_layout"),
+            "read_only": self.read_only or self.hidden,
+            "hidden": self.hidden,
+            "progress_check_label": self.progress_check_label,
+            "show_hints_on_error": self.show_hints_on_error,
+            "show_feedback": self.show_feedback,
+            "progress_check_result_heading": self.progress_check_result_heading
+        }
+
+        return context
+
+    @XBlock.handler
+    def launch_new_window(self, request, suffix=''):
+        """
+        The fullscreen lab view, opened in a new browser window.
+        """
+        # Get context
+        context = self.get_context()
+
+        # Pass the token (for keepalives)
+        context["csrftoken"] = request.cookies.get('csrftoken')
+
+        # Get the JavaScript urls
+        js_urls = self.get_js_urls().items()
+        for key, value in js_urls:
+            context[key] = value
+
+        # Render the lab template
+        template = loader.render_django_template(
+            "static/html/lab.html", context)
+
+        return Response(template)
 
     def student_view(self, context=None):
         """
@@ -594,6 +675,12 @@ class HastexoXBlock(XBlock,
         self.stack_run = "%s_%s" % (course_id.course, course_id.run)
         self.stack_name = self.get_stack_name()
 
+        # Fullscreen mode: if the XBlock attribute does not match the global
+        # setting, allow it override the value per instance
+        enable_fullscreen = settings.get("enable_fullscreen")
+        if enable_fullscreen != self.enable_fullscreen:
+            enable_fullscreen = self.enable_fullscreen
+
         frag = Fragment()
 
         # Render children
@@ -608,51 +695,28 @@ class HastexoXBlock(XBlock,
         i18n_service = self.runtime.service(self, "i18n")
 
         frag.add_content(loader.render_django_template(
-            "static/html/main.html", {"child_content": child_content},
+            "static/html/main.html",
+            {"child_content": child_content,
+             "enable_fullscreen": enable_fullscreen},
             i18n_service=i18n_service
         ))
 
-        # Add the public CSS and JS
+        # Add the public CSS and JS files
         frag.add_css_url(
             self.runtime.local_resource_url(self, 'public/css/main.css')
         )
-        frag.add_javascript_url(
-            self.runtime.local_resource_url(self, 'public/js/plugins.js')
-        )
-        frag.add_javascript_url(
-            self.runtime.local_resource_url(self, 'public/js/main.js')
-        )
-        text_js_url = self._get_text_js_url()
-        if text_js_url:
-            frag.add_javascript_url(
-                self.runtime.local_resource_url(self, text_js_url)
-            )
-        guac_js_version = settings.get("guacamole_js_version", "1.5.2")
-        frag.add_javascript_url(
-            self.runtime.local_resource_url(
-                self,
-                f'public/js/guacamole-common-js/{guac_js_version}-all.min.js')
-        )
+        js_urls = list(self.get_js_urls().values())
+        for url in js_urls:
+            frag.add_javascript_url(url)
 
         # Create the stack in the database
         stack = self.create_stack(settings, course_id, student_id)
 
+        # Get context
+        context = self.get_context(stack)
+
         # Call the JS initialization function
-        frag.initialize_js('HastexoXBlock', {
-            "terminal_url": settings.get("terminal_url"),
-            "timeouts": settings.get("js_timeouts"),
-            "has_tests": len(self.tests) > 0,
-            "protocol": self.stack_protocol,
-            "ports": self.ports,
-            "port": stack.port,
-            "instructions_layout": settings.get("instructions_layout"),
-            "read_only": self.read_only or self.hidden,
-            "hidden": self.hidden,
-            "progress_check_label": self.progress_check_label,
-            "show_hints_on_error": self.show_hints_on_error,
-            "show_feedback": self.show_feedback,
-            "progress_check_result_heading": self.progress_check_result_heading
-        })
+        frag.initialize_js('HastexoXBlock', context)
 
         return frag
 

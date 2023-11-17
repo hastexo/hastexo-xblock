@@ -28,9 +28,9 @@
     "After you reset, you will need to retrace your steps up to this point.": "Nach dem Zur\u00fccksetzen m\u00fcssen alle Arbeitsschritte bis hierher wiederholt werden.",
     "Are you sure?": "Sicher?",
     "Attention!": "Achtung!",
-    "Click 'OK' to resume it.": "Mit Klick auf 'OK' kann sie wieder aktiviert werden.",
+    "Click 'OK' to return to your terminal in this window.": "Mit Klick auf 'OK' l\u00e4sst sich die \u00dcbungsumgebung wieder in diesem Fenster aktivieren.",
     "Could not connect to your lab environment. The client detected an unexpected error. The server's error message was:": "Kann keine Verbindung zur \u00dcbungsumgebung herstellen. Ein unerwarteter Fehler ist aufgetreten. Die Fehlermeldung des Servers lautet:",
-    "Could not connect to your lab environment:": "Kann keine Verbindung zur \u00dcbungsumgebung herstellen:",
+    "Could not connect to your lab environment:": "Keine Verbindung zur \u00dcbungsumgebung.",
     "Don't panic!  It may take a few minutes.": "Keine Panik! Es dauert ein paar Minuten.",
     "Hints": "Anmerkungen",
     "In a timed exam, the timer will continue to run while your environment is being reset.": "In einer zeitlich beschr\u00e4nkten Pr\u00fcfung l\u00e4uft die Zeit w\u00e4hrend des Zur\u00fccksetzens weiter.",
@@ -54,7 +54,8 @@
     "You've been inactive here for a while, so we paused your lab environment.": "Die \u00dcbungsumgebung wurde pausiert.",
     "You've reached the time limit allocated to you for using labs.": "Die Zeitbeschr\u00e4nkung f\u00fcr die Nutzung der \u00dcbungsumgebung wurde \u00fcberschritten.",
     "Your lab environment is undergoing automatic maintenance. Please try again in a few minutes.": "Ihr \u00dcbungsumgebung befindet sich im Wartungszustand. Sie steht in ein paar Minuten wieder zur Verf\u00fcgung.",
-    "Your lab environment is undergoing maintenance": "Ihre \u00dcbungsumgebung wird gerade gewartet"
+    "Your lab environment is undergoing maintenance": "Ihre \u00dcbungsumgebung wird gerade gewartet",
+    "Your lab is currently active in a separate window.": "Die \u00dcbungsumgebung l\u00e4uft derzeit in einem anderen Fenster."
   };
   for (const key in newcatalog) {
     django.catalog[key] = newcatalog[key];

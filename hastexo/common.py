@@ -162,6 +162,7 @@ DEFAULT_SETTINGS = {
     "terminal_font_name": "monospace",
     "terminal_font_size": "10",
     "instructions_layout": "above",
+    "enable_fullscreen": False,
     "launch_timeout": 900,
     "remote_exec_timeout": 300,
     "suspend_timeout": 120,

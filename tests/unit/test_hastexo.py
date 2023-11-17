@@ -1638,13 +1638,23 @@ class TestHastexoXBlock(TestCase):
     def test_get_text_js_return_path(self):
         with patch('django.utils.translation.get_language',
                    return_value='es-419'):
-            text_js = self.block._get_text_js_url()
-            self.assertEqual(
+            text_js = self.block.get_js_urls()['text_js_url']
+            self.assertIn(
                 'public/js/translations/es-419/text.js', text_js)
 
     def test_get_text_js_return_none(self):
         with patch('django.utils.translation.get_language',
                    return_value='ar'):
             # ar is not in our SUPPORTED_LANGUAGES list
-            text_js = self.block._get_text_js_url()
-            self.assertIsNone(text_js)
+            js_urls = self.block.get_js_urls()
+            self.assertNotIn('text_js_url', js_urls)
+
+    def test_launch_new_window(self):
+        self.init_block()
+
+        with patch('webob.Request') as request:
+            request.cookies = Mock()
+            request.cookies.get.return_value = 'fake_csrf_token'
+            response = self.block.launch_new_window(request)
+
+            self.assertEqual("200 OK", response.status)

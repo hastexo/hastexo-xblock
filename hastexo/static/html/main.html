@@ -7,6 +7,9 @@
   </div>
   <div class="buttons bar">
     <select class="port"></select>
+    {% if enable_fullscreen %}
+    <input type="button" value="Open in new window" class="launch"/>
+    {% endif %}
     <input type="button" value="Reset" class="reset" />
     <input type="button" value="Check progress" class="check" />
   </div>
@@ -60,7 +63,7 @@
     <div class="inner">
       <h1>{% trans "We think you're busy elsewhere." %}</h1>
       <p class="message">{% trans "You've been inactive here for a while, so we paused your lab environment." %}</p>
-      <p>{% trans "Click 'OK' to resume it." %}</p>
+      <p>{% trans "Click 'OK' to return to your terminal in this window." %}</p>
       <p class="buttons">
         <input type="button" class="ok" value="Ok" />
       </p>
