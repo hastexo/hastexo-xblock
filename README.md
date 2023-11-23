@@ -479,10 +479,11 @@ configured with the following attributes:
 * `stack_user_name`: The name of the user that the Xblock will use to connect
   to the environment, as specified in the orchestration template.
 
-* `protocol`: One of 'ssh', 'rdp', or 'vnc'.  This defines the protocol that
-  will be used to connect to the environment.  The default is 'ssh'.
-
 The following are optional:
+
+* `stack_protocol`: One of `ssh`, `rdp`, or `vnc`. This defines the
+  protocol that will be used to connect to the environment. The
+  default is `ssh`.
 
 * `stack_template_path`: The static asset path to the orchestration template,
   if not specified per provider below.
@@ -561,7 +562,7 @@ For example, in XML:
   <hastexo xmlns:option="http://code.edx.org/xblock/option"
     url_name="lab_introduction"
     stack_user_name="training"
-    protocol="rdp">
+    stack_protocol="rdp">
     <option:providers>
       - name: provider1
         capacity: 20
