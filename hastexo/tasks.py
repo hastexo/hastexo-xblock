@@ -255,12 +255,6 @@ class LaunchStackTask(HastexoTask):
         except LaunchStackFailed as e:
             logger.error(e.error_msg)
 
-            # In case of failure, only return the provider if this was a failed
-            # resume attempt.
-            provider_name = ""
-            if e.suspend:
-                provider_name = e.provider.name
-
             stack_data = {
                 'status': e.status,
                 'error_msg': textwrap.shorten(e.error_msg, width=256),
@@ -268,8 +262,14 @@ class LaunchStackTask(HastexoTask):
                 'user': "",
                 'key': "",
                 'password': "",
-                'provider': provider_name
+                'provider': ""
             }
+
+            # In case of a failed resume attempt, return the provider
+            # and keep the key in place so that the learner can retry.
+            if e.suspend:
+                stack_data['provider'] = e.provider.name
+                stack_data.pop('key')
 
             # Roll back in case of failure
             self.cleanup_stack(e)

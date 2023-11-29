@@ -544,6 +544,7 @@ class TestLaunchStackTask(HastexoTestCase):
         # Assertions
         self.assertEqual(stack.status, "RESUME_FAILED")
         self.assertEqual(stack.provider, self.providers[1]["name"])
+        self.assertEqual(self.stack_key, stack.key)
         provider.suspend_stack.assert_called()
 
     def test_undefined_capacity(self):
@@ -1058,6 +1059,10 @@ class TestLaunchStackTask(HastexoTestCase):
         # provider should still be unchanged.
         self.assertEqual(stack.provider, self.providers[1]["name"])
 
+        # When resume fails, we should still have the private key
+        # of the stack.
+        self.assertEqual(self.stack_key, stack.key)
+
     def test_resumed_stack_has_no_ip(self):
         # Setup
         provider = self.mock_providers[1]
@@ -1083,6 +1088,7 @@ class TestLaunchStackTask(HastexoTestCase):
         # Assertions
         self.assertEqual(stack.status, "RESUME_FAILED")
         self.assertEqual(stack.provider, self.providers[1]["name"])
+        self.assertEqual(self.stack_key, stack.key)
         provider.suspend_stack.assert_called()
 
     def test_timeout_resuming_stack(self):
@@ -1108,6 +1114,7 @@ class TestLaunchStackTask(HastexoTestCase):
         # Assertions
         self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
         self.assertEqual(stack.provider, self.providers[1]["name"])
+        self.assertEqual(self.stack_key, stack.key)
 
     def test_resume_hook_empty(self):
         # Setup
@@ -1280,6 +1287,7 @@ class TestLaunchStackTask(HastexoTestCase):
 
         # Assertions
         self.assertEqual(stack.status, "CREATE_FAILED")
+        self.assertEqual('', stack.key)
         provider.delete_stack.assert_called_with(
             self.stack_name, False
         )
@@ -1304,6 +1312,7 @@ class TestLaunchStackTask(HastexoTestCase):
 
         # Assertions
         self.assertEqual(stack.status, "CREATE_FAILED")
+        self.assertEqual('', stack.key)
         provider.delete_stack.assert_called_with(
             self.stack_name, False
         )

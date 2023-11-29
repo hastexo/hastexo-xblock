@@ -1,3 +1,9 @@
+Unreleased
+-------------------------
+* [Bug fix] Fix private key getting lost after a stack resume failure.
+  Make sure we keep the stack key in place when running cleanup on
+  a stack that failed to resume.
+
 Version 7.7.2 (2023-09-15)
 -------------------------
 * [Bug fix] Fix editing the `stack_key_type` field in Studio; include
