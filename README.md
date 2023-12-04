@@ -65,7 +65,7 @@ two steps:
    `OPENEDX_EXTRA_PIP_REQUIREMENTS` list in `config.yml`:
    ```
    OPENEDX_EXTRA_PIP_REQUIREMENTS:
-     - "hastexo-xblock==7.7.2"
+     - "hastexo-xblock==7.7.3"
    ```
    For additional information, please refer to the [official
    documentation](https://docs.tutor.overhang.io/configuration.html#installing-extra-xblocks-and-requirements).

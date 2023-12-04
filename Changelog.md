@@ -1,4 +1,4 @@
-Unreleased
+Version 7.7.3 (2023-12-04)
 -------------------------
 * [Bug fix] Fix private key getting lost after a stack resume failure.
   Make sure we keep the stack key in place when running cleanup on
