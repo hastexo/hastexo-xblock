@@ -1,4 +1,4 @@
-Unreleased
+Version 7.8.0 (2023-12-13)
 -------------------------
 * [Enhancement] Add an option to launch the lab in a new window.
 
