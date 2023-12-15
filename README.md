@@ -518,8 +518,8 @@ The following are optional:
   the lab environment in the background. Default is `False`.
 
 * `enable_fullscreen`: An option to allow learners to launch a lab in fullsceen mode,
-  in a separate browser window. Overrides the globally defined setting.
-  Default is `False`.
+  in a separate browser window. If used, overrides the globally defined setting.
+  Options are "true", "false" and "inherit". Default is "inherit" (to use global value).
 
 * `progress_check_label`: Set a label for the progress check button.
   For example: `Submit Answer` or `Check Progress` (Default).

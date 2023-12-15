@@ -1658,3 +1658,22 @@ class TestHastexoXBlock(TestCase):
             response = self.block.launch_new_window(request)
 
             self.assertEqual("200 OK", response.status)
+
+    def test_fullscreen_setting(self):
+        self.init_block()
+        settings = get_xblock_settings()
+        enable_fullscreen = self.block.get_enable_fullscreen(settings)
+
+        # by default the setting is to be inherited from global settings
+        self.assertEqual("inherit", self.block.enable_fullscreen)
+        self.assertEqual(settings.get("enable_fullscreen"), enable_fullscreen)
+
+        # If the XBlock attribute is used to enable/disable the feature
+        # the attribute value is used
+        self.block.enable_fullscreen = "true"
+        enable_fullscreen = self.block.get_enable_fullscreen(settings)
+        self.assertEqual(True, enable_fullscreen)
+
+        self.block.enable_fullscreen = "false"
+        enable_fullscreen = self.block.get_enable_fullscreen(settings)
+        self.assertEqual(False, enable_fullscreen)

@@ -1,3 +1,8 @@
+Unreleased
+-------------------------
+* [Bug fix] Fix `enable_fullscreen` setting overrides via the XBlock
+  attribute.
+
 Version 7.8.0 (2023-12-13)
 -------------------------
 * [Enhancement] Add an option to launch the lab in a new window.

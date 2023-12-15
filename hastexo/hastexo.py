@@ -162,10 +162,11 @@ class HastexoXBlock(XBlock,
              "not display hints and feedback. Default is \"Progress check "
              "result\"."
     )
-    enable_fullscreen = Boolean(
-        default=False,
+    enable_fullscreen = String(
+        values=["true", "false", "inherit"],
+        default="inherit",
         scope=Scope.settings,
-        help="Enable the learners to launch a lab in fulscreen mode on a "
+        help="Enable the learners to launch a lab in fullscreen mode on a "
              "separate browser window. Overrides the globally defined setting."
     )
 
@@ -549,6 +550,17 @@ class HastexoXBlock(XBlock,
             # delete_age value in settings is in days, convert to seconds
             return settings.get("delete_age", 14) * 86400
 
+    def get_enable_fullscreen(self, settings):
+        """
+        Return 'enable_fullscreen' mode value. XBlock attribute
+        overrides the global setting, if not set to inherit the global setting.
+        """
+        enable_fullscreen = settings.get("enable_fullscreen", False)
+        if self.enable_fullscreen != "inherit":
+            enable_fullscreen = bool(strtobool(self.enable_fullscreen))
+
+        return enable_fullscreen
+
     def get_suspend_timeout(self):
         """
         Return 'suspend_timeout' in seconds.
@@ -675,11 +687,7 @@ class HastexoXBlock(XBlock,
         self.stack_run = "%s_%s" % (course_id.course, course_id.run)
         self.stack_name = self.get_stack_name()
 
-        # Fullscreen mode: if the XBlock attribute does not match the global
-        # setting, allow it override the value per instance
-        enable_fullscreen = settings.get("enable_fullscreen")
-        if enable_fullscreen != self.enable_fullscreen:
-            enable_fullscreen = self.enable_fullscreen
+        enable_fullscreen = self.get_enable_fullscreen(settings)
 
         frag = Fragment()
 
