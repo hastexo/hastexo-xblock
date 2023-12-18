@@ -465,6 +465,8 @@ class HastexoXBlock(XBlock,
         node.set('hook_script', self.hook_script or '')
         node.set('delete_age', str(self.delete_age or ''))
         node.set('read_only', str(self.read_only))
+        node.set('hidden', str(self.hidden))
+        node.set('enable_fullscreen', self.enable_fullscreen)
 
         # Include nested blocks in course export
         if self.has_children:

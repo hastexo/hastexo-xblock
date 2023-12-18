@@ -1,5 +1,6 @@
 Unreleased
 -------------------------
+* [Bug fix] Include missing XBlock attributes in a course export.
 * [Bug fix] Fix `enable_fullscreen` setting overrides via the XBlock
   attribute.
 
