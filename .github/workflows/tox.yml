@@ -17,6 +17,7 @@ jobs:
         pip-version:
           - 22.0.4
           - 23.0.1
+          - 23.2.1
 
     steps:
     - name: Check out code
