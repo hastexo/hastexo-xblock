@@ -77,5 +77,5 @@ setup(
                                "migrations",
                                "translations",
                                "locale"]),
-    setup_requires=['setuptools-scm<6'],
+    setup_requires=['setuptools-scm'],
 )
