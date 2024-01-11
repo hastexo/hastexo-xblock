@@ -596,7 +596,7 @@ class HastexoXBlock(XBlock,
             self, 'public/js/plugins.js')
 
         # guacamole common library url
-        guac_js_version = settings.get("guacamole_js_version", "1.5.2")
+        guac_js_version = settings.get("guacamole_js_version", "1.5.4")
         guac_common_url = (
             self.runtime.local_resource_url(
                 self,

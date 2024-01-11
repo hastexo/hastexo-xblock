@@ -1,6 +1,8 @@
 Unreleased
 -------------------------
- * [Enhancement] Update requirements for Open edX Quince release.
+* [Enhancement] Add support for Apache Guacamole 1.5.4;
+  make it the new default version.
+* [Enhancement] Update requirements for Open edX Quince release.
 
 Version 7.8.1 (2023-12-18)
 -------------------------
