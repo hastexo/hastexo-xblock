@@ -1,3 +1,7 @@
+Unreleased
+-------------------------
+ * [Enhancement] Update requirements for Open edX Quince release.
+
 Version 7.8.1 (2023-12-18)
 -------------------------
 * [Bug fix] Include missing XBlock attributes in a course export.

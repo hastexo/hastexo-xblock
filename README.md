@@ -27,6 +27,7 @@ repository, you must select the appropriate one:
 | Nutmeg           | `>=14.0, <15` | `>=7.0`        | `master`      |
 | Olive            | `>=15.0, <16` | `>=7.5`        | `master`      |
 | Palm             | `>=16.0, <17` | `>=7.5`        | `master`      |
+| Quince           | `>=17.0, <18` | `>=7.9`        | `master`      |
 
 Instructions for deploying this XBlock with Tutor can be found
 below, in the [Deployment with Tutor](#deployment-with-tutor)
