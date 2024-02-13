@@ -1654,10 +1654,23 @@ class TestHastexoXBlock(TestCase):
 
         with patch('webob.Request') as request:
             request.cookies = Mock()
-            request.cookies.get.return_value = 'fake_csrf_token'
+            request.cookies = {
+                'sessionid': 'fake_sessionid',
+                'csrftoken': 'fake_csrf_token'}
             response = self.block.launch_new_window(request)
 
             self.assertEqual("200 OK", response.status)
+
+    def test_launch_new_window_unauthorized(self):
+        self.init_block()
+
+        with patch('webob.Request') as request:
+            request.cookies = Mock()
+            request.cookies = {'fake': 'cookie'}
+            response = self.block.launch_new_window(request)
+
+            self.assertEqual("401 Unauthorized", response.status)
+            self.assertEqual(b'Unauthorized', response.body)
 
     def test_fullscreen_setting(self):
         self.init_block()

@@ -658,6 +658,9 @@ class HastexoXBlock(XBlock,
         """
         The fullscreen lab view, opened in a new browser window.
         """
+        if 'sessionid' not in request.cookies:
+            return Response(status=401, body="Unauthorized")
+
         # Get context
         context = self.get_context()
 

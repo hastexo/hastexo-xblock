@@ -1,3 +1,8 @@
+Unreleased
+-------------------------
+* [Bug fix] Don't allow accessing a fullscreen lab directly from a URL,
+  when the user is unauthenticated. Return a 401 right away when attempted.
+
 Version 7.9.0 (2024-01-11)
 -------------------------
 * [Enhancement] Add support for Apache Guacamole 1.5.4;
