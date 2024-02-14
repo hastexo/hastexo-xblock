@@ -1,4 +1,4 @@
-Unreleased
+Version 7.9.1 (2024-02-14)
 -------------------------
 * [Bug fix] Don't allow accessing a fullscreen lab directly from a URL,
   when the user is unauthenticated. Return a 401 right away when attempted.
