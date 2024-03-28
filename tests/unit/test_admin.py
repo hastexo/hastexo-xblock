@@ -157,7 +157,7 @@ class TestHastexoStackAdmin(TestCase):
         stack.status = 'SUSPEND_COMPLETE'
         stack.save(update_fields=["status"])
         logs = StackLog.objects.filter(stack_id=self.stack.id)
-        self.assertEquals(logs.count(), 4)
+        self.assertEqual(logs.count(), 4)
 
         data = {
             'action': 'clear_stacklog', '_selected_action': [self.stack.id, ]}
@@ -166,4 +166,4 @@ class TestHastexoStackAdmin(TestCase):
         self.assertEqual(response.status_code, 200)
 
         logs = StackLog.objects.filter(stack_id=self.stack.id)
-        self.assertEquals(logs.count(), 0)
+        self.assertEqual(logs.count(), 0)

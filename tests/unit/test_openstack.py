@@ -102,7 +102,7 @@ class TestHeatWrapper(TestOpenStackWrapper):
                 wrapper,
                 get_keystone_auth=mock_get_keystone_auth):
             wrapper.get_client()
-        self.mocks["heat_client"].Client.called_with(
+        self.mocks["heat_client"].Client.assert_called_with(
             "1",
             auth_url=self.credentials['os_auth_url'],
             session="sess",
@@ -129,8 +129,8 @@ class TestNovaWrapper(TestOpenStackWrapper):
                 wrapper,
                 get_keystone_auth=mock_get_keystone_auth):
             wrapper.get_client()
-        self.mocks["nova_client"].Client.called_with(
-            "2.0",
+        self.mocks["nova_client"].Client.assert_called_with(
+            "2.2",
             self.credentials['os_username'],
             self.credentials['os_password'],
             project_id=self.credentials['os_project_id'],

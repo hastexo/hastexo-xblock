@@ -1,3 +1,7 @@
+Unreleased
+-------------------------
+* [Enhancement] Add support for Python 3.12.
+
 Version 7.9.1 (2024-02-14)
 -------------------------
 * [Bug fix] Don't allow accessing a fullscreen lab directly from a URL,

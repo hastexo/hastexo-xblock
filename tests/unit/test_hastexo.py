@@ -1,7 +1,6 @@
 import time
 import json
 import textwrap
-import pkg_resources
 import os
 
 from hastexo.models import Stack
@@ -50,13 +49,9 @@ class TestHastexoXBlockHTML(TestCase):
     """
 
     def test_static(self):
-        static_files = ['main.html']
+        static_files = ['main.html', 'lab.html']
         for static_file in static_files:
-            source = pkg_resources.resource_stream(
-                'hastexo',
-                os.path.join('static', 'html', static_file)
-            )
-            etree.parse(source,
+            etree.parse(os.path.join('hastexo', 'static', 'html', static_file),
                         etree.HTMLParser(recover=False))
 
 
