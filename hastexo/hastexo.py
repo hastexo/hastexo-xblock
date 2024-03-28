@@ -1,7 +1,6 @@
 import time
 import logging
 import os
-import pkg_resources
 import re
 import string
 import textwrap
@@ -621,7 +620,7 @@ class HastexoXBlock(XBlock,
         lang_code = translation.get_language()
         if lang_code and lang_code in SUPPORTED_LANGUAGES:
             text_js_url = f'public/js/translations/{lang_code}/text.js'
-            if pkg_resources.resource_exists(loader.module_name, text_js_url):
+            if os.path.exists(os.path.join('hastexo', text_js_url)):
                 js_urls["text_js_url"] = self.runtime.local_resource_url(
                     self, text_js_url)
         else:
