@@ -1,5 +1,6 @@
 Unreleased
 -------------------------
+* [Enhancement] Add better error handling for missing Provider configuration.
 * [Enhancement] Add support for Python 3.12.
 
 Version 7.9.1 (2024-02-14)

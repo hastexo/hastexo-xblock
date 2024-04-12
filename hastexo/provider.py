@@ -66,6 +66,9 @@ class Provider(object):
                 return OpenstackProvider(name, config, sleep_seconds)
             elif provider_type == "gcloud":
                 return GcloudProvider(name, config, sleep_seconds)
+        else:
+            raise ProviderException(
+                f"Configuration missing for provider: {name}")
 
     def __init__(self, name, config, sleep):
         self.name = name

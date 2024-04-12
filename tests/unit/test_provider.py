@@ -169,6 +169,12 @@ class TestOpenstackProvider(TestCase):
         self.assertNotEqual(provider.heat_c, None)
         self.assertNotEqual(provider.nova_c, None)
 
+    def test_init_missing_configuration(self):
+        self.settings["providers"].pop(self.provider_name)
+
+        with self.assertRaises(ProviderException):
+            Provider.init(self.provider_name)
+
     def test_generate_ssh_keys(self):
         provider = Provider.init(self.provider_name)
 
