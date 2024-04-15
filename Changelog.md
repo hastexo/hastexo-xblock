@@ -1,4 +1,4 @@
-Unreleased
+Version 7.10.0 (2024-04-15)
 -------------------------
 * [Enhancement] Add better error handling for missing Provider configuration.
 * [Enhancement] Add support for Python 3.12.
