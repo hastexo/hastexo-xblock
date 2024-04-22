@@ -1,3 +1,7 @@
+Unreleased
+-------------------------
+* [Bug fix] Stop installing the XBlock in editable mode with `-e .`
+
 Version 7.10.0 (2024-04-15)
 -------------------------
 * [Enhancement] Add better error handling for missing Provider configuration.
