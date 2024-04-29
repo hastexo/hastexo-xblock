@@ -1,3 +1,7 @@
+Unreleased
+-------------------------
+* [Enhancement] Update to a newer Paramiko version.
+
 Version 7.10.1 (2024-04-23)
 -------------------------
 * [Bug fix] Stop installing the XBlock in editable mode with `-e .`

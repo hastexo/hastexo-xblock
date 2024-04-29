@@ -58,7 +58,7 @@ setup(
     install_requires=[
         'apscheduler<3.8',
         'google-api-python-client<1.8',
-        'paramiko<2.11',
+        'paramiko',
         'python-heatclient<2',
         'python-keystoneclient<3.22',
         'python-novaclient<16',
