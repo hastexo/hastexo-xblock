@@ -20,7 +20,7 @@ tenacity>=6.2,<8
 django<=4.2.8
 channels<=4.0.0
 daphne<=4.0.0
-twisted<23.8.0 # drop this restriction once we drop Python 3.8 and 3.9 support
+twisted<24 # drop this restriction once we drop Python 3.8 and 3.9 support
 mysqlclient<=2.2.1  # keep in sync with edx-platform
 jsonfield>=3.1.0,<4   # keep in sync with edx-platform
 pyguacamole>=0.11

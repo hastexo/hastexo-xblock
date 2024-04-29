@@ -1,5 +1,6 @@
 Unreleased
 -------------------------
+* [Enhancement] Update to a newer Twisted version.
 * [Enhancement] Update to a newer Paramiko version.
 
 Version 7.10.1 (2024-04-23)
