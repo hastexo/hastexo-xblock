@@ -1,3 +1,7 @@
+Unreleasead
+-------------------------
+* [Enhancement] Add support for the Open edX Redwood release.
+
 Version 7.11.0 (2024-05-06)
 -------------------------
 * [Enhancement] Update to a newer Twisted version.
