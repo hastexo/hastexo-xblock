@@ -1,4 +1,4 @@
-Unreleased
+Version 7.12.0 (2024-08-06)
 -------------------------
 * [Enhancement] Add support for the Open edX Redwood release.
 
