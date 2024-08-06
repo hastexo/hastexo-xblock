@@ -28,7 +28,7 @@ repository, you must select the appropriate one:
 | Olive            | `>=15.0, <16` | `>=7.5`        | `master`      |
 | Palm             | `>=16.0, <17` | `>=7.5`        | `master`      |
 | Quince           | `>=17.0, <18` | `>=7.9`        | `master`      |
-| Redwood          | `>=18.0, <19` | `>=7.10`       | `master`      |
+| Redwood          | `>=18.0, <19` | `>=7.12`       | `master`      |
 
 Instructions for deploying this XBlock with Tutor can be found
 below, in the [Deployment with Tutor](#deployment-with-tutor)
