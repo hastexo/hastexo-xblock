@@ -22,7 +22,7 @@ jobs:
 
     steps:
     - name: Check out code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
@@ -48,7 +48,7 @@ jobs:
 
     steps:
     - name: Check out code
-      uses: actions/checkout@v1
+      uses: actions/checkout@v4
     - name: Download artifacts
       uses: actions/download-artifact@v4
     - name: Set up Python 3.8
