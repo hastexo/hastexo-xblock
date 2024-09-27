@@ -1,4 +1,4 @@
-Unreleased
+Version 7.13.0 (2024-09-27)
 -------------------------
 * [Enhancement] Enable `show_in_read_only_mode` XBlock attribute
   to allow instuctors to use this XBlock while masquerading
