@@ -55,6 +55,7 @@ setup(
     packages=[
         'hastexo',
     ],
+    python_requires='>=3.11',
     install_requires=[
         'apscheduler<3.8',
         'google-api-python-client<1.8',

@@ -1,3 +1,8 @@
+Unreleased
+-------------------------
+* Drop support for Python 3.8 and `XBlock<2` (and, as a consequence,
+  any Open edX releases prior to Redwood).
+
 Version 7.13.0 (2024-09-27)
 -------------------------
 * [Enhancement] Enable `show_in_read_only_mode` XBlock attribute
