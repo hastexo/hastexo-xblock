@@ -8,24 +8,14 @@ from webob import Response
 
 from xblock.core import XBlock, XML_NAMESPACES
 from xblock.fields import Scope, Float, String, Dict, List, Integer, Boolean
-try:  # XBlock 2+
-    from web_fragments.fragment import Fragment
-    from xblock.utils.resources import ResourceLoader
-    from xblock.utils.settings import XBlockWithSettingsMixin
-    from xblock.utils.studio_editable import (
-        NestedXBlockSpec,
-        StudioContainerWithNestedXBlocksMixin,
-        StudioEditableXBlockMixin
-    )
-except ImportError:  # Compatibility with XBlock<2
-    from xblock.fragment import Fragment
-    from xblockutils.resources import ResourceLoader
-    from xblockutils.settings import XBlockWithSettingsMixin
-    from xblockutils.studio_editable import (
-        NestedXBlockSpec,
-        StudioContainerWithNestedXBlocksMixin,
-        StudioEditableXBlockMixin,
-    )
+from web_fragments.fragment import Fragment
+from xblock.utils.resources import ResourceLoader
+from xblock.utils.settings import XBlockWithSettingsMixin
+from xblock.utils.studio_editable import (
+    NestedXBlockSpec,
+    StudioContainerWithNestedXBlocksMixin,
+    StudioEditableXBlockMixin
+)
 
 from xblock.scorable import ScorableXBlockMixin, Score
 
@@ -318,21 +308,13 @@ class HastexoXBlock(XBlock,
             block.providers.append(provider)
 
     @classmethod
-    def parse_xml(cls, node, runtime, keys, id_generator=None):
+    def parse_xml(cls, node, runtime, keys):
         """
         Use `node` to construct a new block.
         """
         block = runtime.construct_xblock_from_class(cls, keys)
 
-        # Prior to XBlock 2.0, id_generator is passed in.
-        # Since XBlock 2.0, we grab it from the runtime.
-        #
-        # TODO: Once we decide to drop support for versions prior to
-        # XBlock 2 (i.e. Open edX releases before Redwood), we can
-        # drop id_generator from the method signature, and always rely
-        # on runtime.id_generator.
-        if not id_generator:
-            id_generator = runtime.id_generator
+        id_generator = runtime.id_generator
 
         if 'filename' in node.attrib:
             # Read xml content from file.
@@ -374,15 +356,7 @@ class HastexoXBlock(XBlock,
                                 child.tag))
             # Import nested blocks
             for child in node:
-                # Prior to XBlock 2.0, id_generator needs to be passed here.
-                #
-                # TODO: Once we decide to drop support for versions prior to
-                # XBlock 2 (i.e. Open edX releases before Redwood), we can
-                # drop the try/except block and passing the id_generator here.
-                try:
-                    block.runtime.add_node_as_child(block, child)
-                except TypeError:
-                    block.runtime.add_node_as_child(block, child, id_generator)
+                block.runtime.add_node_as_child(block, child)
 
         else:
             for child in node:
@@ -400,18 +374,7 @@ class HastexoXBlock(XBlock,
                     cls.parse_attributes(child.tag, child, block)
                 else:
                     # Import nested blocks
-
-                    # Prior to XBlock 2.0, id_generator needs to be passed.
-                    #
-                    # TODO: Once we decide to drop support for versions prior
-                    # to XBlock 2 (i.e. Open edX releases before Redwood),
-                    # we can drop the try/except block here and stop passing
-                    # the id_generator.
-                    try:
-                        block.runtime.add_node_as_child(block, child)
-                    except TypeError:
-                        block.runtime.add_node_as_child(
-                            block, child, id_generator)
+                    block.runtime.add_node_as_child(block, child)
 
         # Attributes become fields.
         for name, value in list(node.items()):  # lxml has no iteritems
@@ -743,19 +706,7 @@ class HastexoXBlock(XBlock,
         for child_id in self.children:
             child = self.runtime.get_block(child_id)
             child_fragment = child.render("student_view", context)
-
-            # Prior to XBlock 2.0, Fragment is imported from XBlock
-            # and we the `add_frag_resources` method.
-            #
-            # TODO: Once we decide to drop support for versions prior
-            # to XBlock 2 (i.e. Open edX releases before Redwood),
-            # we can drop the try/except block here and use
-            # `add_fragment_resources` from `web_fragments.Fragment`
-            try:
-                frag.add_fragment_resources(child_fragment)
-            except AttributeError:
-                frag.add_frag_resources(child_fragment)
-
+            frag.add_fragment_resources(child_fragment)
             child_content += child_fragment.content
 
         # Render the main template

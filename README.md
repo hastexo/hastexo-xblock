@@ -24,11 +24,11 @@ repository, you must select the appropriate one:
 | Open edX release | Tutor version | XBlock version | XBlock branch |
 |------------------|---------------|----------------|---------------|
 | Maple            | `>=13.2, <14` | `>=6.0, <7.0`  | `stable-6.0`  |
-| Nutmeg           | `>=14.0, <15` | `>=7.0`        | `master`      |
-| Olive            | `>=15.0, <16` | `>=7.5`        | `master`      |
-| Palm             | `>=16.0, <17` | `>=7.5`        | `master`      |
-| Quince           | `>=17.0, <18` | `>=7.9`        | `master`      |
-| Redwood          | `>=18.0, <19` | `>=7.12`       | `master`      |
+| Nutmeg           | `>=14.0, <15` | `>=7.0, <8.0`  | `stable-7`    |
+| Olive            | `>=15.0, <16` | `>=7.5, <8.0`  | `stable-7`    |
+| Palm             | `>=16.0, <17` | `>=7.5, <8.0`  | `stable-7`    |
+| Quince           | `>=17.0, <18` | `>=7.9, <8.0`  | `stable-7`    |
+| Redwood          | `>=18.0, <19` | `>=8.0`        | `master`      |
 
 Instructions for deploying this XBlock with Tutor can be found
 below, in the [Deployment with Tutor](#deployment-with-tutor)
