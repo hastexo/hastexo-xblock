@@ -1,4 +1,4 @@
-Unreleased
+Version 8.0.0 (2024-10-16)
 -------------------------
 * Drop support for Python 3.8 and `XBlock<2` (and, as a consequence,
   any Open edX releases prior to Redwood).
