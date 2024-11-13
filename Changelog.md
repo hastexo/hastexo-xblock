@@ -1,4 +1,4 @@
-Unreleased
+Version 8.0.1 (2024-11-13)
 -------------------------
 * [Bug fix] Add more authentication checks when accessing a fullscreen
   lab directly from an URL. Return a 401 when user is not authenticated
