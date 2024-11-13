@@ -1,3 +1,9 @@
+Unreleased
+-------------------------
+* [Bug fix] Add more authentication checks when accessing a fullscreen
+  lab directly from an URL. Return a 401 when user is not authenticated
+  on the platform.
+
 Version 8.0.0 (2024-10-16)
 -------------------------
 * Drop support for Python 3.8 and `XBlock<2` (and, as a consequence,

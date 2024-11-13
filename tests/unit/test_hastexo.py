@@ -1661,6 +1661,7 @@ class TestHastexoXBlock(TestCase):
         with patch('webob.Request') as request:
             request.cookies = Mock()
             request.cookies = {
+                'edxloggedin': 'true',
                 'sessionid': 'fake_sessionid',
                 'csrftoken': 'fake_csrf_token'}
             response = self.block.launch_new_window(request)

@@ -663,7 +663,11 @@ class HastexoXBlock(XBlock,
         """
         The fullscreen lab view, opened in a new browser window.
         """
-        if 'sessionid' not in request.cookies:
+
+        # Properly authenticated requests contain two session cookies:
+        # sessionid and edxloggedin.
+        # If either of them isn't present, return HTTP 401 immediately.
+        if not all(c in request.cookies for c in ('sessionid', 'edxloggedin')):
             return Response(status=401, body="Unauthorized")
 
         # Get context
