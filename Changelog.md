@@ -1,4 +1,4 @@
-Unreleased
+Version 8.1.0 (2024-11-20)
 -------------------------
 * [Chore] Update requirements.
 
