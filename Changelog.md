@@ -1,3 +1,9 @@
+Unreleased
+-------------------------
+* [Enhancement] Add support for Apache Guacamole 1.5.5;
+  make it the new default version.
+* [Enhancement] Update requirements for Open edX Sumac release. 
+
 Version 8.1.0 (2024-11-20)
 -------------------------
 * [Chore] Update requirements.

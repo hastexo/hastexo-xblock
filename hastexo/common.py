@@ -183,7 +183,7 @@ DEFAULT_SETTINGS = {
         "check": 5000
     },
     "providers": {},
-    "guacamole_js_version": '1.5.4',
+    "guacamole_js_version": '1.5.5',
     "lab_usage_limit": None,
     "lab_usage_limit_breach_policy": None
 }
