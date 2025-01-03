@@ -1,4 +1,4 @@
-Unreleased
+Version 8.2.0 (2025-01-03)
 -------------------------
 * [Enhancement] Add support for Apache Guacamole 1.5.5;
   make it the new default version.
