@@ -198,6 +198,15 @@ This is a brief explanation of each:
 * `enable_fullscreen`: An option to allow learners to launch a lab in fullsceen mode,
   in a separate browser window. (Default: `false`)
 
+* `lab_resize_method`: A [display setting](https://guacamole.apache.org/doc/1.5.5/gug/configuring-guacamole.html#rdp-display-settings) for RDP connections to update the RDP server
+  when the width and height of the client display changes. Possible values are:
+
+  * `display-update` *Only supported with Windows RDP 8.1 or xrdp 0.10.1 (and higher)*. 
+    Uses the "Display Update" channel to request the server to change the display size.
+
+  * `reconnect` (the default) Automatically disconnects the RDP session when the client 
+    display size has changed, and reconnects with the new size.
+
 * `lab_usage_limit`: Allocate limited time per user for labs across the platform,
   in seconds. (Default is `None`, meaning there is no time limit).
 

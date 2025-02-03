@@ -240,6 +240,10 @@ function HastexoGuacamoleClient(configuration) {
 
         onidle(pause) {
             return pause;
+        },
+
+        sendSize(height, width) {
+            guac_client.sendSize(height, width);
         }
     }
 

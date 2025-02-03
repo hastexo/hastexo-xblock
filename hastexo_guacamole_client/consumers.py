@@ -38,6 +38,7 @@ class GuacamoleWebSocketConsumer(AsyncWebsocketConsumer):
             protocol=stack.protocol,
             width=params.get('width', [1024])[0],
             height=params.get('height', [768])[0],
+            resize_method=settings.get("lab_resize_method"),
             hostname=stack.ip,
             port=params.get('port', [default_port])[0],
             username=stack.user,

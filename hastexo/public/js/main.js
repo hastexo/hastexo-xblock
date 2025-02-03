@@ -90,6 +90,15 @@ function HastexoXBlock(runtime, element, configuration) {
         /* Show the terminal.  */
         $("#terminal").append(terminal_element);
 
+        // Observe the lab size in the browser and adjust when necessary
+        var lab = $('#terminal')[0];
+        const resizeObserver = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                terminal_client.sendSize(entry.contentRect.width, entry.contentRect.height);
+            }
+        });
+        resizeObserver.observe(lab);
+
         /* Disconnect on tab close. */
         window.onunload = function() {
             terminal_client.disconnect();
