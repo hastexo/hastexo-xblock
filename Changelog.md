@@ -1,4 +1,4 @@
-Unreleased
+Version 8.3.0 (2025-02-07)
 -------------------------
 * [Enhancement] Add the possibility to dynamically resize the lab on the 
   LMS page. For RDP connections, implement the options provided by 
