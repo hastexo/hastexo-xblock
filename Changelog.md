@@ -1,3 +1,11 @@
+Unreleased
+-------------------------
+* [Enhancement] Make sure that all the package data files and correct
+  versions of requirements are installed with the XBlock. When deploying
+  with Tutor, the requirements from `requirements.txt` are not installed
+  when building the `openedx` image. Expand the `install_requires` list
+  in `setup.py` to match the necessary versions from `requirements.txt`.
+
 Version 8.3.0 (2025-02-07)
 -------------------------
 * [Enhancement] Add the possibility to dynamically resize the lab on the 
