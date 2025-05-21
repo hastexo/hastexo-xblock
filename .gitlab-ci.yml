@@ -1,44 +1,22 @@
 image: python
 
-py38:
-  image: python:3.8
-  stage: build
-  script:
-    - pip install tox
-    - tox -e flake8,pipdeptree,pipdeptree-requirements,py38-xblock15,py38-xblock16,py38-xblock17
-  artifacts:
-    paths:
-      - .coverage*
-    expire_in: 5 minutes
-
-py39:
-  image: python:3.9
-  stage: build
-  script:
-    - pip install tox
-    - tox -e flake8,pipdeptree,pipdeptree-requirements,py39-xblock15,py39-xblock16,py39-xblock17
-  artifacts:
-    paths:
-      - .coverage*
-    expire_in: 5 minutes
-
-py310:
-  image: python:3.10
-  stage: build
-  script:
-    - pip install tox
-    - tox -e flake8,pipdeptree,pipdeptree-requirements,py310-xblock15,py310-xblock16,py310-xblock17
-  artifacts:
-    paths:
-      - .coverage*
-    expire_in: 5 minutes
-
 py311:
   image: python:3.11
   stage: build
   script:
     - pip install tox
-    - tox -e flake8,pipdeptree,pipdeptree-requirements,py311-xblock15,py311-xblock16,py311-xblock17
+    - tox -e py311-flake8,py311-pipdeptree,py311-pipdeptree-requirements,py311-xblock40-celery5
+  artifacts:
+    paths:
+      - .coverage*
+    expire_in: 5 minutes
+
+py312:
+  image: python:3.12
+  stage: build
+  script:
+    - pip install tox
+    - tox -e py312-flake8,py312-pipdeptree,py312-pipdeptree-requirements,py312-xblock40-celery5
   artifacts:
     paths:
       - .coverage*
