@@ -29,6 +29,7 @@ repository, you must select the appropriate one:
 | Palm             | `>=16.0, <17` | `>=7.5, <8.0`  | `stable-7`    |
 | Quince           | `>=17.0, <18` | `>=7.9, <8.0`  | `stable-7`    |
 | Redwood          | `>=18.0, <19` | `>=8.0`        | `master`      |
+| Sumac            | `>=19.0, <20` | `>=8.4`        | `master`      |
 
 Instructions for deploying this XBlock with Tutor can be found
 below, in the [Deployment with Tutor](#deployment-with-tutor)
