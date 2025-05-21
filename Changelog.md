@@ -1,4 +1,4 @@
-Unreleased
+Version 8.4.0 (2025-05-21)
 -------------------------
 * [Enhancement] Make sure that all the package data files and correct
   versions of requirements are installed with the XBlock. When deploying
