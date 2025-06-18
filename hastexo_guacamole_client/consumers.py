@@ -29,7 +29,11 @@ class GuacamoleWebSocketConsumer(AsyncWebsocketConsumer):
         stack_name = params.get('stack')[0]
 
         stack = await database_sync_to_async(self.get_stack)(stack_name)
-        default_port = 3389 if stack.protocol == 'rdp' else 22
+        default_port = 22
+        if stack.protocol == 'rdp':
+            default_port = 3389
+        elif stack.protocol == 'vnc':
+            default_port = 5900
 
         self.read_only = bool(strtobool(params.get('read_only')[0]))
 
