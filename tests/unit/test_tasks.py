@@ -1423,6 +1423,34 @@ class TestLaunchStackTask(HastexoTestCase):
             (self.STACK_IP, 3389), self.settings['sleep_timeout'])
         self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
 
+    def test_dont_wait_forever_for_vnc(self):
+        # Setup
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["CREATE_COMPLETE"]
+        ]
+        s = self.get_socket_mock()
+        s.create_connection.side_effect = [
+            socket.timeout,
+            socket.timeout,
+            socket.timeout,
+            SoftTimeLimitExceeded
+        ]
+        self.update_stack({"provider": self.providers[0]["name"]})
+        self.protocol = "vnc"
+        self.update_stack({"protocol": self.protocol})
+
+        # Run
+        LaunchStackTask.run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        s.create_connection.assert_called_with(
+            (self.STACK_IP, 5900), self.settings['sleep_timeout'])
+        self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
+
     def test_dont_wait_forever_for_rdp_on_custom_port(self):
         # Setup
         provider = self.mock_providers[0]
@@ -1438,6 +1466,38 @@ class TestLaunchStackTask(HastexoTestCase):
         ]
         self.protocol = "rdp"
         self.port = 3390
+        self.update_stack({
+            "provider": self.providers[0]["name"],
+            "protocol": self.protocol,
+            "port": self.port,
+        })
+
+        # Run
+        LaunchStackTask.run(**self.kwargs)
+
+        # Fetch stack
+        stack = self.get_stack()
+
+        # Assertions
+        s.create_connection.assert_called_with(
+            (self.STACK_IP, self.port), self.settings['sleep_timeout'])
+        self.assertEqual(stack.status, "LAUNCH_TIMEOUT")
+
+    def test_dont_wait_forever_for_vnc_on_custom_port(self):
+        # Setup
+        provider = self.mock_providers[0]
+        provider.get_stack.side_effect = [
+            self.stacks["CREATE_COMPLETE"]
+        ]
+        s = self.get_socket_mock()
+        s.create_connection.side_effect = [
+            socket.timeout,
+            socket.timeout,
+            socket.timeout,
+            SoftTimeLimitExceeded
+        ]
+        self.protocol = "vnc"
+        self.port = 5901
         self.update_stack({
             "provider": self.providers[0]["name"],
             "protocol": self.protocol,

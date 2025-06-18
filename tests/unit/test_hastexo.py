@@ -147,7 +147,7 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
     <hastexo xmlns:option="http://code.edx.org/xblock/option"
       stack_template_path='hot_lab.yaml'
       stack_user_name='training'
-      stack_protocol='rdp'
+      stack_protocol='vnc'
       launch_timeout='900'>
       <option:providers>
         - name: provider1
@@ -164,9 +164,8 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
       </option:providers>
       <option:ports>
         - name: server1
-          number: 3389
         - name: server2
-          number: 3390
+          number: 5901
       </option:ports>
       <option:tests>
         - |
@@ -182,7 +181,7 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
         self.assertIsInstance(block, HastexoXBlock)
         self.assertEqual(block.stack_template_path, "hot_lab.yaml")
         self.assertEqual(block.stack_user_name, "training")
-        self.assertEqual(block.stack_protocol, "rdp")
+        self.assertEqual(block.stack_protocol, "vnc")
         self.assertEqual(block.launch_timeout, 900)
         self.assertEqual(len(block.providers), 3)
         self.assertEqual(block.providers[0]["name"], "provider1")
@@ -190,7 +189,7 @@ class TestHastexoXBlockParsing(XmlTest, TestCase):
         self.assertEqual(block.providers[1]["capacity"], 30)
         self.assertEqual(block.providers[2]["environment"], "hot_env3.yaml")
         self.assertEqual(len(block.ports), 2)
-        self.assertEqual(block.ports[0]["number"], 3389)
+        self.assertEqual(block.ports[1]["number"], 5901)
         self.assertEqual(block.ports[1]["name"], "server2")
         self.assertEqual(len(block.tests), 2)
         self.assertEqual(block.tests[0], "Multi-line\ntest 1\n")
