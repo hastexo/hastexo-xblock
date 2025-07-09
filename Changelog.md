@@ -1,3 +1,7 @@
+Unreleased
+-------------------------
+* [Enhancement] Update requirements for Open edX Teak release. 
+
 Version 8.4.0 (2025-05-21)
 -------------------------
 * [Enhancement] Make sure that all the package data files and correct
