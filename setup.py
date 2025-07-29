@@ -32,7 +32,7 @@ def package_data(pkg, roots):
 
 setup(
     name='hastexo-xblock',
-    use_scm_version=True,
+    version='8.4.0',
     description='hastexo XBlock: '
                 'Makes arbitrarily complex lab environments '
                 'available on an Open edX LMS',
@@ -88,5 +88,4 @@ setup(
                                "migrations",
                                "translations",
                                "locale"]),
-    setup_requires=['setuptools-scm'],
 )
