@@ -1,4 +1,4 @@
-Unreleased
+Version 8.5.0 (2025-07-30)
 -------------------------
 * [Enhancement] Update requirements for Open edX Teak release. 
 
