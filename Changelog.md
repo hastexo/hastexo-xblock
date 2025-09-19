@@ -1,4 +1,4 @@
-Unreleased
+Version 8.5.1 (2025-09-19)
 -------------------------
 * [Bug fix] Add upper contraint to `oslo.i18n` dependency to avoid
   pulling in a newer, incompatible version.
