@@ -5,6 +5,9 @@ Version 8.5.1 (2025-09-19)
 
 Version 8.5.0 (2025-07-30)
 -------------------------
+* [Chore] Switch to manual versioning in `setup.py` instead using
+  `setuptools_scm` and bump it automatically via `bumpversion` whenever
+  we tag a new release.
 * [Enhancement] Update requirements for Open edX Teak release. 
 
 Version 8.4.0 (2025-05-21)
