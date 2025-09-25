@@ -570,11 +570,7 @@ class LaunchStackTask(HastexoTask):
 
         return ssh
 
-    def wait_for_rdp(self, stack_ip):
-        port = getattr(self, 'port', None)
-        if not port:
-            port = 3389
-
+    def wait_for_desktop(self, stack_ip, port):
         connected = False
         conn = None
         while not connected:
@@ -590,6 +586,18 @@ class LaunchStackTask(HastexoTask):
             finally:
                 if conn:
                     conn.close()
+
+    def wait_for_rdp(self, stack_ip):
+        port = getattr(self, 'port', None)
+        if not port:
+            port = 3389
+        self.wait_for_desktop(stack_ip, port)
+
+    def wait_for_vnc(self, stack_ip):
+        port = getattr(self, 'port', None)
+        if not port:
+            port = 5900
+        self.wait_for_desktop(stack_ip, port)
 
     def check_stack(self, provider_stack, was_resumed, provider):
         """
@@ -656,12 +664,18 @@ class LaunchStackTask(HastexoTask):
         finally:
             ssh.close()
 
-        # If the protocol is RDP, wait for xrdp to come up.
+        # If the protocol is RDP or VNC, wait for desktop environment
+        # to come up.
         protocol = getattr(self, 'protocol', None)
-        if protocol and protocol == "rdp":
-            logger.info("Checking RDP connection "
-                        "for stack [%s] at [%s]" % (self.stack_name, stack_ip))
-            self.wait_for_rdp(stack_ip)
+        if protocol:
+            if protocol == "rdp":
+                logger.info("Checking RDP connection for stack [%s] at [%s]",
+                            self.stack_name, stack_ip)
+                self.wait_for_rdp(stack_ip)
+            elif protocol == "vnc":
+                logger.info("Checking VNC connection for stack [%s] at [%s]",
+                            self.stack_name, stack_ip)
+                self.wait_for_vnc(stack_ip)
 
         check_data = {
             "ip": stack_ip,
