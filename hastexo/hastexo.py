@@ -516,15 +516,10 @@ class HastexoXBlock(XBlock,
         ] + additional_blocks
 
     def is_correct(self):
-        if not (self.check_status and isinstance(self.check_status, dict)):
-            return False
-        else:
-            total = self.check_status.get('total')
-            if not total:
-                return False
-            else:
-                score = self.check_status.get('pass')
-                return score == total
+        if self.score:
+            return self.score['raw_earned'] == self.score['raw_possible']
+
+        return False
 
     def get_block_ids(self):
         try:

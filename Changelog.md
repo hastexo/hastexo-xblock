@@ -1,3 +1,11 @@
+Unreleased
+-------------------------
+* [Bug fix]
+  Use the `score` value to define correctness for this XBlock instead of
+  the progress check result. This will allow to properly evaluate the
+  correctness of the XBlock when an instructor overrides a score for 
+  a learner.
+
 Version 8.5.1 (2025-09-19)
 -------------------------
 * [Bug fix] Add upper contraint to `oslo.i18n` dependency to avoid

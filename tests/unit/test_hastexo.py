@@ -968,6 +968,17 @@ class TestHastexoXBlock(TestCase):
             raw_possible=new_score['raw_possible']
         ))
         self.assertEqual(self.block.score, new_score)
+        self.assertFalse(self.block.is_correct())
+
+    def test_is_correct(self):
+        self.init_block()
+        self.assertFalse(self.block.is_correct())
+
+        self.block.set_score(Score(
+            raw_earned=1.0,
+            raw_possible=1.0
+        ))
+        self.assertTrue(self.block.is_correct())
 
     def test_max_score(self):
         self.init_block()
