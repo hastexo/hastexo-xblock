@@ -1,4 +1,4 @@
-Unreleased
+Version 8.5.2 (2025-11-07)
 -------------------------
 * [Bug fix]
   Use the `score` value to define correctness for this XBlock instead of
