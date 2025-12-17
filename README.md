@@ -1,5 +1,5 @@
 [![PyPI version](https://badge.fury.io/py/hastexo-xblock.svg)](https://pypi.python.org/pypi/hastexo-xblock)
-[![Build Status](https://github.com/hastexo/hastexo-xblock/workflows/Python%20package/badge.svg)](https://github.com/hastexo/hastexo-xblock/actions?query=workflow%3A%22Python+package%22) [![codecov](https://codecov.io/gh/hastexo/hastexo-xblock/branch/master/graph/badge.svg)](https://codecov.io/gh/hastexo/hastexo-xblock)
+[![Build Status](https://github.com/cleura/hastexo-xblock/workflows/Python%20package/badge.svg)](https://github.com/cleura/hastexo-xblock/actions?query=workflow%3A%22Python+package%22) [![codecov](https://codecov.io/gh/cleura/hastexo-xblock/branch/master/graph/badge.svg)](https://codecov.io/gh/cleura/hastexo-xblock)
 
 # hastexo XBlock
 
@@ -13,6 +13,8 @@ It leverages [Apache Guacamole](https://guacamole.incubator.apache.org/) as a
 browser-based connection mechanism, which includes the ability to connect to
 graphical user environments (via VNC and RDP), in addition to terminals (via
 SSH).
+
+This repository was previously hosted under the `hastexo` GitHub organization, and moved to `cleura` in December 2025 as part of a routine repository consolidation.
 
 ## Version compatibility matrix
 
@@ -77,7 +79,7 @@ two steps:
 
 2. Install and enable the `tutor-contrib-hastexo` plugin:
    ```
-   pip install git+https://github.com/hastexo/tutor-contrib-hastexo
+   pip install git+https://github.com/cleura/tutor-contrib-hastexo
    tutor plugins enable hastexo
    ```
    Add the necessary configurations to your Tutor `config.yml`. Unless
@@ -149,7 +151,7 @@ two steps:
    ```
    For more information about the plugin configuration, please refer
    to [the plugin
-   README](https://github.com/hastexo/tutor-contrib-hastexo).
+   README](https://github.com/cleura/tutor-contrib-hastexo).
 
 4. After you have deployed Open edX with Tutor, your platform is
    operational, and you have created a course in Open edX Studio, go

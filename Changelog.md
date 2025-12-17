@@ -1,3 +1,8 @@
+Unreleased
+-------------------------
+
+* Point release to mark the GitHub repository move.
+
 Version 8.5.2 (2025-11-07)
 -------------------------
 * [Bug fix]
